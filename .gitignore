@@ -40,3 +40,6 @@ vignettes/*.pdf
 
 # Folders containing large files
 **/large
+
+# Data folder
+data/
