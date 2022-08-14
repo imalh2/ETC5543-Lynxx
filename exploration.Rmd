@@ -16,20 +16,69 @@ library(here)
 library(lubridate)
 ```
 
+# GTFSr
+
 ```{r}
 # GTFSr Data
 updates_raw <- read_csv(here("data/GTFSr/large/gtfsr_prod.trip_updates.SAMPLE.csv.csv"))
 positions_raw <- read_csv(here("data/GTFSr/large/gtfsr_prod.vehicle_positions.SAMPLE.csv.csv"))
 ```
 
+## Data Wrangling
+
 ```{r}
-# Data cleaning
+# Adjust column formats
 updates <- updates_raw %>% 
-  mutate(direction_id = as.factor(direction_id),
-         start_date = ymd(start_date))
+  mutate(direction_id = factor(direction_id, levels = c(1, 0)),
+         start_date = ymd(start_date),
+         label = as.character(label),
+         wheelchair_accessible = factor(wheelchair_accessible, levels = c(1, 0)),
+         timestamp = as_datetime(timestamp),
+         id = as.character(id),
+         stop_id = as.character(stop_id),
+         arrival_time = as_datetime(arrival_time)) %>% 
+  rename(trip_id = id,
+         vehicle_id = label) %>% 
+  relocate(trip_id, .before = everything()) %>% 
+  arrange(start_date, )
+
+positions <- positions_raw %>% 
+  mutate(trip_id = as.character(trip_id),
+         start_date = ymd(start_date),
+         direction_id = factor(direction_id, levels = c(1, 0)),
+         vehicle_id = as.character(vehicle_id),
+         wheelchair_accessible = factor(wheelchair_accessible, levels = c(1, 0)))
 ```
 
+```{r}
+# Updates Understanding the data
+## trip_id can occur in different dates using different vehicles, might be unique for each start_time
+updates %>%
+  group_by(trip_id) %>% 
+  summarise(
+    routes = n_distinct(route_id),
+    directions = n_distinct(direction_id),
+    dates = n_distinct(start_date),
+    vehicles = n_distinct(vehicle_id),
+    all = n_distinct(route_id, direction_id, start_date, vehicle_id)) %>% 
+  arrange(-all)
 
+## Multiple trip_id can occur using the same combination of variables in group_by,
+## need start_time
+updates %>% 
+  group_by(route_id, direction_id, start_date, vehicle_id) %>% 
+  summarise(trips = n_distinct(trip_id)) %>% 
+  arrange(-trips)
+```
+
+```{r}
+# Positions Understanding the data
+## Each id is composed of trip_id + vehicle_id
+positions %>% 
+  group_by(id) %>% 
+  summarise(n = n_distinct(trip_id, vehicle_id)) %>% 
+  arrange(-n)
+```
 
 
 
