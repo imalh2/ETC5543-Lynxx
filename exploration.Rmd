@@ -1,0 +1,70 @@
+---
+title: "Exploration"
+author: "Ibrahim Al-Hindi"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Libraries
+library(tidyverse)
+library(here)
+library(lubridate)
+```
+
+```{r}
+# GTFSr Data
+updates_raw <- read_csv(here("data/GTFSr/large/gtfsr_prod.trip_updates.SAMPLE.csv.csv"))
+positions_raw <- read_csv(here("data/GTFSr/large/gtfsr_prod.vehicle_positions.SAMPLE.csv.csv"))
+```
+
+```{r}
+# Data cleaning
+updates <- updates_raw %>% 
+  mutate(direction_id = as.factor(direction_id),
+         start_date = ymd(start_date))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
