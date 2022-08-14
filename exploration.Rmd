@@ -39,8 +39,7 @@ updates <- updates_raw %>%
          arrival_time = as_datetime(arrival_time)) %>% 
   rename(trip_id = id,
          vehicle_id = label) %>% 
-  relocate(trip_id, .before = everything()) %>% 
-  arrange(start_date, )
+  relocate(trip_id, .before = everything())
 
 positions <- positions_raw %>% 
   mutate(trip_id = as.character(trip_id),
@@ -81,6 +80,14 @@ positions %>%
 ```
 
 
+```{r}
+# Delays per stop
+delays <- updates %>% 
+  group_by(stop_id) %>% 
+  summarise(avg_delay = mean(delay)) %>% 
+  mutate(delay_mins = avg_delay/60) %>% 
+  arrange(-avg_delay)
+```
 
 
 
