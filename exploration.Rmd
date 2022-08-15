@@ -36,7 +36,10 @@ updates <- updates_raw %>%
          timestamp = as_datetime(timestamp),
          id = as.character(id),
          stop_id = as.character(stop_id),
-         arrival_time = as_datetime(arrival_time)) %>% 
+         arrival_time = as_datetime(arrival_time),
+         date = date(timestamp),
+         wday = wday(timestamp, label = TRUE, abbr = TRUE, week_start = 1),
+         hour = hour(timestamp)) %>% 
   rename(trip_id = id,
          vehicle_id = label) %>% 
   relocate(trip_id, .before = everything())
@@ -47,6 +50,9 @@ positions <- positions_raw %>%
          direction_id = factor(direction_id, levels = c(1, 0)),
          vehicle_id = as.character(vehicle_id),
          wheelchair_accessible = factor(wheelchair_accessible, levels = c(1, 0)))
+
+# Remove original files
+rm(updates_raw, positions_raw)
 ```
 
 ```{r}
@@ -90,8 +96,17 @@ delays <- updates %>%
 ```
 
 
+```{r}
+updates %>% 
+  group_by(date, wday) %>% 
+  summarise(avg_delay = mean(delay)) %>% 
+  ggplot(aes(x = date, y = avg_delay)) +
+  geom_line(size = 2, alpha = 0.2) +
+  geom_line(aes(color = wday)) +
+  scale_color_brewer(type = "qual")
+```
 
-
+Average delays have an increasing trend in January, and are actually mostly early. The trend is likely due to new years holidays and vacation days. Saturdays had the highest delays by far.
 
 
 
