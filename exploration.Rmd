@@ -104,9 +104,15 @@ updates %>%
   geom_line(size = 2, alpha = 0.2) +
   geom_line(aes(color = wday)) +
   scale_color_brewer(type = "qual")
+
+updates %>% 
+  group_by(wday) %>% 
+  summarise(avg_delay = mean(delay)) %>% 
+  ggplot(aes(x = wday, y = avg_delay)) +
+  geom_col()
 ```
 
-Average delays have an increasing trend in January, and are actually mostly early. The trend is likely due to new years holidays and vacation days. Saturdays had the highest delays by far.
+Average delays have an increasing trend in January, and are actually mostly early. The trend is likely due to new years holidays and vacation days. Saturdays had the highest delays by far. The rest of the days are similar
 
 
 
