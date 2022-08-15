@@ -14,6 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(here)
 library(lubridate)
+library(plotly)
 ```
 
 # GTFSr
@@ -29,6 +30,9 @@ positions_raw <- read_csv(here("data/GTFSr/large/gtfsr_prod.vehicle_positions.SA
 ```{r}
 # Adjust column formats
 updates <- updates_raw %>% 
+  group_by(across(c(-timestamp, -delay, -arrival_time))) %>% 
+  filter(timestamp == max(timestamp)) %>% 
+  ungroup() %>% 
   mutate(direction_id = factor(direction_id, levels = c(1, 0)),
          start_date = ymd(start_date),
          label = as.character(label),
@@ -39,10 +43,10 @@ updates <- updates_raw %>%
          arrival_time = as_datetime(arrival_time),
          date = date(timestamp),
          wday = wday(timestamp, label = TRUE, abbr = TRUE, week_start = 1),
-         hour = hour(timestamp)) %>% 
+         hour = hour(timestamp),
+         time_stamp_floor = floor_date(timestamp, unit = "hour")) %>% 
   rename(trip_id = id,
-         vehicle_id = label) %>% 
-  relocate(trip_id, .before = everything())
+         vehicle_id = label)
 
 positions <- positions_raw %>% 
   mutate(trip_id = as.character(trip_id),
@@ -88,15 +92,71 @@ positions %>%
 
 ```{r}
 # Delays per stop
-delays <- updates %>% 
+stops_delays <- updates %>% 
   group_by(stop_id) %>% 
   summarise(avg_delay = mean(delay)) %>% 
   mutate(delay_mins = avg_delay/60) %>% 
   arrange(-avg_delay)
+
+top10_delays <- stops_delays %>% 
+  slice_head(n = 10)
+
+stops_hours_delays <- updates %>% 
+  group_by(stop_id, hour) %>% 
+  summarise(avg_delay = mean(delay)) %>% 
+  mutate(delay_mins = avg_delay/60) %>% 
+  arrange(-avg_delay)
+
+shd_over1hr <- stops_hours_delays %>% 
+  filter(delay_mins >= 60) %>% 
+  # 1pm has the most delays
+  filter(hour == 13)
+
+# Extract trips that have the stops above at 1pm
+updates %>% 
+  semi_join(shd_over1hr)
+# The culprit is one trip on 6/1/2022. Ignore
+# This method is not good, try switching back to delays per stop
+
+# Filter updates to contain the top10 stops above
+updates %>% 
+  semi_join(top10_delays) %>% 
+  count(stop_id)
+  ggplot(aes(x = timestamp, y = delay, color = stop_id)) +
+  geom_line()
+  #scale_color_manual(values = c("#a6cee3", "#1f78b4", "#b2df8a", "#33a02c", "#fb9a99", "#e31a1c", "#fdbf6f", "#ff7f00", "#cab2d6","#6a3d9a"))
+
+ggplotly()
+
+# Pick one of the stop to investigate
+stop_107 <- updates %>% 
+  filter(stop_id == 107)
+```
+
+The same trip on the same date for the same stop can have multiple delay updates,
+therefore filter updates to the most recent timestamp. This will be done in the
+data cleaning chunk above.
+
+```{r}
+test <- updates %>% 
+  group_by(across(c(-timestamp, -delay, -arrival_time))) %>% 
+  filter()
+
+test <- stop_107 %>% 
+  group_by(across(c(-timestamp, -delay, -arrival_time, ))) %>% 
+  filter(timestamp == max(timestamp)) %>% 
+  ungroup()
+
+  group_by(trip_id, route_id, direction_id, start_date, vehicle_id, wheelchair_accessible,
+           stop_sequence, )
+group_by()
+
+test
 ```
 
 
 ```{r}
+# delay per date and weekday
 updates %>% 
   group_by(date, wday) %>% 
   summarise(avg_delay = mean(delay)) %>% 
@@ -105,16 +165,26 @@ updates %>%
   geom_line(aes(color = wday)) +
   scale_color_brewer(type = "qual")
 
+# delay per weekday
 updates %>% 
   group_by(wday) %>% 
   summarise(avg_delay = mean(delay)) %>% 
   ggplot(aes(x = wday, y = avg_delay)) +
   geom_col()
+
+updates %>%
+  group_by(start_date) %>% 
+  summarise(avg_delay = mean(delay)) %>% 
+  ggplot(aes(x = start_date, y = avg_delay)) +
+  geom_line()
 ```
 
 Average delays have an increasing trend in January, and are actually mostly early. The trend is likely due to new years holidays and vacation days. Saturdays had the highest delays by far. The rest of the days are similar
 
 
+```{r}
+
+```
 
 
 
