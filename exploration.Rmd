@@ -59,6 +59,10 @@ positions <- positions_raw %>%
 rm(updates_raw, positions_raw)
 ```
 
+## Exploration
+
+### Updates
+
 ```{r}
 # Updates Understanding the data
 ## trip_id can occur in different dates using different vehicles, might be unique for each start_time
@@ -81,26 +85,40 @@ updates %>%
 ```
 
 ```{r}
-# Positions Understanding the data
-## Each id is composed of trip_id + vehicle_id
-positions %>% 
-  group_by(id) %>% 
-  summarise(n = n_distinct(trip_id, vehicle_id)) %>% 
-  arrange(-n)
+# delay per date and weekday
+updates %>% 
+  group_by(date, wday) %>% 
+  summarise(avg_delay = mean(delay)) %>% 
+  ggplot(aes(x = date, y = avg_delay)) +
+  geom_line(size = 2, alpha = 0.2) +
+  geom_line(aes(color = wday)) +
+  scale_color_brewer(type = "qual")
+
+# delay per weekday
+updates %>% 
+  group_by(wday) %>% 
+  summarise(avg_delay = mean(delay)) %>% 
+  ggplot(aes(x = wday, y = avg_delay)) +
+  geom_col()
 ```
 
+Average delays have an increasing trend in January, and are actually mostly early. The trend is likely due to new years holidays and vacation days. Saturdays had the highest delays by far. The rest of the days are similar and early
 
 ```{r}
 # Delays per stop
 stops_delays <- updates %>% 
   group_by(stop_id) %>% 
-  summarise(avg_delay = mean(delay)) %>% 
+  summarise(avg_delay = mean(delay),
+            no_of_trips =n()) %>% 
   mutate(delay_mins = avg_delay/60) %>% 
   arrange(-avg_delay)
 
 top10_delays <- stops_delays %>% 
-  slice_head(n = 10)
+  slice_head(n = 10) %>% 
+  # Filter out train substitute services
+  filter(stop_id %in% c(107, 130, 141, 79, 86))
 
+# Delays per stop and hour
 stops_hours_delays <- updates %>% 
   group_by(stop_id, hour) %>% 
   summarise(avg_delay = mean(delay)) %>% 
@@ -120,15 +138,11 @@ updates %>%
 
 # Filter updates to contain the top10 stops above
 updates %>% 
-  semi_join(top10_delays) %>% 
-  count(stop_id)
+  semi_join(top10_delays) %>%
   ggplot(aes(x = timestamp, y = delay, color = stop_id)) +
   geom_line()
-  #scale_color_manual(values = c("#a6cee3", "#1f78b4", "#b2df8a", "#33a02c", "#fb9a99", "#e31a1c", "#fdbf6f", "#ff7f00", "#cab2d6","#6a3d9a"))
 
-ggplotly()
-
-# Pick one of the stop to investigate
+# Pick one of the stops to investigate
 stop_107 <- updates %>% 
   filter(stop_id == 107)
 ```
@@ -137,62 +151,52 @@ The same trip on the same date for the same stop can have multiple delay updates
 therefore filter updates to the most recent timestamp. This will be done in the
 data cleaning chunk above.
 
-```{r}
-test <- updates %>% 
-  group_by(across(c(-timestamp, -delay, -arrival_time))) %>% 
-  filter()
-
-test <- stop_107 %>% 
-  group_by(across(c(-timestamp, -delay, -arrival_time, ))) %>% 
-  filter(timestamp == max(timestamp)) %>% 
-  ungroup()
-
-  group_by(trip_id, route_id, direction_id, start_date, vehicle_id, wheelchair_accessible,
-           stop_sequence, )
-group_by()
-
-test
-```
 
 
-```{r}
-# delay per date and weekday
-updates %>% 
-  group_by(date, wday) %>% 
-  summarise(avg_delay = mean(delay)) %>% 
-  ggplot(aes(x = date, y = avg_delay)) +
-  geom_line(size = 2, alpha = 0.2) +
-  geom_line(aes(color = wday)) +
-  scale_color_brewer(type = "qual")
 
-# delay per weekday
-updates %>% 
-  group_by(wday) %>% 
-  summarise(avg_delay = mean(delay)) %>% 
-  ggplot(aes(x = wday, y = avg_delay)) +
-  geom_col()
 
-updates %>%
-  group_by(start_date) %>% 
-  summarise(avg_delay = mean(delay)) %>% 
-  ggplot(aes(x = start_date, y = avg_delay)) +
-  geom_line()
-```
 
-Average delays have an increasing trend in January, and are actually mostly early. The trend is likely due to new years holidays and vacation days. Saturdays had the highest delays by far. The rest of the days are similar
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### Positions
 
 
 ```{r}
-
+# Positions Understanding the data
+## Each id is composed of trip_id + vehicle_id
+positions %>% 
+  group_by(id) %>% 
+  summarise(n = n_distinct(trip_id, vehicle_id)) %>% 
+  arrange(-n)
 ```
-
-
-
-
-
-
-
-
 
 
 
