@@ -14,7 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(here)
 library(lubridate)
-library(plotly)
+library(ggmap)
 ```
 
 # GTFSr
@@ -23,6 +23,7 @@ library(plotly)
 # GTFSr Data
 updates_raw <- read_csv(here("data/GTFSr/large/gtfsr_prod.trip_updates.SAMPLE.csv.csv"))
 positions_raw <- read_csv(here("data/GTFSr/large/gtfsr_prod.vehicle_positions.SAMPLE.csv.csv"))
+stops_raw <- read_csv(here("data/GTFS_feed_version_1175/stops.csv"))
 ```
 
 ## Data Wrangling
@@ -48,15 +49,8 @@ updates <- updates_raw %>%
   rename(trip_id = id,
          vehicle_id = label)
 
-positions <- positions_raw %>% 
-  mutate(trip_id = as.character(trip_id),
-         start_date = ymd(start_date),
-         direction_id = factor(direction_id, levels = c(1, 0)),
-         vehicle_id = as.character(vehicle_id),
-         wheelchair_accessible = factor(wheelchair_accessible, levels = c(1, 0)))
-
-# Remove original files
-rm(updates_raw, positions_raw)
+# Remove original file
+rm(updates_raw)
 ```
 
 ## Exploration
@@ -136,23 +130,69 @@ updates %>%
 # The culprit is one trip on 6/1/2022. Ignore
 # This method is not good, try switching back to delays per stop
 
+# Pick one of the stops to investigate
+stop_107 <- updates %>% 
+  filter(stop_id == 107)
+# The same trip on the same date for the same stop can have multiple delay updates,
+# therefore filter updates to the most recent timestamp. This will be done in the
+# data cleaning chunk above.
+
+
 # Filter updates to contain the top10 stops above
 updates %>% 
   semi_join(top10_delays) %>%
   ggplot(aes(x = timestamp, y = delay, color = stop_id)) +
   geom_line()
-
-# Pick one of the stops to investigate
-stop_107 <- updates %>% 
-  filter(stop_id == 107)
 ```
 
-The same trip on the same date for the same stop can have multiple delay updates,
-therefore filter updates to the most recent timestamp. This will be done in the
-data cleaning chunk above.
+Continue with these five stops for the remainder of the analysis.
+
+```{r}
+# Data wrangle stops
+stops <- stops_raw %>% 
+  mutate(stop_id = as.character(stop_id))
+```
 
 
+```{r}
+intersections <- updates %>% 
+  semi_join(top10_delays) %>% 
+  # retrieve coordinates from stops file
+  left_join(stops) %>% 
+  select(route_id:stop_lon)
 
+unique(intersections$route_id)
+```
+
+All stops are part of a single route: 443
+
+
+```{r}
+# map stops
+ints_map <- get_map(c(left = min(stops$stop_lon) - 0.005,
+                      bottom = min(stops$stop_lat) - 0.005,
+                      right = max(stops$stop_lon) + 0.005,
+                      top = max(stops$stop_lat) + 0.005),
+                    source = "stamen")
+
+ggmap(ints_map) +
+  geom_point(data = intersections, aes(x = stop_lon, y = stop_lat), color = "red") +
+  theme_void()
+
+
+# zoom in
+# Coordinates retrieved from https://www.openstreetmap.org/export#map=12/-34.6943/138.6887
+ints_map_zoom <- get_map(c(left = 138.4851,
+                      bottom = -34.7873,
+                      right = 138.8923,
+                      top = -34.6012),
+                    source = "stamen")
+
+ggmap(ints_map) +
+  geom_point(data = intersections, aes(x = stop_lon, y = stop_lat), color = "red") +
+  theme_void()
+
+```
 
 
 
@@ -187,6 +227,16 @@ data cleaning chunk above.
 
 
 ### Positions
+
+```{r}
+positions <- positions_raw %>% 
+  mutate(trip_id = as.character(trip_id),
+         start_date = ymd(start_date),
+         direction_id = factor(direction_id, levels = c(1, 0)),
+         vehicle_id = as.character(vehicle_id),
+         wheelchair_accessible = factor(wheelchair_accessible, levels = c(1, 0)))
+```
+
 
 
 ```{r}
