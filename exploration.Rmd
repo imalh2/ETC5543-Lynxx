@@ -24,13 +24,18 @@ library(ggmap)
 updates_raw <- read_csv(here("data/GTFSr/large/gtfsr_prod.trip_updates.SAMPLE.csv.csv"))
 positions_raw <- read_csv(here("data/GTFSr/large/gtfsr_prod.vehicle_positions.SAMPLE.csv.csv"))
 stops_raw <- read_csv(here("data/GTFS_feed_version_1175/stops.csv"))
+routes_raw <- read_csv(here("data/GTFS_feed_version_1175/routes.csv"))
 ```
 
 ## Data Wrangling
 
+### Updates
+
 ```{r}
-# Adjust column formats
+# Updates
 updates <- updates_raw %>% 
+  # The same trip on the same date for the same stop can have multiple delay updates,
+  # therefore filter updates to the most recent timestamp
   group_by(across(c(-timestamp, -delay, -arrival_time))) %>% 
   filter(timestamp == max(timestamp)) %>% 
   ungroup() %>% 
@@ -49,9 +54,32 @@ updates <- updates_raw %>%
   rename(trip_id = id,
          vehicle_id = label)
 
-# Remove original file
+# Remove original updates file
 rm(updates_raw)
+
+# Positions
+positions <- positions_raw %>% 
+  mutate(trip_id = as.character(trip_id),
+         start_date = ymd(start_date),
+         direction_id = factor(direction_id, levels = c(1, 0)),
+         vehicle_id = as.character(vehicle_id),
+         wheelchair_accessible = factor(wheelchair_accessible, levels = c(1, 0)))
+
+rm(positions_raw)
+
+# Stops
+stops <- stops_raw %>% 
+  mutate(stop_id = as.character(stop_id))
+
+rm(stops_raw)
+
+# Join
+combined <- updates %>% 
+  left_join(stops, by = "stop_id") %>% 
+  left_join(routes_raw, by = "route_id") %>% 
+  select(route_id:stop_lon, route_long_name:route_type, routegroup)
 ```
+
 
 ## Exploration
 
@@ -99,93 +127,98 @@ updates %>%
 Average delays have an increasing trend in January, and are actually mostly early. The trend is likely due to new years holidays and vacation days. Saturdays had the highest delays by far. The rest of the days are similar and early
 
 ```{r}
+# # Delays per stop
+# stops_delays <- updates %>% 
+#   group_by(stop_id) %>% 
+#   summarise(avg_delay = mean(delay),
+#             no_of_trips = n(),
+#             no_of_routes = n_distinct(route_id)) %>% 
+#   mutate(delay_mins = avg_delay/60) %>% 
+#   arrange(-avg_delay)
+# 
+# # Select top 13 stop_id's because the number of routes is 1 so it's easier to obtain
+# # the route description
+# top10_delays <- stops_delays %>% 
+#   slice_head(n = 13) %>% 
+#   # Filter out train substitute services
+#   filter(stop_id %in% c(107, 130, 141, 79, 86))
+# 
+# # Delays per stop and hour
+# stops_hours_delays <- updates %>% 
+#   group_by(stop_id, hour) %>% 
+#   summarise(avg_delay = mean(delay)) %>% 
+#   mutate(delay_mins = avg_delay/60) %>% 
+#   arrange(-avg_delay)
+# 
+# shd_over1hr <- stops_hours_delays %>% 
+#   filter(delay_mins >= 60) %>% 
+#   # 1pm has the most delays
+#   filter(hour == 13)
+# 
+# # Extract trips that have the stops above at 1pm
+# updates %>% 
+#   semi_join(shd_over1hr)
+# # The culprit is one trip on 6/1/2022. Ignore
+# # This method is not good, try switching back to delays per stop
+# 
+# # Pick one of the stops to investigate
+# stop_107 <- updates %>% 
+#   filter(stop_id == 107)
+# # The same trip on the same date for the same stop can have multiple delay updates,
+# # therefore filter updates to the most recent timestamp. This will be done in the
+# # data cleaning chunk above.
+# 
+# 
+# # Filter updates to contain the top10 stops above
+# updates %>% 
+#   semi_join(top10_delays) %>%
+#   ggplot(aes(x = timestamp, y = delay, color = stop_id)) +
+#   geom_line()
+```
+
+
+```{r}
 # Delays per stop
-stops_delays <- updates %>% 
+stops_delays <- combined %>% 
   group_by(stop_id) %>% 
   summarise(avg_delay = mean(delay),
-            no_of_trips =n()) %>% 
+            no_of_trips = n(),
+            no_of_routes = n_distinct(route_id),
+            route_id = unique(route_id)) %>% 
   mutate(delay_mins = avg_delay/60) %>% 
+  ungroup() %>% 
   arrange(-avg_delay)
 
-top10_delays <- stops_delays %>% 
-  slice_head(n = 10) %>% 
-  # Filter out train substitute services
-  filter(stop_id %in% c(107, 130, 141, 79, 86))
+# Select top delays per stop_id
+top_delays <- stops_delays %>%
+  slice_head(n = 30) %>%
+  # One entry indicates one-off
+  filter(no_of_trips != 1) %>% 
+  left_join(routes_raw, by = "route_id") %>% 
+  select(stop_id:delay_mins, route_desc) %>%
+  # Filter out routes that are train substitutes or hail n' rides
+  filter(!str_detect(tolower(route_desc), pattern = "train substitute service|hail"))
 
-# Delays per stop and hour
-stops_hours_delays <- updates %>% 
-  group_by(stop_id, hour) %>% 
-  summarise(avg_delay = mean(delay)) %>% 
-  mutate(delay_mins = avg_delay/60) %>% 
-  arrange(-avg_delay)
+intersections <- combined %>% 
+  semi_join(top_delays, by = "stop_id")
 
-shd_over1hr <- stops_hours_delays %>% 
-  filter(delay_mins >= 60) %>% 
-  # 1pm has the most delays
-  filter(hour == 13)
-
-# Extract trips that have the stops above at 1pm
-updates %>% 
-  semi_join(shd_over1hr)
-# The culprit is one trip on 6/1/2022. Ignore
-# This method is not good, try switching back to delays per stop
-
-# Pick one of the stops to investigate
-stop_107 <- updates %>% 
-  filter(stop_id == 107)
-# The same trip on the same date for the same stop can have multiple delay updates,
-# therefore filter updates to the most recent timestamp. This will be done in the
-# data cleaning chunk above.
-
-
-# Filter updates to contain the top10 stops above
-updates %>% 
-  semi_join(top10_delays) %>%
+intersections %>% 
   ggplot(aes(x = timestamp, y = delay, color = stop_id)) +
   geom_line()
 ```
 
+
 Continue with these five stops for the remainder of the analysis.
 
-```{r}
-# Data wrangle stops
-stops <- stops_raw %>% 
-  mutate(stop_id = as.character(stop_id))
-```
+
 
 
 ```{r}
-intersections <- updates %>% 
-  semi_join(top10_delays) %>% 
-  # retrieve coordinates from stops file
-  left_join(stops) %>% 
-  select(route_id:stop_lon)
-
-unique(intersections$route_id)
-```
-
-All stops are part of a single route: 443
-
-
-```{r}
-# map stops
-ints_map <- get_map(c(left = min(stops$stop_lon) - 0.005,
-                      bottom = min(stops$stop_lat) - 0.005,
-                      right = max(stops$stop_lon) + 0.005,
-                      top = max(stops$stop_lat) + 0.005),
-                    source = "stamen")
-
-ggmap(ints_map) +
-  geom_point(data = intersections, aes(x = stop_lon, y = stop_lat), color = "red") +
-  theme_void()
-
-
-# zoom in
 # Coordinates retrieved from https://www.openstreetmap.org/export#map=12/-34.6943/138.6887
-ints_map_zoom <- get_map(c(left = 138.4851,
-                      bottom = -34.7873,
-                      right = 138.8923,
-                      top = -34.6012),
+ints_map <- get_map(c(left = 138.4387,
+                      bottom = -35.2546,
+                      right = 138.7628,
+                      top = -34.6648),
                     source = "stamen")
 
 ggmap(ints_map) +
@@ -214,39 +247,6 @@ ggmap(ints_map) +
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-### Positions
-
-```{r}
-positions <- positions_raw %>% 
-  mutate(trip_id = as.character(trip_id),
-         start_date = ymd(start_date),
-         direction_id = factor(direction_id, levels = c(1, 0)),
-         vehicle_id = as.character(vehicle_id),
-         wheelchair_accessible = factor(wheelchair_accessible, levels = c(1, 0)))
-```
-
-
-
-```{r}
-# Positions Understanding the data
-## Each id is composed of trip_id + vehicle_id
-positions %>% 
-  group_by(id) %>% 
-  summarise(n = n_distinct(trip_id, vehicle_id)) %>% 
-  arrange(-n)
-```
 
 
 
