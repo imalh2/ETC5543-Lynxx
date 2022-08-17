@@ -15,9 +15,8 @@ library(tidyverse)
 library(here)
 library(lubridate)
 library(ggmap)
+library(tidytransit)
 ```
-
-# GTFSr
 
 ```{r}
 # GTFSr Data
@@ -25,6 +24,8 @@ updates_raw <- read_csv(here("data/GTFSr/large/gtfsr_prod.trip_updates.SAMPLE.cs
 positions_raw <- read_csv(here("data/GTFSr/large/gtfsr_prod.vehicle_positions.SAMPLE.csv.csv"))
 stops_raw <- read_csv(here("data/GTFS_feed_version_1175/stops.csv"))
 routes_raw <- read_csv(here("data/GTFS_feed_version_1175/routes.csv"))
+trips_raw <- read_csv(here("data/GTFS_feed_version_1175/trips.csv"))
+shapes_raw <- read_csv(here("data/GTFS_feed_version_1175/shapes.csv"))
 ```
 
 ## Data Wrangling
@@ -67,17 +68,39 @@ positions <- positions_raw %>%
 
 rm(positions_raw)
 
+# Routes
+routes <- routes_raw %>% 
+  select(route_id, route_long_name:route_type, route_color, routegroup) %>% 
+  mutate(route_color = paste0("#", route_color))
+
+rm(routes_raw)
+
 # Stops
 stops <- stops_raw %>% 
-  mutate(stop_id = as.character(stop_id))
+  mutate(stop_id = as.character(stop_id)) %>% 
+  select(stop_id:stop_lon)
 
 rm(stops_raw)
+
+# Trips
+trips <- trips_raw %>% 
+  mutate(trip_id = as.character(trip_id)) %>% 
+  select(service_id:trip_headsign, block_id:shape_id)
+
+rm(trips_raw)
+
+# shapes
+shapes <- shapes_raw %>% 
+  select(shape_id:shape_dist_traveled)
+
+rm(shapes_raw)
 
 # Join
 combined <- updates %>% 
   left_join(stops, by = "stop_id") %>% 
-  left_join(routes_raw, by = "route_id") %>% 
-  select(route_id:stop_lon, route_long_name:route_type, routegroup)
+  left_join(routes, by = "route_id") %>% 
+  left_join(trips, by = "trip_id")
+  
 ```
 
 
@@ -194,21 +217,63 @@ top_delays <- stops_delays %>%
   slice_head(n = 30) %>%
   # One entry indicates one-off
   filter(no_of_trips != 1) %>% 
-  left_join(routes_raw, by = "route_id") %>% 
+  left_join(routes, by = "route_id") %>% 
   select(stop_id:delay_mins, route_desc) %>%
   # Filter out routes that are train substitutes or hail n' rides
   filter(!str_detect(tolower(route_desc), pattern = "train substitute service|hail"))
 
-intersections <- combined %>% 
+stops_combined <- combined %>% 
   semi_join(top_delays, by = "stop_id")
 
-intersections %>% 
+stops_combined %>% 
   ggplot(aes(x = timestamp, y = delay, color = stop_id)) +
   geom_line()
 ```
 
 
 Continue with these five stops for the remainder of the analysis.
+
+# Map
+
+```{r}
+# Obtain shapes required per shape_id in stops_combined
+stops_shapes <- shapes %>% 
+  semi_join(stops_combined, by = "shape_id") %>% 
+  arrange(shape_id, shape_pt_sequence)
+
+# Map method 1
+ggplot() +
+  geom_path(data = shapes, aes(shape_pt_lon, shape_pt_lat, group=shape_id), size=.2, alpha=.1) +
+  coord_fixed()
+
+# Map method 2
+bbox <- c(138.454415,-35.206164,138.742257,-34.660694)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -222,7 +287,7 @@ ints_map <- get_map(c(left = 138.4387,
                     source = "stamen")
 
 ggmap(ints_map) +
-  geom_point(data = intersections, aes(x = stop_lon, y = stop_lat), color = "red") +
+  geom_point(data = stops_combined, aes(x = stop_lon, y = stop_lat), color = "red") +
   theme_void()
 
 ```
