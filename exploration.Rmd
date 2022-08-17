@@ -27,6 +27,7 @@ stops_raw <- read_csv(here("data/GTFS_feed_version_1175/stops.csv"))
 routes_raw <- read_csv(here("data/GTFS_feed_version_1175/routes.csv"))
 trips_raw <- read_csv(here("data/GTFS_feed_version_1175/trips.csv"))
 shapes_raw <- read_csv(here("data/GTFS_feed_version_1175/shapes.csv"))
+sites_raw <- read_csv(here("data/addinsight/addinsight_prod.btsites.csv.csv"))
 ```
 
 ## Data Wrangling
@@ -301,9 +302,12 @@ ints_map <- get_map(c(left = 138.4387,
                       top = -34.6648),
                     source = "stamen")
 
+# sites and top stops locations
 ggmap(ints_map) +
-  geom_point(data = stops_combined, aes(x = stop_lon, y = stop_lat), color = "red") +
+  geom_point(data = stops_combined, aes(x = stop_lon, y = stop_lat), color = "red", alpha = 0.3, size = 2) +
+  geom_point(data = sites_raw, aes(x = longitude, y = latitude), color = "blue", alpha = 0.3, size = 2) +
   theme_void()
+
 
 ```
 
