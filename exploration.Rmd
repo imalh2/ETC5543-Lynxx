@@ -16,6 +16,7 @@ library(here)
 library(lubridate)
 library(ggmap)
 library(tidytransit)
+library(sf)
 ```
 
 ```{r}
@@ -84,14 +85,17 @@ rm(stops_raw)
 
 # Trips
 trips <- trips_raw %>% 
-  mutate(trip_id = as.character(trip_id)) %>% 
+  mutate(trip_id = as.character(trip_id)) %>%
+  mutate(shape_id = as.character(shape_id)) %>% 
   select(service_id:trip_headsign, block_id:shape_id)
 
 rm(trips_raw)
 
 # shapes
 shapes <- shapes_raw %>% 
+  mutate(shape_id = as.character(shape_id)) %>% 
   select(shape_id:shape_dist_traveled)
+  
 
 rm(shapes_raw)
 
@@ -241,6 +245,8 @@ stops_shapes <- shapes %>%
   semi_join(stops_combined, by = "shape_id") %>% 
   arrange(shape_id, shape_pt_sequence)
 
+stops_shapes_sf <- st_as_sf(stops_shapes, coords = c("shape_pt_lat", "shape_pt_lon"))
+
 # Map method 1
 ggplot() +
   geom_path(data = shapes, aes(shape_pt_lon, shape_pt_lat, group=shape_id), size=.2, alpha=.1) +
@@ -249,6 +255,8 @@ ggplot() +
 # Map method 2
 bbox <- c(138.454415,-35.206164,138.742257,-34.660694)
 
+ggplot(stops_shapes_sf) +
+  geom_sf(data = stops_shapes_sf, aes(color = shape_id))
 ```
 
 
@@ -257,6 +265,13 @@ bbox <- c(138.454415,-35.206164,138.742257,-34.660694)
 
 
 
+
+```{r}
+stops_combined %>% 
+  group_by(route_id, direction_id, service_id) %>% 
+  summarise(n = n_distinct(shape_id)) %>% 
+  arrange(-n)
+```
 
 
 
