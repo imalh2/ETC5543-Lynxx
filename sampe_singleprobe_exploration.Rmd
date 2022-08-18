@@ -24,8 +24,8 @@ library(dodgr)
 
 ```{r}
 # Read in data
-probe1 <- read_csv("Data/SingleProbe.csv")
-probe2 <- read_csv("Data/SingleProbe2.csv")
+probe1 <- read_csv("Data/samples/SingleProbe.csv")
+probe2 <- read_csv("Data/samples/SingleProbe2.csv")
 ```
 
 
@@ -187,7 +187,7 @@ probeid 968243260 looks especially problematic
 
 #### Average Speeds Between Each Pair of Beacons
 
-possible exclude the following sites first
+possibly exclude the following sites first
 
 ```{r}
 multi_coords <- probes %>% 

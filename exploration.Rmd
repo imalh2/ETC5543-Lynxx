@@ -17,6 +17,7 @@ library(lubridate)
 library(ggmap)
 library(tidytransit)
 library(sf)
+library(plotly)
 ```
 
 ```{r}
@@ -104,8 +105,11 @@ rm(shapes_raw)
 combined <- updates %>% 
   left_join(stops, by = "stop_id") %>% 
   left_join(routes, by = "route_id") %>% 
-  left_join(trips, by = "trip_id")
-  
+  left_join(trips, by = "trip_id") %>% 
+  # filter to buses only
+  filter(route_type == 3) %>% 
+  # create minutes column
+  mutate(delay_minutes = delay/60, .after = delay)
 ```
 
 
@@ -116,15 +120,22 @@ combined <- updates %>%
 ```{r}
 # Updates Understanding the data
 ## trip_id can occur in different dates using different vehicles, might be unique for each start_time
-updates %>%
-  group_by(trip_id) %>% 
-  summarise(
-    routes = n_distinct(route_id),
-    directions = n_distinct(direction_id),
-    dates = n_distinct(start_date),
-    vehicles = n_distinct(vehicle_id),
-    all = n_distinct(route_id, direction_id, start_date, vehicle_id)) %>% 
-  arrange(-all)
+# updates %>%
+#   group_by(trip_id) %>% 
+#   summarise(
+#     routes = n_distinct(route_id),
+#     directions = n_distinct(direction_id),
+#     dates = n_distinct(start_date),
+#     vehicles = n_distinct(vehicle_id),
+#     all = n_distinct(route_id, direction_id, start_date, vehicle_id)) %>% 
+#   arrange(-directions)
+
+# Multiple vehicles can do the same trip on the same day
+# need start_time
+combined %>% 
+  group_by(trip_id, start_date, direction_id) %>% 
+  summarise(n = n_distinct(vehicle_id)) %>% 
+  arrange(-n)
 
 ## Multiple trip_id can occur using the same combination of variables in group_by,
 ## need start_time
@@ -136,23 +147,23 @@ updates %>%
 
 ```{r}
 # delay per date and weekday
-updates %>% 
+combined %>% 
   group_by(date, wday) %>% 
-  summarise(avg_delay = mean(delay)) %>% 
+  summarise(avg_delay = mean(delay_minutes)) %>% 
   ggplot(aes(x = date, y = avg_delay)) +
   geom_line(size = 2, alpha = 0.2) +
   geom_line(aes(color = wday)) +
   scale_color_brewer(type = "qual")
 
 # delay per weekday
-updates %>% 
+combined %>% 
   group_by(wday) %>% 
-  summarise(avg_delay = mean(delay)) %>% 
+  summarise(avg_delay = mean(delay_minutes)) %>% 
   ggplot(aes(x = wday, y = avg_delay)) +
   geom_col()
 ```
 
-Average delays have an increasing trend in January, and are actually mostly early. The trend is likely due to new years holidays and vacation days. Saturdays had the highest delays by far. The rest of the days are similar and early
+Barely any delays
 
 ```{r}
 # # Delays per stop
@@ -204,39 +215,71 @@ Average delays have an increasing trend in January, and are actually mostly earl
 #   geom_line()
 ```
 
+## Delays
+
+### Delays per Stop
 
 ```{r}
-# Delays per stop
 stops_delays <- combined %>% 
   group_by(stop_id) %>% 
-  summarise(avg_delay = mean(delay),
-            no_of_trips = n(),
+  summarise(avg_delay = mean(delay_minutes),
+            no_of_occurences = n(),
             no_of_routes = n_distinct(route_id),
-            route_id = unique(route_id)) %>% 
-  mutate(delay_mins = avg_delay/60) %>% 
+            route_id = unique(route_id)) %>%
   ungroup() %>% 
   arrange(-avg_delay)
 
 # Select top delays per stop_id
-top_delays <- stops_delays %>%
+top_stops_delays <- stops_delays %>%
   slice_head(n = 30) %>%
   # One entry indicates one-off
   filter(no_of_trips != 1) %>% 
   left_join(routes, by = "route_id") %>% 
-  select(stop_id:delay_mins, route_desc) %>%
+  select(stop_id:route_id, route_desc) %>%
   # Filter out routes that are train substitutes or hail n' rides
   filter(!str_detect(tolower(route_desc), pattern = "train substitute service|hail"))
 
 stops_combined <- combined %>% 
-  semi_join(top_delays, by = "stop_id")
+  semi_join(top_stops_delays, by = "stop_id")
 
 stops_combined %>% 
-  ggplot(aes(x = timestamp, y = delay, color = stop_id)) +
+  ggplot(aes(x = timestamp, y = delay_minutes, color = stop_id)) +
+  geom_line()
+```
+
+## Delays per Route
+
+```{r}
+routes_delays <- combined %>% 
+  # Remove exceptional cases
+  filter(!(route_id %in% c("238", "415H", "500", "835", "224M") & delay_minutes > 40)) %>% 
+  group_by(route_id) %>% 
+  summarise(avg_delay = mean(delay_minutes),
+            occurrences = n(),
+            route_name = unique(route_long_name),
+            route_desc = unique(route_desc),
+            route_group = unique(routegroup),
+            route_color = unique(route_color)) %>%
+  ungroup() %>%
+  # Filter out routes that are train substitutes or hail n' rides
+  filter(!str_detect(tolower(route_desc), pattern = "train substitute|hail"),
+         # Exclude routes with low occurrences
+         occurrences > 99) %>% 
+  arrange(-avg_delay)
+
+# top 5 routes delays
+top_routes_delays <- routes_delays %>% 
+  slice_head(n=5)
+
+routes_combined <- combined %>% 
+  semi_join(top_routes_delays, by = "route_id")
+
+ggplot(routes_combined, aes(x = timestamp, y = delay_minutes, color = route_id)) +
+  geom_point() +
   geom_line()
 ```
 
 
-Continue with these five stops for the remainder of the analysis.
 
 # Map
 
