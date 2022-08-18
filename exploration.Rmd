@@ -221,9 +221,11 @@ Barely any delays
 
 ```{r}
 stops_delays <- combined %>% 
+  # Remove exceptional cases
+  filter(!(stop_id %in% c("3387", "975", "100781", "100873", "100871", "2063", "6174") & delay_minutes > 40)) %>%
   group_by(stop_id) %>% 
   summarise(avg_delay = mean(delay_minutes),
-            no_of_occurences = n(),
+            occurences = n(),
             no_of_routes = n_distinct(route_id),
             route_id = unique(route_id)) %>%
   ungroup() %>% 
@@ -231,40 +233,60 @@ stops_delays <- combined %>%
 
 # Select top delays per stop_id
 top_stops_delays <- stops_delays %>%
-  slice_head(n = 30) %>%
-  # One entry indicates one-off
-  filter(no_of_trips != 1) %>% 
+  # Exclude stops with low occurrences
+  filter(occurences > 49) %>% 
   left_join(routes, by = "route_id") %>% 
   select(stop_id:route_id, route_desc) %>%
   # Filter out routes that are train substitutes or hail n' rides
-  filter(!str_detect(tolower(route_desc), pattern = "train substitute service|hail"))
+  filter(!str_detect(tolower(route_desc), pattern = "train substitute service|hail")) %>% 
+  distinct(stop_id, .keep_all = TRUE) %>% 
+  slice_head(n=5)
 
 stops_combined <- combined %>% 
   semi_join(top_stops_delays, by = "stop_id")
 
 stops_combined %>% 
   ggplot(aes(x = timestamp, y = delay_minutes, color = stop_id)) +
+  geom_point() +
   geom_line()
 ```
 
 ## Delays per Route
 
 ```{r}
-routes_delays <- combined %>% 
+# routes_delays <- combined %>% 
+#   # Remove exceptional cases
+#   filter(!(route_id %in% c("238", "415H", "500", "835", "224M") & delay_minutes > 40)) %>% 
+#   group_by(route_id) %>% 
+#   summarise(avg_delay = mean(delay_minutes),
+#             occurrences = n(),
+#             route_name = unique(route_long_name),
+#             route_desc = unique(route_desc),
+#             route_group = unique(routegroup),
+#             route_color = unique(route_color)) %>%
+#   ungroup() %>%
+#   # Filter out routes that are train substitutes or hail n' rides
+#   filter(!str_detect(tolower(route_desc), pattern = "train substitute|hail"),
+#          # Exclude routes with low occurrences
+#          occurrences > 99) %>% 
+#   arrange(-avg_delay)
+
+routes_delays <- combined %>%
   # Remove exceptional cases
-  filter(!(route_id %in% c("238", "415H", "500", "835", "224M") & delay_minutes > 40)) %>% 
-  group_by(route_id) %>% 
+  filter(!(route_id %in% c("224M", "225M", "750B", "864", "743") & delay_minutes > 40),
+         # Filter out routes that are train substitutes or hail n' rides
+         !str_detect(tolower(route_desc), pattern = "train substitute|hail")) %>% 
+  group_by(route_id) %>%
   summarise(avg_delay = mean(delay_minutes),
-            occurrences = n(),
+            no_of_trips = n_distinct(trip_id),
             route_name = unique(route_long_name),
             route_desc = unique(route_desc),
             route_group = unique(routegroup),
             route_color = unique(route_color)) %>%
   ungroup() %>%
-  # Filter out routes that are train substitutes or hail n' rides
-  filter(!str_detect(tolower(route_desc), pattern = "train substitute|hail"),
-         # Exclude routes with low occurrences
-         occurrences > 99) %>% 
+  # Only include routes with number of trips greater than the median, indicates
+  # abundance of data and importance of route
+  filter(no_of_trips > median(no_of_trips)) %>%
   arrange(-avg_delay)
 
 # top 5 routes delays
@@ -278,6 +300,51 @@ ggplot(routes_combined, aes(x = timestamp, y = delay_minutes, color = route_id))
   geom_point() +
   geom_line()
 ```
+
+## Delays per Hour
+
+```{r}
+hourly_delays <- combined %>%
+  group_by(hour) %>% 
+  summarise(avg_delay = mean(delay_minutes),
+            occurrences = n()) %>%
+  ungroup() %>%
+  arrange(-avg_delay)
+
+ggplot(hourly_delays, aes(hour, avg_delay)) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0,23)) +
+  theme(panel.grid.minor = element_blank())
+```
+
+### Delays per Route per Hour
+```{r}
+routes_hourly_delays <- combined %>%
+  group_by(route_id, hour) %>% 
+  summarise(avg_delay = mean(delay_minutes),
+            occurrences = n(),
+            no_of_trips = n_distinct(trip_id),
+            route_name = unique(route_long_name),
+            route_desc = unique(route_desc),
+            route_group = unique(routegroup),
+            route_color = unique(route_color)) %>%
+  ungroup() %>%
+  # Filter out routes that are train substitutes or hail n' rides
+  filter(!str_detect(tolower(route_desc), pattern = "train substitute|hail")) %>% 
+  arrange(-avg_delay)
+
+mean(routes_hourly_delays$occurrences)
+```
+
+
+
+
+
+
+
+
+
+
 
 
 
