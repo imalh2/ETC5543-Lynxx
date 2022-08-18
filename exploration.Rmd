@@ -139,8 +139,8 @@ combined %>%
 
 ## Multiple trip_id can occur using the same combination of variables in group_by,
 ## need start_time
-updates %>% 
-  group_by(route_id, direction_id, start_date, vehicle_id) %>% 
+combined %>% 
+  group_by(route_id, start_date, vehicle_id) %>% 
   summarise(trips = n_distinct(trip_id)) %>% 
   arrange(-trips)
 ```
@@ -272,13 +272,16 @@ stops_combined %>%
 #   arrange(-avg_delay)
 
 routes_delays <- combined %>%
-  # Remove exceptional cases
-  filter(!(route_id %in% c("224M", "225M", "750B", "864", "743") & delay_minutes > 40),
-         # Filter out routes that are train substitutes or hail n' rides
-         !str_detect(tolower(route_desc), pattern = "train substitute|hail")) %>% 
+  filter(
+    # Remove exceptional cases
+    !(route_id %in% c("224M", "225M", "492A", "750B", "864", "743") & delay_minutes > 30),
+    # Filter out routes that are train substitutes or hail n' rides
+    !str_detect(tolower(route_desc), pattern = "train substitute|hail")) %>% 
   group_by(route_id) %>%
   summarise(avg_delay = mean(delay_minutes),
-            no_of_trips = n_distinct(trip_id),
+            no_of_trips = n_distinct(start_date, trip_id),
+            no_of_days = n_distinct(start_date),
+            no_of_unique_trips = n_distinct(trip_id),
             route_name = unique(route_long_name),
             route_desc = unique(route_desc),
             route_group = unique(routegroup),
