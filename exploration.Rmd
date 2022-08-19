@@ -33,8 +33,6 @@ sites_raw <- read_csv(here("data/addinsight/addinsight_prod.btsites.csv.csv"))
 
 ## Data Wrangling
 
-### Updates
-
 ```{r}
 # Updates
 updates <- updates_raw %>% 
@@ -106,10 +104,24 @@ combined <- updates %>%
   left_join(stops, by = "stop_id") %>% 
   left_join(routes, by = "route_id") %>% 
   left_join(trips, by = "trip_id") %>% 
-  # filter to buses only
-  filter(route_type == 3) %>% 
+  filter(
+    # filter to buses only
+    route_type == 3,
+    # no train substitutes or hail n' ride services
+    !str_detect(tolower(route_desc), pattern = "train substitute service|hail")) %>% 
   # create minutes column
   mutate(delay_minutes = delay/60, .after = delay)
+
+test <- updates %>% 
+  left_join(stops, by = "stop_id") %>% 
+  left_join(routes, by = "route_id") %>% 
+  left_join(trips, by = "trip_id")
+
+test_na_routes <- test %>% 
+  filter(is.na(route_type))
+
+test_na_stops <- test %>% 
+  filter(is.na(stop_code))
 ```
 
 
@@ -118,20 +130,7 @@ combined <- updates %>%
 ### Updates
 
 ```{r}
-# Updates Understanding the data
-## trip_id can occur in different dates using different vehicles, might be unique for each start_time
-# updates %>%
-#   group_by(trip_id) %>% 
-#   summarise(
-#     routes = n_distinct(route_id),
-#     directions = n_distinct(direction_id),
-#     dates = n_distinct(start_date),
-#     vehicles = n_distinct(vehicle_id),
-#     all = n_distinct(route_id, direction_id, start_date, vehicle_id)) %>% 
-#   arrange(-directions)
-
 # Multiple vehicles can do the same trip on the same day
-# need start_time
 combined %>% 
   group_by(trip_id, start_date, direction_id) %>% 
   summarise(n = n_distinct(vehicle_id)) %>% 
@@ -165,55 +164,6 @@ combined %>%
 
 Barely any delays
 
-```{r}
-# # Delays per stop
-# stops_delays <- updates %>% 
-#   group_by(stop_id) %>% 
-#   summarise(avg_delay = mean(delay),
-#             no_of_trips = n(),
-#             no_of_routes = n_distinct(route_id)) %>% 
-#   mutate(delay_mins = avg_delay/60) %>% 
-#   arrange(-avg_delay)
-# 
-# # Select top 13 stop_id's because the number of routes is 1 so it's easier to obtain
-# # the route description
-# top10_delays <- stops_delays %>% 
-#   slice_head(n = 13) %>% 
-#   # Filter out train substitute services
-#   filter(stop_id %in% c(107, 130, 141, 79, 86))
-# 
-# # Delays per stop and hour
-# stops_hours_delays <- updates %>% 
-#   group_by(stop_id, hour) %>% 
-#   summarise(avg_delay = mean(delay)) %>% 
-#   mutate(delay_mins = avg_delay/60) %>% 
-#   arrange(-avg_delay)
-# 
-# shd_over1hr <- stops_hours_delays %>% 
-#   filter(delay_mins >= 60) %>% 
-#   # 1pm has the most delays
-#   filter(hour == 13)
-# 
-# # Extract trips that have the stops above at 1pm
-# updates %>% 
-#   semi_join(shd_over1hr)
-# # The culprit is one trip on 6/1/2022. Ignore
-# # This method is not good, try switching back to delays per stop
-# 
-# # Pick one of the stops to investigate
-# stop_107 <- updates %>% 
-#   filter(stop_id == 107)
-# # The same trip on the same date for the same stop can have multiple delay updates,
-# # therefore filter updates to the most recent timestamp. This will be done in the
-# # data cleaning chunk above.
-# 
-# 
-# # Filter updates to contain the top10 stops above
-# updates %>% 
-#   semi_join(top10_delays) %>%
-#   ggplot(aes(x = timestamp, y = delay, color = stop_id)) +
-#   geom_line()
-```
 
 ## Delays
 
@@ -221,24 +171,19 @@ Barely any delays
 
 ```{r}
 stops_delays <- combined %>% 
-  # Remove exceptional cases
-  filter(!(stop_id %in% c("3387", "975", "100781", "100873", "100871", "2063", "6174") & delay_minutes > 40)) %>%
   group_by(stop_id) %>% 
   summarise(avg_delay = mean(delay_minutes),
-            occurences = n(),
+            occurrences = n(),
             no_of_routes = n_distinct(route_id),
             route_id = unique(route_id)) %>%
-  ungroup() %>% 
+  ungroup() %>%
+  # Only include stop with number of occurrences greater than the median, indicates
+  # abundance of data and importance of stop
+  filter(occurrences > median(occurrences)) %>%
   arrange(-avg_delay)
 
-# Select top delays per stop_id
+# Select top 5 delays per stop_id
 top_stops_delays <- stops_delays %>%
-  # Exclude stops with low occurrences
-  filter(occurences > 49) %>% 
-  left_join(routes, by = "route_id") %>% 
-  select(stop_id:route_id, route_desc) %>%
-  # Filter out routes that are train substitutes or hail n' rides
-  filter(!str_detect(tolower(route_desc), pattern = "train substitute service|hail")) %>% 
   distinct(stop_id, .keep_all = TRUE) %>% 
   slice_head(n=5)
 
@@ -254,31 +199,13 @@ stops_combined %>%
 ## Delays per Route
 
 ```{r}
-# routes_delays <- combined %>% 
-#   # Remove exceptional cases
-#   filter(!(route_id %in% c("238", "415H", "500", "835", "224M") & delay_minutes > 40)) %>% 
-#   group_by(route_id) %>% 
-#   summarise(avg_delay = mean(delay_minutes),
-#             occurrences = n(),
-#             route_name = unique(route_long_name),
-#             route_desc = unique(route_desc),
-#             route_group = unique(routegroup),
-#             route_color = unique(route_color)) %>%
-#   ungroup() %>%
-#   # Filter out routes that are train substitutes or hail n' rides
-#   filter(!str_detect(tolower(route_desc), pattern = "train substitute|hail"),
-#          # Exclude routes with low occurrences
-#          occurrences > 99) %>% 
-#   arrange(-avg_delay)
-
 routes_delays <- combined %>%
-  filter(
-    # Remove exceptional cases
-    !(route_id %in% c("224M", "225M", "492A", "750B", "864", "743") & delay_minutes > 30),
-    # Filter out routes that are train substitutes or hail n' rides
-    !str_detect(tolower(route_desc), pattern = "train substitute|hail")) %>% 
+  # Remove exceptional cases
+  #filter(!(route_id %in% c("224M", "225M", "492A", "750B", "864", "743") & delay_minutes > 30)) %>% 
   group_by(route_id) %>%
   summarise(avg_delay = mean(delay_minutes),
+            # A start_date can have several trip_id's, and a trip_id can have
+            # several start_dates, so count unique combinations of each
             no_of_trips = n_distinct(start_date, trip_id),
             no_of_days = n_distinct(start_date),
             no_of_unique_trips = n_distinct(trip_id),
@@ -287,8 +214,6 @@ routes_delays <- combined %>%
             route_group = unique(routegroup),
             route_color = unique(route_color)) %>%
   ungroup() %>%
-  # Only include routes with number of trips greater than the median, indicates
-  # abundance of data and importance of route
   filter(no_of_trips > median(no_of_trips)) %>%
   arrange(-avg_delay)
 
