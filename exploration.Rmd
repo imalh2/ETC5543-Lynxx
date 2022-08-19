@@ -32,34 +32,36 @@ routes_raw <- read_csv(here("data/GTFS_feed_version_1157/gtfs_history_prod.route
 ```{r}
 # Updates
 updates <- updates_raw %>%
+  rename(trip_id = id,
+         vehicle_id = label) %>%
   # The same trip on the same date for the same stop can have multiple delay updates,
   # therefore filter updates to the most recent timestamp
-  group_by(route_id, direction_id, start_date, id, stop_sequence, stop_id) %>%
+  group_by(route_id, direction_id, start_date, trip_id, stop_sequence, stop_id) %>%
   filter(timestamp == max(timestamp)) %>%
   ungroup() %>% 
   mutate(direction_id = factor(direction_id, levels = c(1, 0)),
          start_date = ymd(start_date),
-         label = as.character(label),
+         vehicle_id = as.character(vehicle_id),
          timestamp = as_datetime(timestamp),
-         id = as.character(id),
+         trip_id = as.character(trip_id),
          stop_id = as.character(stop_id),
          arrival_time = as_datetime(arrival_time),
          date = date(timestamp),
          wday = wday(timestamp, label = TRUE, abbr = TRUE, week_start = 1),
          hour = hour(timestamp),
-         time_stamp_floor = floor_date(timestamp, unit = "hour")) %>% 
-  rename(trip_id = id,
-         vehicle_id = label) %>% 
+         time_stamp_floor = floor_date(timestamp, unit = "hour")) %>%
+  mutate(delay_mins = delay/60, .after = delay) %>%
+  mutate(stop_direction = paste0(stop_id, "-", direction_id), .after = stop_id) %>% 
+  mutate(route_direction = paste0(route_id, "-", direction_id), .after = route_id) %>% 
   # Get stop to stop delay per group
   group_by(route_id, direction_id, start_date, trip_id) %>% 
-  arrange(stop_sequence, .by_group = TRUE) %>% 
-  mutate(stop_to_stop_delay = c(0, diff(delay)), .after = delay) %>% 
-  ungroup() %>% 
-  mutate(delay_mins = delay/60, .after = delay) %>%
+  arrange(stop_sequence, .by_group = TRUE) %>%
+  mutate(stop_pair_dir = paste0(lag(stop_id), "-", stop_id, "-", unique(direction_id)), .after = delay_mins) %>%
+  mutate(stop_to_stop_delay = delay - lag(delay, default = 0), .after = stop_pair_dir) %>%
+  ungroup() %>%
   mutate(stop_to_stop_delay_mins = stop_to_stop_delay/60, .after = stop_to_stop_delay)
- 
+  
 rm(updates_raw)
-
 # Routes
 routes <- routes_raw %>%
   distinct(route_id, .keep_all = TRUE) %>% 
@@ -92,13 +94,6 @@ combined <- updates %>%
 ### Updates
 
 ```{r}
-# Multiple vehicles can doing the same trip on the same day very rare. Disregard
-combined %>% 
-  group_by(route_id, trip_id, start_date, direction_id) %>% 
-  summarise(n = n_distinct(vehicle_id)) %>%
-  ungroup() %>% 
-  count(n)
-
 ## Multiple trip_id can occur using the same combination of variables in group_by,
 ## need start_time
 combined %>% 
@@ -111,7 +106,7 @@ combined %>%
 # delay per date and weekday
 combined %>% 
   group_by(date, wday) %>% 
-  summarise(avg_delay = mean(delay_minutes)) %>% 
+  summarise(avg_delay = mean(delay_mins)) %>% 
   ggplot(aes(x = date, y = avg_delay)) +
   geom_line(size = 2, alpha = 0.2) +
   geom_line(aes(color = wday)) +
@@ -120,22 +115,23 @@ combined %>%
 # delay per weekday
 combined %>% 
   group_by(wday) %>% 
-  summarise(avg_delay = mean(delay_minutes)) %>% 
+  summarise(avg_delay = mean(delay_mins)) %>% 
   ggplot(aes(x = wday, y = avg_delay)) +
   geom_col()
 ```
 
 Barely any delays
 
-
 ## Delays
 
-### Delays per Stop
+### Delays per Stop per Direction
 
 ```{r}
-stops_delays <- combined %>% 
-  group_by(stop_id, direction_id) %>% 
-  summarise(avg_delay = mean(delay_minutes),
+stops_delays <- combined %>%
+  # Remove exceptional cases
+  filter(!(stop_direction == "3387-1" & delay_mins > 60)) %>% 
+  group_by(stop_direction) %>% 
+  summarise(avg_delay = mean(delay_mins),
             occurrences = n()) %>%
   ungroup() %>%
   # Only include stop with number of occurrences greater than the median, indicates
@@ -148,23 +144,37 @@ top_stops_delays <- stops_delays %>%
   slice_head(n=5)
 
 stops_combined <- combined %>% 
-  semi_join(top_stops_delays, by = c("stop_id", "direction_id")) %>%
-  mutate(stop_direction = paste0(stop_id, "-", direction_id))
+  semi_join(top_stops_delays, by = c("stop_direction"))
 
 stops_combined %>% 
-  ggplot(aes(x = timestamp, y = delay_minutes, color = stop_direction)) +
+  ggplot(aes(x = timestamp, y = delay_mins, color = stop_direction)) +
   geom_point() +
   geom_line()
 ```
+
+## Delays per Consecutive Stops per Direction
+
+```{r}
+consec_stops_delays <- combined %>%
+  group_by(stop_pair_dir) %>% 
+  summarise(avg_delay = mean(delay_mins),
+            occurrences = n()) %>%
+  ungroup() %>%
+  filter(occurrences > mean(occurrences)) %>%
+  arrange(-avg_delay)
+```
+
+
+
+
 
 ## Delays per Route per Direction
 
 ```{r}
 routes_delays <- combined %>%
-  # Remove exceptional cases
-  #filter(!(route_id %in% c("224M", "225M", "492A", "750B", "864", "743") & delay_minutes > 30)) %>% 
-  group_by(route_id, direction_id) %>%
-  summarise(avg_delay = mean(delay_minutes),
+  filter(!(route_direction %in% c("224M-0", "G20-0", "750B-1", "157-0", "117-0") & delay_mins > 40)) %>% 
+  group_by(route_direction) %>%
+  summarise(avg_delay = mean(delay_mins),
             # A start_date can have several trip_id's, and a trip_id can have
             # several start_dates, so count unique combinations of each
             no_of_trips = n_distinct(start_date, trip_id),
@@ -182,10 +192,9 @@ top_routes_delays <- routes_delays %>%
   slice_head(n=5)
 
 routes_combined <- combined %>% 
-  semi_join(top_routes_delays, by = c("route_id", "direction_id")) %>%
-  mutate(route_direction = paste0(route_id, "-", direction_id)) 
+  semi_join(top_routes_delays, by = c("route_direction"))
 
-ggplot(routes_combined, aes(x = timestamp, y = delay_minutes, color = route_direction)) +
+ggplot(routes_combined, aes(x = timestamp, y = delay_mins, color = route_direction)) +
   geom_point() +
   geom_line()
 ```
@@ -195,7 +204,7 @@ ggplot(routes_combined, aes(x = timestamp, y = delay_minutes, color = route_dire
 ```{r}
 hourly_delays <- combined %>%
   group_by(hour) %>% 
-  summarise(avg_delay = mean(delay_minutes)) %>%
+  summarise(avg_delay = mean(delay_mins)) %>%
   ungroup() %>%
   arrange(hour)
 
