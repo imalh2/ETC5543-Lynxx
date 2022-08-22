@@ -17,6 +17,8 @@ library(lubridate)
 library(ggmap)
 library(sf)
 library(leaflet)
+library(geosphere)
+library(geodist)
 ```
 
 ```{r}
@@ -24,6 +26,7 @@ library(leaflet)
 updates_raw <- read_csv(here("data/GTFSr/large/gtfsr_prod.trip_updates.SAMPLE.csv.csv"))
 stops_raw <- read_csv(here("data/GTFS_feed_version_1157/large/gtfs_history_prod.stops.csv"))
 routes_raw <- read_csv(here("data/GTFS_feed_version_1157/gtfs_history_prod.routes.csv"))
+sites_raw <- read_csv(here("data/addinsight/addinsight_prod.btsites.csv.csv"))
 ```
 
 ## Data Wrangling
@@ -84,7 +87,13 @@ stops <- stops_raw %>%
   
 rm(stops_raw)
 
-# Join
+# Sites
+sites <- sites_raw %>% 
+  distinct(id, .keep_all = TRUE)
+
+rm(sites_raw)
+
+# Join updates with routes and stops
 combined <- updates %>%
   inner_join(routes, by = "route_id") %>% 
   inner_join(stops, by = "stop_id")
@@ -290,21 +299,50 @@ trips_max_stops <- routes_combined %>%
 
 # Get full details of identified trips
 trips_to_map <- routes_combined %>% 
-  semi_join(trips_max_stops, by = c("route_id", "start_date", "trip_id"))
+  semi_join(trips_max_stops, by = c("route_id", "start_date", "trip_id")) %>% 
+  # routes 224M and 403 have the same color, change one of them
+  mutate(route_color = ifelse(route_id == "224M", "#FFC733", route_color))
 ```
 
 # Map
 
 ```{r}
-trips_to_map %>% 
+# filter routes to pass into map
+selected_routes <- trips_to_map %>% 
+  filter(route_id == "117")
+
+# Get sites close to stops
+stops_coords <- selected_routes %>% 
+  select(stop_id, stop_lat, stop_lon) %>% 
+  distinct() %>% 
+  rename(lat = stop_lat, lon = stop_lon)
+
+sites_coords <- sites %>% 
+  select(id, longitude, latitude) %>% 
+  rename(lat = latitude, lon = longitude)
+
+# calculate all pairwise distances between stops and sites
+stops_sites_dist <- geodist(x = sites_coords, y = stops_coords, measure = "haversine")
+
+colnames(stops_sites_dist) <- stops_coords$stop_id
+
+stops_sites_dist <- stops_sites_dist %>% 
+  as_tibble() %>% 
+  mutate(site = sites$id, .before = everything())
+
+# Keep sites within 300m of any stop
+sites_300m <- stops_sites_dist %>% 
+  filter(if_any(c(everything(), -site), ~ .x < 300))
+
+sites_map <- sites %>% 
+  semi_join(sites_300m, by = c("id" = "site"))
+
+selected_routes %>% 
   leaflet() %>% 
   addTiles() %>% 
-  addCircles(lng = ~ stop_lon, lat = ~ stop_lat, color = ~ route_color, radius = ~ stop_to_stop_delay_mins)
+  addCircles(lng = ~ stop_lon, lat = ~ stop_lat, color = ~ route_color, popup = ~ stop_id) %>% 
+  addCircles(data = sites_map, lng = ~ longitude, lat = ~ latitude, popup = ~ as.character(id), color = "green")
 ```
-
-
-
-
 
 
 
