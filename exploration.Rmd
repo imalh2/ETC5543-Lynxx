@@ -16,6 +16,7 @@ library(here)
 library(lubridate)
 library(ggmap)
 library(sf)
+library(leaflet)
 ```
 
 ```{r}
@@ -61,6 +62,7 @@ updates <- updates_raw %>%
   mutate(stop_to_stop_delay_mins = stop_to_stop_delay/60, .after = stop_to_stop_delay)
   
 rm(updates_raw)
+
 # Routes
 routes <- routes_raw %>%
   distinct(route_id, .keep_all = TRUE) %>% 
@@ -194,6 +196,7 @@ hourly_delays <- combined %>%
 
 ggplot(hourly_delays, aes(hour, avg_delay)) +
   geom_line() +
+  geom_point() +
   scale_x_continuous(breaks = seq(0,23)) +
   theme(panel.grid.minor = element_blank())
 ```
@@ -265,16 +268,38 @@ trip_hr_per_route <- routes_combined %>%
   filter(avg_delay == max(avg_delay)) %>% 
   ungroup()
 
-# Pick a random trip_id per identified route_id and hour
-route_trip <- routes_combined %>% 
+# Extract all trips per route, direction and hour identified
+route_trips <- routes_combined %>% 
   semi_join(trip_hr_per_route, by = c("route_id", "direction_id", "hour")) %>% 
-  group_by(route_id) %>% 
-  summarise(trip_id = sample(trip_id, size = 1),
-            route_name = unique(route_long_name),
-            route_desc = unique(route_desc),
-            route_group = unique(routegroup),
-            route_color = unique(route_color)) %>% 
+  group_by(route_id, direction_id, hour) %>% 
+  summarise(trip_id = unique(trip_id)) %>% 
   ungroup()
+
+# For each trip_id identified, get the specific trip with maximum stops
+set.seed(1)
+trips_max_stops <- routes_combined %>% 
+  semi_join(route_trips, by = c("route_id", "direction_id", "trip_id")) %>%
+  group_by(route_id, start_date, trip_id) %>% 
+  summarise(no_of_stops = n_distinct(stop_sequence)) %>%
+  ungroup() %>% 
+  group_by(route_id) %>% 
+  slice_max(order_by = no_of_stops, n = 1) %>%
+  # Route 403 has several trips with the same number of max stops, get one randomly
+  slice_sample(n = 1) %>% 
+  ungroup()
+
+# Get full details of identified trips
+trips_to_map <- routes_combined %>% 
+  semi_join(trips_max_stops, by = c("route_id", "start_date", "trip_id"))
+```
+
+# Map
+
+```{r}
+trips_to_map %>% 
+  leaflet() %>% 
+  addTiles() %>% 
+  addCircles(lng = ~ stop_lon, lat = ~ stop_lat, color = ~ route_color, radius = ~ stop_to_stop_delay_mins)
 ```
 
 
@@ -288,7 +313,20 @@ route_trip <- routes_combined %>%
 
 
 
-# Map
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ```{r}
 # Obtain shapes required per shape_id in stops_combined
