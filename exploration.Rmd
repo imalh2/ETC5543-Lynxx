@@ -306,46 +306,74 @@ trips_to_map <- routes_combined %>%
 
 # Map
 
+A function will be built to extract sites and construct map based on routes provided
+
 ```{r}
-# filter routes to pass into map
-selected_routes <- trips_to_map %>% 
-  filter(route_id == "117")
+extract_sites <- function(...) {
+  
+  trips <- c(...)
+  
+  if (length(trips) == 1 && trips == "all") {
+    trips <- unique(trips_to_map$route_id)
+  } 
+  
+  if (any(!trips %in% trips_to_map$route_id)) {
+    stop("Route(s) is not an examined route. Type 'all' to select all routes")
+  }
+  
+  # filter routes to pass into map
+  selected_routes <- trips_to_map %>% 
+  filter(route_id %in% trips)
+  
+  # Get sites close to stops
+  stops_coords <- selected_routes %>% 
+    select(stop_id, stop_lat, stop_lon) %>% 
+    distinct() %>% 
+    rename(lat = stop_lat, lon = stop_lon)
 
-# Get sites close to stops
-stops_coords <- selected_routes %>% 
-  select(stop_id, stop_lat, stop_lon) %>% 
-  distinct() %>% 
-  rename(lat = stop_lat, lon = stop_lon)
-
-sites_coords <- sites %>% 
-  select(id, longitude, latitude) %>% 
-  rename(lat = latitude, lon = longitude)
-
-# calculate all pairwise distances between stops and sites
-stops_sites_dist <- geodist(x = sites_coords, y = stops_coords, measure = "haversine")
-
-colnames(stops_sites_dist) <- stops_coords$stop_id
-
-stops_sites_dist <- stops_sites_dist %>% 
-  as_tibble() %>% 
-  mutate(site = sites$id, .before = everything())
-
-# Keep sites within 300m of any stop
-sites_300m <- stops_sites_dist %>% 
-  filter(if_any(c(everything(), -site), ~ .x < 300))
-
-sites_map <- sites %>% 
-  semi_join(sites_300m, by = c("id" = "site"))
-
-selected_routes %>% 
-  leaflet() %>% 
-  addTiles() %>% 
-  addCircles(lng = ~ stop_lon, lat = ~ stop_lat, color = ~ route_color, popup = ~ stop_id) %>% 
-  addCircles(data = sites_map, lng = ~ longitude, lat = ~ latitude, popup = ~ as.character(id), color = "green")
+  sites_coords <- sites %>% 
+    select(id, longitude, latitude) %>% 
+    rename(lat = latitude, lon = longitude)
+  
+  # calculate all pairwise distances between stops and sites
+  stops_sites_dist <- geodist(x = sites_coords, y = stops_coords, measure = "haversine")
+  
+  colnames(stops_sites_dist) <- stops_coords$stop_id
+  
+  stops_sites_dist <- stops_sites_dist %>% 
+    as_tibble() %>% 
+    mutate(site = sites$id, .before = everything())
+  
+  # Keep sites within 300m of any stop and assign as global variable
+  sites_300m <<- stops_sites_dist %>% 
+    filter(if_any(c(everything(), -site), ~ .x < 300))
+  
+  sites_map <- sites %>% 
+    semi_join(sites_300m, by = c("id" = "site"))
+  
+  # Set color palette for leaflet legend
+  pal <- colorFactor(palette = unique(selected_routes$route_color),
+                              domain = selected_routes$route_id)
+  
+  selected_routes %>% 
+    leaflet() %>% 
+    addTiles() %>% 
+    addCircles(lng = ~ stop_lon,
+               lat = ~ stop_lat,
+               color = ~ route_color,
+               popup = ~ stop_id) %>% 
+    addCircles(data = sites_map,
+               lng = ~ longitude,
+               lat = ~ latitude,
+               popup = ~ as.character(id),
+               color = "green") %>% 
+    addLegend(position = "bottomleft", pal = pal, values = ~ route_id, title = "Routes")
+}
 ```
 
-
-
+```{r}
+extract_sites("all")
+```
 
 
 
