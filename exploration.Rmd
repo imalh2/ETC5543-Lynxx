@@ -27,6 +27,7 @@ updates_raw <- read_csv(here("data/GTFSr/large/gtfsr_prod.trip_updates.SAMPLE.cs
 stops_raw <- read_csv(here("data/GTFS_feed_version_1157/large/gtfs_history_prod.stops.csv"))
 routes_raw <- read_csv(here("data/GTFS_feed_version_1157/gtfs_history_prod.routes.csv"))
 sites_raw <- read_csv(here("data/addinsight/addinsight_prod.btsites.csv.csv"))
+site_stats_raw <- read_csv(here("data/addinsight/large/addinsight_prod.btsitestats.SAMPLE.csv.csv"))
 ```
 
 ## Data Wrangling
@@ -92,6 +93,16 @@ sites <- sites_raw %>%
   distinct(id, .keep_all = TRUE)
 
 rm(sites_raw)
+
+# Sites Stats
+site_stats <- site_stats_raw %>% 
+  mutate(logtime = as_datetime(str_remove(logtime, " \\+10:30"), tz = "UTC")) %>% 
+  select(-c(dms_update_ts, schema_name:ingest_day)) %>% 
+  filter(between(as_date(logtime), as_date("2022-01-01"), as_date("2022-01-31"))) %>% 
+  mutate(hour = hour(logtime)) %>% 
+  arrange(logtime)
+
+rm(site_stats_raw)
 
 # Join updates with routes and stops
 combined <- updates %>%
@@ -317,7 +328,7 @@ extract_sites <- function(...) {
     trips <- unique(trips_to_map$route_id)
   } 
   
-  if (any(!trips %in% trips_to_map$route_id)) {
+  if (any(!trips %in% unique(trips_to_map$route_id))) {
     stop("Route(s) is not an examined route. Type 'all' to select all routes")
   }
   
@@ -345,7 +356,7 @@ extract_sites <- function(...) {
     mutate(site = sites$id, .before = everything())
   
   # Keep sites within 300m of any stop and assign as global variable
-  sites_300m <<- stops_sites_dist %>% 
+  sites_300m <- stops_sites_dist %>% 
     filter(if_any(c(everything(), -site), ~ .x < 300))
   
   sites_map <- sites %>% 
@@ -361,57 +372,115 @@ extract_sites <- function(...) {
     addCircles(lng = ~ stop_lon,
                lat = ~ stop_lat,
                color = ~ route_color,
-               popup = ~ stop_id) %>% 
+               popup = ~ stop_id,
+               radius = 50,
+               fillOpacity = 1) %>% 
     addCircles(data = sites_map,
                lng = ~ longitude,
                lat = ~ latitude,
                popup = ~ as.character(id),
-               color = "green") %>% 
+               color = "green",
+               fillOpacity = 1) %>% 
     addLegend(position = "bottomleft", pal = pal, values = ~ route_id, title = "Routes")
 }
-```
 
-```{r}
 extract_sites("all")
 ```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+A data frame containing each route and its associated steps will be created
 
 ```{r}
-# Obtain shapes required per shape_id in stops_combined
-stops_shapes <- shapes %>% 
-  semi_join(stops_combined, by = "shape_id") %>% 
-  arrange(shape_id, shape_pt_sequence)
+# Initialize list to contain data frames for each route then combine at the end
+routes_sites <- vector("list", n_distinct(trips_to_map$route_id))
 
-stops_shapes_sf <- st_as_sf(stops_shapes, coords = c("shape_pt_lat", "shape_pt_lon"))
+for (i in seq_along(unique(trips_to_map$route_id))) {
+  
+  selected_route <- trips_to_map %>% 
+  filter(route_id == unique(trips_to_map$route_id)[i])
+  
+  stops_coords <- selected_route %>% 
+    select(stop_id, stop_lat, stop_lon) %>% 
+    distinct() %>% 
+    rename(lat = stop_lat, lon = stop_lon)
+  
+  sites_coords <- sites %>% 
+    select(id, longitude, latitude) %>% 
+    rename(lat = latitude, lon = longitude)
+  
+  stops_sites_dist <- geodist(x = sites_coords, y = stops_coords, measure = "haversine")
+  
+  colnames(stops_sites_dist) <- stops_coords$stop_id
+  
+  stops_sites_dist <- stops_sites_dist %>% 
+    as_tibble() %>% 
+    mutate(site = sites$id, .before = everything())
+  
+  sites_300m <- stops_sites_dist %>% 
+    filter(if_any(c(everything(), -site), ~ .x < 300))
+  
+  routes_sites[[i]] <- sites %>% 
+    semi_join(sites_300m, by = c("id" = "site")) %>% 
+    mutate(route_id = unique(selected_route$route_id))
+}
 
-# Map method 1
-ggplot() +
-  geom_path(data = shapes, aes(shape_pt_lon, shape_pt_lat, group=shape_id), size=.2, alpha=.1) +
-  coord_fixed()
+routes_sites <- bind_rows(routes_sites)
+```
 
-# Map method 2
-bbox <- c(138.454415,-35.206164,138.742257,-34.660694)
+# Sites
 
-ggplot(stops_shapes_sf) +
-  geom_sf(data = stops_shapes_sf, aes(color = shape_id))
+```{r}
+ggplot(site_stats, aes(probecount, avgduration))
+```
+
+```{r}
+# Calculate average probecount and duration per site
+site_count <- site_stats %>% 
+  group_by(siteid) %>% 
+  summarise(avg_count = mean(probecount),
+            avg_duration = mean(avgduration)) %>% 
+  ungroup() %>% 
+  arrange(-avg_count)
+
+ggplot(site_count, aes(avg_count)) +
+  geom_histogram()
+
+ggplot(site_count, aes(x = avg_count, y = avg_duration)) +
+  geom_point()
+
+# Calculate average probecount and duration per hour
+site_hour_count <- site_stats %>% 
+  group_by(hour) %>% 
+  summarise(avg_count = mean(probecount),
+            avg_duration = mean(avgduration)) %>% 
+  ungroup() %>% 
+  arrange(-avg_count)
+
+ggplot(site_hour_count, aes(x = hour, y = avg_count)) +
+  geom_line() +
+  geom_point() +
+  scale_x_continuous(breaks = seq(0,23)) +
+  theme(panel.grid.minor = element_blank())
+
+hourly_delays_congestion <- site_hour_count %>% 
+  left_join(hourly_delays, by = "hour") %>% 
+  pivot_longer(cols = -hour, names_to = "measure")
+
+ggplot(hourly_delays_congestion, aes(x = hour, y = value)) +
+  geom_line() +
+  scale_x_continuous(breaks = seq(0,23)) +
+  theme(panel.grid.minor = element_blank()) +
+  facet_grid(vars(measure), scales = "free_y")
+
+# Calculate average probecount and duration per site per hour
+site_hour_combo_count <- site_stats %>%
+  group_by(siteid, hour) %>% 
+  summarise(avg_count = mean(probecount),
+            avg_duration = mean(avgduration)) %>% 
+  ungroup() %>% 
+  arrange(-avg_count)
+
+ggplot(site_hour_combo_count, aes(x = avg_count)) +
+  geom_histogram()
 ```
 
 
@@ -421,49 +490,11 @@ ggplot(stops_shapes_sf) +
 
 
 
-```{r}
-stops_combined %>% 
-  group_by(route_id, direction_id, service_id) %>% 
-  summarise(n = n_distinct(shape_id)) %>% 
-  arrange(-n)
-```
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-```{r}
-# Coordinates retrieved from https://www.openstreetmap.org/export#map=12/-34.6943/138.6887
-ints_map <- get_map(c(left = 138.4387,
-                      bottom = -35.2546,
-                      right = 138.7628,
-                      top = -34.6648),
-                    source = "stamen")
-
-# sites and top stops locations
-ggmap(ints_map) +
-  geom_point(data = stops_combined, aes(x = stop_lon, y = stop_lat), color = "red", alpha = 0.3, size = 2) +
-  geom_point(data = sites_raw, aes(x = longitude, y = latitude), color = "blue", alpha = 0.3, size = 2) +
-  theme_void()
-
-
-```
 
 
 
