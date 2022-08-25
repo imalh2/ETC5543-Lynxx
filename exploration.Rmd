@@ -174,7 +174,7 @@ stops_combined %>%
   geom_line()
 ```
 
-## Delays per Route per Direction
+### Delays per Route per Direction
 
 ```{r}
 routes_delays <- combined %>%
@@ -205,7 +205,7 @@ ggplot(routes_combined, aes(x = timestamp, y = stop_to_stop_delay_mins, color = 
   geom_line()
 ```
 
-## Delays per Hour
+### Delays per Hour
 
 ```{r}
 hourly_delays <- combined %>%
@@ -221,7 +221,7 @@ ggplot(hourly_delays, aes(hour, avg_delay)) +
   theme(panel.grid.minor = element_blank())
 ```
 
-## Delays per Route per Direction per Hour
+### Delays per Route per Direction per Hour
 
 ```{r}
 routes_hourly_delays <- combined %>% 
@@ -250,7 +250,7 @@ ggplot(routes_hourly_combined, aes(x = timestamp, y = stop_to_stop_delay_mins, c
   geom_point() +
   geom_line()
 
-# Per each hour
+# Top delay route per each hour
 top_delays_per_hour <- routes_hourly_delays %>% 
   group_by(hour) %>% 
   slice_max(order_by = avg_delay, n = 1) %>% 
@@ -262,13 +262,15 @@ hourly_delays_combined <- combined %>%
 ggplot(top_delays_per_hour, aes(x = hour, y = avg_delay)) +
   geom_line() +
   geom_text(aes(label = route_direction), color = "red")
-
 ```
 
 Continue with the top 5 routes-directions identified earlier.
 
+# Analysis Basis
 
-## Identify hour and trip_id to use per top 5 routes
+## Delays per Route
+
+Identify hour and trip_id to use per top 5 routes
 
 ```{r}
 # Identify hour with largest delays per route
@@ -297,7 +299,9 @@ route_trips <- routes_combined %>%
 
 # For each trip_id identified, get the specific trip with maximum stops
 set.seed(1)
-trips_max_stops <- routes_combined %>% 
+route_trips_max_stops <- routes_combined %>% 
+  # Exclude hour from semi_join because a trip might start in a preceding hour,
+  # otherwise only stops occurring in hour specified will be kept
   semi_join(route_trips, by = c("route_id", "direction_id", "trip_id")) %>%
   group_by(route_id, start_date, trip_id) %>% 
   summarise(no_of_stops = n_distinct(stop_sequence)) %>%
@@ -310,9 +314,38 @@ trips_max_stops <- routes_combined %>%
 
 # Get full details of identified trips
 trips_to_map <- routes_combined %>% 
-  semi_join(trips_max_stops, by = c("route_id", "start_date", "trip_id")) %>% 
+  semi_join(route_trips_max_stops, by = c("route_id", "start_date", "trip_id")) %>% 
   # routes 224M and 403 have the same color, change one of them
   mutate(route_color = ifelse(route_id == "224M", "#FFC733", route_color))
+```
+
+## Delays per Route per Hour
+
+Same methodology as Delays per route, excluding identifying hour with most delays per trip (already identified)
+
+```{r}
+# Extract all trips per route, direction and hour identified
+route_hour_trips <- routes_hourly_combined %>%
+  group_by(route_id, direction_id, hour) %>% 
+  summarise(trip_id = unique(trip_id)) %>% 
+  ungroup()
+
+set.seed(1)
+route_hour_trips_max_stops <- routes_hourly_combined %>% 
+  semi_join(route_hour_trips, by = c("route_id", "direction_id", "trip_id")) %>%
+  group_by(route_id, start_date, trip_id) %>% 
+  summarise(no_of_stops = n_distinct(stop_sequence)) %>%
+  ungroup() %>% 
+  group_by(route_id) %>% 
+  slice_max(order_by = no_of_stops, n = 1) %>%
+  # Route G10B has several trips with the same number of max stops, get one randomly
+  slice_sample(n = 1) %>% 
+  ungroup()
+
+trips_to_map <- routes_hourly_combined %>% 
+  semi_join(route_hour_trips_max_stops, by = c("route_id", "start_date", "trip_id")) %>% 
+  # routes 225 and 440 have the same color, change one of them
+  mutate(route_color = ifelse(route_id == "225", "#FFC733", route_color))
 ```
 
 # Map
@@ -387,7 +420,7 @@ extract_sites <- function(...) {
 extract_sites("all")
 ```
 
-A data frame containing each route and its associated steps will be created
+A data frame containing each route and its associated sites will be created
 
 ```{r}
 # Initialize list to contain data frames for each route then combine at the end
@@ -429,7 +462,8 @@ routes_sites <- bind_rows(routes_sites)
 # Sites
 
 ```{r}
-ggplot(site_stats, aes(probecount, avgduration))
+ggplot(site_stats, aes(probecount, avgduration)) +
+  geom_point()
 ```
 
 ```{r}
@@ -437,12 +471,16 @@ ggplot(site_stats, aes(probecount, avgduration))
 site_count <- site_stats %>% 
   group_by(siteid) %>% 
   summarise(avg_count = mean(probecount),
+            avg_raw_count = mean(rawprobecount),
             avg_duration = mean(avgduration)) %>% 
   ungroup() %>% 
   arrange(-avg_count)
 
 ggplot(site_count, aes(avg_count)) +
-  geom_histogram()
+  geom_histogram(binwidth = 10)
+
+ggplot(site_count, aes(avg_duration)) +
+  geom_histogram(binwidth = 1)
 
 ggplot(site_count, aes(x = avg_count, y = avg_duration)) +
   geom_point()
@@ -451,6 +489,7 @@ ggplot(site_count, aes(x = avg_count, y = avg_duration)) +
 site_hour_count <- site_stats %>% 
   group_by(hour) %>% 
   summarise(avg_count = mean(probecount),
+            avg_raw_count = mean(rawprobecount),
             avg_duration = mean(avgduration)) %>% 
   ungroup() %>% 
   arrange(-avg_count)
@@ -461,7 +500,14 @@ ggplot(site_hour_count, aes(x = hour, y = avg_count)) +
   scale_x_continuous(breaks = seq(0,23)) +
   theme(panel.grid.minor = element_blank())
 
+ggplot(site_hour_count, aes(x = hour, y = avg_duration)) +
+  geom_line() +
+  geom_point() +
+  scale_x_continuous(breaks = seq(0,23)) +
+  theme(panel.grid.minor = element_blank())
+
 hourly_delays_congestion <- site_hour_count %>% 
+  select(-avg_raw_count) %>% 
   left_join(hourly_delays, by = "hour") %>% 
   pivot_longer(cols = -hour, names_to = "measure")
 
@@ -475,66 +521,14 @@ ggplot(hourly_delays_congestion, aes(x = hour, y = value)) +
 site_hour_combo_count <- site_stats %>%
   group_by(siteid, hour) %>% 
   summarise(avg_count = mean(probecount),
+            avg_raw_count = mean(rawprobecount),
             avg_duration = mean(avgduration)) %>% 
   ungroup() %>% 
   arrange(-avg_count)
 
 ggplot(site_hour_combo_count, aes(x = avg_count)) +
-  geom_histogram()
+  geom_histogram(binwidth = 10)
+
+ggplot(site_hour_combo_count, aes(x = avg_duration)) +
+  geom_histogram(binwidth = 1)
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
