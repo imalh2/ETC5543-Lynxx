@@ -191,7 +191,7 @@ routes_delays <- combined %>%
             route_group = unique(routegroup),
             route_color = unique(route_color)) %>%
   ungroup() %>% 
-  filter(no_of_trips > median(no_of_trips)) %>%
+  filter(no_of_trips > min(median(no_of_trips), mean(no_of_trips))) %>%
   arrange(-avg_delay)
 
 top_routes_delays <- routes_delays %>% 
@@ -240,7 +240,7 @@ routes_hourly_delays <- combined %>%
   arrange(-avg_delay)
 
 top_routes_hourly_delays <- routes_hourly_delays %>%
-  filter(no_of_trips > median(no_of_trips)) %>% 
+  filter(no_of_trips > min(median(no_of_trips), mean(no_of_trips))) %>% 
   slice_head(n=5)
 
 routes_hourly_combined <- combined %>% 
@@ -264,7 +264,6 @@ ggplot(top_delays_per_hour, aes(x = hour, y = avg_delay)) +
   geom_text(aes(label = route_direction), color = "red")
 ```
 
-Continue with the top 5 routes-directions identified earlier.
 
 # Analysis Basis
 
@@ -286,7 +285,7 @@ trip_hr_per_route <- routes_combined %>%
             route_color = unique(route_color)) %>%
   ungroup() %>% 
   group_by(route_id, direction_id) %>%
-  filter(no_of_trips > mean(no_of_trips)) %>%
+  filter(no_of_trips > min(median(no_of_trips), mean(no_of_trips))) %>%
   filter(avg_delay == max(avg_delay)) %>% 
   ungroup()
 
@@ -342,10 +341,10 @@ route_hour_trips_max_stops <- routes_hourly_combined %>%
   slice_sample(n = 1) %>% 
   ungroup()
 
-trips_to_map <- routes_hourly_combined %>% 
-  semi_join(route_hour_trips_max_stops, by = c("route_id", "start_date", "trip_id")) %>% 
-  # routes 225 and 440 have the same color, change one of them
-  mutate(route_color = ifelse(route_id == "225", "#FFC733", route_color))
+# trips_to_map <- routes_hourly_combined %>% 
+#   semi_join(route_hour_trips_max_stops, by = c("route_id", "start_date", "trip_id")) %>% 
+#   # routes 225 and 440 have the same color, change one of them
+#   mutate(route_color = ifelse(route_id == "225", "#FFC733", route_color))
 ```
 
 # Map
