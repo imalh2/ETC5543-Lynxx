@@ -223,6 +223,9 @@ for (link in unique(links_map_up$linkid)) {
 }
 
 map_up
+
+# Save linkid's going north
+links_north <- unique(links_map_up$linkid)
 ```
 
 #### Build map going down
@@ -332,6 +335,9 @@ for (link in unique(links_map_down$linkid)) {
 }
 
 map_down
+
+# Save linkid's going south
+links_south <- unique(links_map_down$linkid)
 ```
 
 ```{r}
