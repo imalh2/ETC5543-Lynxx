@@ -118,98 +118,98 @@ Next: need to select sites along the road but do not overlap
 ### Alex Links
 
 ```{r}
-# Mutate start and end longitudes for each link
-links_south_rd <- links_south_rd %>% 
-  group_by(linkid) %>%
-  mutate(up_lat = min(latitude),
-         down_lat = max(latitude),
-         lat_diff = down_lat -  up_lat) %>%
-  ungroup()
-
-links_south_rd <- links_south_rd %>% 
-  group_by(linkid) %>%
-  arrange(ordernumber, .by_group = TRUE) %>% 
-  mutate(up_lat = min(latitude),
-         down_lat = max(latitude),
-         lat_diff = down_lat -  up_lat,
-         going_up = lag(latitude) > latitude) %>% 
-  fill(going_up, .direction = "up") %>% 
-  ungroup()
-
-# Keep one row per linkid for now to see sequence of links
-links_dist <- links_south_rd %>% 
-  distinct(linkid, .keep_all = TRUE) %>%
-  # Build map for lower end of map to upper
-  arrange(up_lat, -lat_diff) %>% 
-  # If two links have the same up_lat, keep the one that covers larger distance
-  group_by(up_lat) %>% 
-  filter(lat_diff == max(lat_diff)) %>% 
-  ungroup()
-```
-
-```{r}
-# Identifying sequence of links with no overlaps
-
-flag <- links_dist$down_lat[1]
-
-links_order <- vector("list")
-
-links_order[[1]] <- links_dist[1,]
-
-n <- 2
-
-for (i in 2:nrow(links_dist)) {
-  if (links_dist$up_lat[i] > flag) {
-    links_order[[n]] <- links_dist[i,]
-    
-    flag <- links_dist$down_lat[i]
-    
-    n <- n+1
-  }
-}
-
-links_order <- bind_rows(links_order)
-```
-
-```{r}
-links_map <- links_south_rd %>% 
-  semi_join(links_order, by = "linkid")
-
-# Set color palette for leaflet legend
-pal <- colorFactor(palette = "Set1",
-                   domain = unique(links_map$linkid))
-
-
-links_colors <- c("#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00","#cab2d6")
-
-n <- 1
-
-map1 <- leaflet() %>% 
-  addTiles()
-
-for (link in unique(links_map$linkid)) {
-  map_df <- links_map %>% 
-    filter(linkid == link)
-  
-  map1 <- map1 %>% 
-    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = links_colors[n], label = ~linkid, opacity = 1)
-  
-  n <- n+1
-}
-
-map1
-
-# Missing link between Daws Road and Corunna Avenua. Locate a link between the two
-link_daws_cor <- 
-  links_south_rd %>% 
-  filter(str_detect(tolower(name), "daws"),
-         str_detect(tolower(name), "corunna")) %>% 
-  # pick one of the routes
-  filter(linkid == 696)
-
-
-map1 %>% 
-  addPolylines(data = link_daws_cor, lng = ~longitude, lat = ~latitude, color = "yellow", label = ~linkid, opacity = 1)
+# # Mutate start and end longitudes for each link
+# links_south_rd <- links_south_rd %>% 
+#   group_by(linkid) %>%
+#   mutate(up_lat = min(latitude),
+#          down_lat = max(latitude),
+#          lat_diff = down_lat -  up_lat) %>%
+#   ungroup()
+# 
+# links_south_rd <- links_south_rd %>% 
+#   group_by(linkid) %>%
+#   arrange(ordernumber, .by_group = TRUE) %>% 
+#   mutate(up_lat = min(latitude),
+#          down_lat = max(latitude),
+#          lat_diff = down_lat -  up_lat,
+#          going_up = lag(latitude) > latitude) %>% 
+#   fill(going_up, .direction = "up") %>% 
+#   ungroup()
+# 
+# # Keep one row per linkid for now to see sequence of links
+# links_dist <- links_south_rd %>% 
+#   distinct(linkid, .keep_all = TRUE) %>%
+#   # Build map for lower end of map to upper
+#   arrange(up_lat, -lat_diff) %>% 
+#   # If two links have the same up_lat, keep the one that covers larger distance
+#   group_by(up_lat) %>% 
+#   filter(lat_diff == max(lat_diff)) %>% 
+#   ungroup()
+# ```
+# 
+# ```{r}
+# # Identifying sequence of links with no overlaps
+# 
+# flag <- links_dist$down_lat[1]
+# 
+# links_order <- vector("list")
+# 
+# links_order[[1]] <- links_dist[1,]
+# 
+# n <- 2
+# 
+# for (i in 2:nrow(links_dist)) {
+#   if (links_dist$up_lat[i] > flag) {
+#     links_order[[n]] <- links_dist[i,]
+#     
+#     flag <- links_dist$down_lat[i]
+#     
+#     n <- n+1
+#   }
+# }
+# 
+# links_order <- bind_rows(links_order)
+# ```
+# 
+# ```{r}
+# links_map <- links_south_rd %>% 
+#   semi_join(links_order, by = "linkid")
+# 
+# # Set color palette for leaflet legend
+# pal <- colorFactor(palette = "Set1",
+#                    domain = unique(links_map$linkid))
+# 
+# 
+# links_colors <- c("#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#fdbf6f","#ff7f00","#cab2d6")
+# 
+# n <- 1
+# 
+# map1 <- leaflet() %>% 
+#   addTiles()
+# 
+# for (link in unique(links_map$linkid)) {
+#   map_df <- links_map %>% 
+#     filter(linkid == link)
+#   
+#   map1 <- map1 %>% 
+#     addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = links_colors[n], label = ~linkid, opacity = 1)
+#   
+#   n <- n+1
+# }
+# 
+# map1
+# 
+# # Missing link between Daws Road and Corunna Avenua. Locate a link between the two
+# link_daws_cor <- 
+#   links_south_rd %>% 
+#   filter(str_detect(tolower(name), "daws"),
+#          str_detect(tolower(name), "corunna")) %>% 
+#   # pick one of the routes
+#   filter(linkid == 696)
+# 
+# 
+# map1 %>% 
+#   addPolylines(data = link_daws_cor, lng = ~longitude, lat = ~latitude, color = "yellow", label = ~linkid, opacity = 1)
 ```
 
 
@@ -283,32 +283,55 @@ links_colors <- c("#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#
 
 n <- 1
 
-map1 <- leaflet() %>% 
+map_up <- leaflet() %>% 
   addTiles()
 
 for (link in unique(links_map_up$linkid)) {
   map_df <- links_map_up %>% 
     filter(linkid == link)
   
-  map1 <- map1 %>% 
+  map_up <- map_up %>% 
     addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = links_colors[n], label = ~linkid, opacity = 1)
   
   n <- n+1
 }
 
-map1
+map_up
 
-# Missing link between Daws Road and Corunna Avenua. Locate a link between the two
-link_daws_cor <- 
-  links_south_rd_dir %>% 
+# Missing link between Daws Road and Celtic Avenue. Locate a link between the two
+link_daws_celt_up <-
+  links_south_rd_dir %>%
   filter(str_detect(tolower(name), "daws"),
-         str_detect(tolower(name), "corunna")) %>% 
-  # pick one of the routes
-  filter(linkid == 696)
+         str_detect(tolower(name), "celtic"),
+         going_up == TRUE)
 
+# Missing link between Cross Road and Corunna Avenue. Locate a link between the two
+link_cross_cor_up <-
+  links_south_rd_dir %>%
+  filter(str_detect(tolower(name), "cross") |
+         str_detect(tolower(name), "corunna"),
+         going_up == TRUE,
+         !linkid %in% unique(links_map_up$linkid))
 
-map1 %>% 
-  addPolylines(data = link_daws_cor, lng = ~longitude, lat = ~latitude, color = "yellow", label = ~linkid, opacity = 1)
+# Missing link between Richmond Road and Barwell Avenue. Locate a link between the two
+link_rich_bar_up <-
+  links_south_rd_dir %>%
+  filter(str_detect(tolower(name), "richmond"),
+         str_detect(tolower(name), "everard"),
+         going_up == TRUE)
+
+map_up %>%
+  addPolylines(data = link_daws_celt_up, lng = ~longitude, lat = ~latitude, color = "yellow", label = ~linkid, opacity = 1) %>%
+  addPolylines(data = link_cross_cor_up, lng = ~longitude, lat = ~latitude, color = "yellow", label = ~linkid, opacity = 1) %>% 
+  addPolylines(data = link_rich_bar_up, lng = ~longitude, lat = ~latitude, color = "yellow", label = ~linkid, opacity = 1)
+
+# Combine missing links with map links up DF and plot
+links_map_up <- links_map_up %>% 
+  rbind(link_daws_celt_up, link_cross_cor_up, link_rich_bar_up)
+
+leaflet(links_map_up) %>% 
+  addTiles() %>% 
+  addPolylines(lng = ~longitude, lat = ~latitude)
 ```
 
 
@@ -362,20 +385,69 @@ links_colors <- c("#a6cee3","#1f78b4","#b2df8a","#33a02c","#fb9a99","#e31a1c","#
 
 n <- 1
 
-map1 <- leaflet() %>% 
+map_down <- leaflet() %>% 
   addTiles()
 
 for (link in unique(links_map_down$linkid)) {
   map_df <- links_map_down %>% 
     filter(linkid == link)
   
-  map1 <- map1 %>% 
+  map_down <- map_down %>% 
     addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = links_colors[n], label = ~linkid, opacity =1)
   
   n <- n+1
 }
 
-map1
+# Missing link between Raglan Avenue and Corunna Avenue. Locate a link between the two
+link_cor_rag_down <-
+  links_south_rd_dir %>%
+  filter(str_detect(tolower(name), "corunna") |
+         str_detect(tolower(name), "raglan"),
+         going_up == FALSE) %>% 
+  filter(linkid == 698)
+
+# Missing link between Edward Street and Albert Street. Locate a link between the two
+link_alb_edw_down <-
+  links_south_rd_dir %>%
+  filter(str_detect(tolower(name), "albert"),
+         str_detect(tolower(name), "edward"),
+         going_up == FALSE)
+
+# Missing link between Richmond Street and below. Locate a link between the two
+link_rich_down <-
+  links_south_rd_dir %>%
+  filter(str_detect(tolower(name), "richmond"),
+         going_up == FALSE) %>% 
+  filter(linkid == 624)
+
+# Missing link between Everard Avenue and Anzac Highway. Locate a link between the two
+link_anz_ever_down <-
+  links_south_rd_dir %>%
+  filter(str_detect(tolower(name), "anzac"),
+         str_detect(tolower(name), "everard"),
+         going_up == FALSE)
+
+map_down %>% 
+  addPolylines(data = link_cor_rag_down, lng = ~longitude, lat = ~latitude, color = "yellow", label = ~linkid, opacity = 1) %>% 
+  addPolylines(data = link_alb_edw_down, lng = ~longitude, lat = ~latitude, color = "yellow", label = ~linkid, opacity = 1) %>% 
+  addPolylines(data = link_rich_down, lng = ~longitude, lat = ~latitude, color = "yellow", label = ~linkid, opacity = 1) %>% 
+  addPolylines(data = link_anz_ever_down, lng = ~longitude, lat = ~latitude, color = "yellow", label = ~linkid, opacity = 1)
+
+# Combine missing links with map links down DF and plot
+links_map_down <- links_map_down %>%
+  # Remove link 1963 since it is now covered by 624
+  filter(linkid != 1963) %>% 
+  rbind(link_cor_rag_down, link_alb_edw_down, link_rich_down, link_anz_ever_down)
+
+leaflet(links_map_down) %>% 
+  addTiles() %>% 
+  addPolylines(lng = ~longitude, lat = ~latitude)
+
+# Map with both directions
+leaflet() %>% 
+  addTiles() %>% 
+  addPolylines(data = links_map_up, lng = ~longitude, lat = ~latitude, color = "green") %>%
+  addPolylines(data = links_map_down, lng = ~longitude, lat = ~latitude, color = "red")
 ```
 
 
