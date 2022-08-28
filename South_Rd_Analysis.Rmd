@@ -15,13 +15,15 @@ library(sf)
 library(leaflet)
 library(geosphere)
 library(geodist)
+library(janitor)
 ```
 
 ```{r}
 # Data
 sites_raw <- read_csv(here("data/addinsight/addinsight_prod.btsites.csv.csv"))
-#links_raw <- read_csv(here("data/addinsight/addinsight_prod.btlinks.csv.csv"))
-links_south_rd <- read_csv(here("data/South-Rd/BT Links - South Rd.csv")) 
+links_south_rd <- read_csv(here("data/South-Rd/BT Links - South Rd.csv"))
+stops_raw <- read_csv(here("data/GTFS_feed_version_1157/large/gtfs_history_prod.stops.csv"))
+routes_trips_stops_raw <- read_csv(here("data/South-Rd/South Rd Routes and Trips gtfs 1157.csv"))
 ```
 
 # Data Wrangling
@@ -38,30 +40,30 @@ rm(sites_raw)
 sites_coords <- sites %>% 
   select(id, longitude, latitude)
 
-# Links
-# links <- links_raw %>% 
-#   distinct(id, .keep_all = TRUE)
-# 
-# rm(links_raw)
-
-## Links DF for leaflet
-### add origin site coordinates
-# links_origin <- links %>% 
-#   left_join(sites_coords, by = c("originid" = "id"))
-# 
-# ### add destination site coordinates
-# links_dest <- links %>% 
-#   left_join(sites_coords, by = c("destid" = "id"))
-# 
-# ### Row bind links_south_origin and links_south_dest
-# links_leaflet <- bind_rows("origin" = links_origin, "dest" = links_dest, .id = "point") %>% 
-#   arrange(id)
-
 # Links_south_rd
 links_south_rd <- links_south_rd %>% 
   rename_with(tolower) %>% 
   mutate(latitude = round(latitude, 5),
          longitude = round(longitude, 5))
+
+# routes_trips_stops
+routes_trips_stops <- clean_names(routes_trips_stops_raw) %>% 
+  rename(stop_id = stop_id_gtfs_history_prod_stops_csv) %>% 
+  select(-route_short_name)
+
+rm(routes_trips_stops_raw)
+
+# stops
+stops <- stops_raw %>% 
+  select(stop_id, stop_name, stop_desc, stop_lat, stop_lon) %>% 
+  distinct(stop_id, .keep_all = TRUE)
+
+rm(stops_raw)
+
+# Joining
+## Join routes_trips_stops with stops to get stopd coordinates
+routes_trips_stops <- routes_trips_stops %>% 
+  left_join(stops, by = "stop_id")
 ```
 
 # Getting Information for Analysis
@@ -365,6 +367,61 @@ for (link in unique(links_map_down$linkid)) {
 
 map_both
 ```
+
+## Identify Routes
+
+Routes were identified by examining the [network map](https://www.adelaidemetro.com.au/__data/assets/pdf_file/0009/824247/Adelaide-Metro-network-map.pdf).
+
+## Identify Stops
+
+Same as above
+
+```{r}
+# Plot on map to check the stops are all on South Rd
+
+routes_trips_stops %>% 
+    leaflet() %>% 
+    addTiles() %>% 
+    addCircles(lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, fillOpacity = 1)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
