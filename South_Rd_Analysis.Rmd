@@ -5,6 +5,10 @@ date: "`r Sys.Date()`"
 output: html_document
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
 ```{r}
 # Libraries
 library(tidyverse)
@@ -16,6 +20,7 @@ library(leaflet)
 library(geosphere)
 library(geodist)
 library(janitor)
+library(glue)
 ```
 
 ```{r}
@@ -112,7 +117,14 @@ updates <- updates_raw %>%
   group_by(route_id, direction_id, start_date, trip_id) %>% 
   arrange(stop_sequence, .by_group = TRUE) %>%
   mutate(stop_delay = delay - lag(delay, default = 0), .after = delay) %>%
-  ungroup()
+  ungroup() %>% 
+  # Remove 2021 timestamp entries
+  filter(as_date(timestamp) > "2021-12-31") %>% 
+  # If a stop_delay is negative, set the stop_delay to zero, because early
+  # arrival_time does not matter. Even if stop_delay is negative and arrival_time is
+  # is late, the lateness is due to a previous stop
+  mutate(stop_delay = ifelse(stop_delay < 0, 0, stop_delay))
+  
 
 rm(updates_raw)
 ```
@@ -122,7 +134,8 @@ rm(updates_raw)
 ```{r}
 link_stats <- link_stats_raw %>% 
   select(logtime:closed) %>% 
-  mutate(logtime = as_datetime(str_remove(logtime, " \\+10:30"), tz = "UTC"))
+  mutate(logtime = as_datetime(str_remove(logtime, " \\+10:30"), tz = "UTC")) %>% 
+  distinct()
 
 rm(link_stats_raw)
 ```
@@ -443,6 +456,28 @@ map_both
 links_full <- c(links_north, links_south)
 ```
 
+Links with no stats
+
+```{r}
+sort(setdiff(links_full, link_stats$linkid))
+
+links_with_stats <- links_south_rd %>% 
+  semi_join(link_stats, by = "linkid")
+  
+map_links_no_stats <- leaflet() %>% 
+  addTiles()
+
+for (link in unique(links_with_stats$linkid)) {
+  map_df <- links_with_stats %>% 
+    filter(linkid == link)
+  
+  map_links_no_stats <- map_links_no_stats %>% 
+    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = "red", opacity = 1, label = ~linkid)
+}
+
+map_links_no_stats
+```
+
 ## Identify Routes
 
 Routes were identified by examining the [network map](https://www.adelaidemetro.com.au/__data/assets/pdf_file/0009/824247/Adelaide-Metro-network-map.pdf).
@@ -463,6 +498,53 @@ stops_south_rd %>%
 ```
 
 # Analysis
+
+## Delays
+
+### Outliers
+
+```{r}
+ggplot(updates_stops_filtered, aes(stop_delay)) +
+  geom_histogram()
+
+ggplot(updates_stops_filtered, aes(stop_delay)) +
+  geom_density()
+
+ggplot(updates_stops_filtered, aes(stop_delay)) +
+  geom_dotplot()
+
+ggplot(updates_stops_filtered, aes(stop_delay)) +
+  geom_boxplot()
+```
+
+Remove stop_delays above 600 (10 minutes)
+
+```{r}
+updates_stops_filtered <- updates_stops_filtered %>% 
+  filter(stop_delay < 600)
+```
+
+## Aggregation
+
+### 5 Minute Aggregation
+
+```{r}
+updates_5mins <- updates_stops_filtered  %>% 
+  mutate(timestamp = ceiling_date(timestamp, "5 mins")) %>% 
+  mutate(time = glue("{hour(timestamp)}:{minute(timestamp)}:{second(timestamp)}"), .after = timestamp)
+
+# Average delay per stop per timestamp
+updates_5min_agg <- updates_5mins %>% 
+  group_by(timestamp, stop_id) %>% 
+  summarise(avg_delay = mean(stop_delay)) %>% 
+  ungroup()
+```
+
+
+
+
+
+
 
 
 
