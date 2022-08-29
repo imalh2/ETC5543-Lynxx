@@ -21,8 +21,8 @@ library(janitor)
 ```{r}
 # Data
 sites_raw <- read_csv(here("data/addinsight/addinsight_prod.btsites.csv.csv"))
-links_south_rd <- read_csv(here("data/South-Rd/BT Links - South Rd.csv"))
-stops_raw <- read_csv(here("data/GTFS_feed_version_1157/large/gtfs_history_prod.stops.csv"))
+links_south_rd_raw <- read_csv(here("data/South-Rd/BT Links - South Rd.csv"))
+full_stops_raw <- read_csv(here("data/GTFS_feed_version_1157/large/gtfs_history_prod.stops.csv"))
 routes_trips_stops_raw <- read_csv(here("data/South-Rd/South Rd Routes and Trips gtfs 1157.csv"))
 updates_raw <- read_csv(here("data/South-Rd/trip_updates_SouthRd.csv"))
 link_stats_raw <- read_csv(here("data/South-Rd/link_stats.csv"))
@@ -31,41 +31,77 @@ site_stats_raw <- read_csv(here("data/South-Rd/site_stats.csv"))
 
 # Data Wrangling
 
+## Sites
+
 ```{r}
-# Sites
-## Remove duplicates
+# Remove duplicates
 sites <- sites_raw %>% 
   distinct(id, .keep_all = TRUE)
 
 rm(sites_raw)
 
-## DF with sites and coordinates only
+# DF with sites and coordinates only
 sites_coords <- sites %>% 
   select(id, longitude, latitude)
+```
 
-# Links_south_rd
-links_south_rd <- links_south_rd %>% 
+## Links South Road
+
+```{r}
+links_south_rd <- links_south_rd_raw %>% 
   rename_with(tolower) %>% 
   mutate(latitude = round(latitude, 5),
-         longitude = round(longitude, 5))
+         longitude = round(longitude, 5)) %>%
+  # Add start and end longitudes for each link and whether link going down map or up
+  group_by(linkid) %>%
+  arrange(ordernumber, .by_group = TRUE) %>% 
+  mutate(start_lat = ifelse(ordernumber == 0, latitude, NA),
+         end_lat = ifelse(ordernumber == max(ordernumber), latitude, NA)) %>% 
+  fill(start_lat, .direction = "down") %>% 
+  fill(end_lat, .direction = "up") %>%
+  mutate(going_up = start_lat < end_lat) %>%  
+  ungroup()
 
-# routes_trips_stops
-routes_trips_stops <- clean_names(routes_trips_stops_raw) %>% 
-  rename(stop_id = stop_id_gtfs_history_prod_stops_csv) %>% 
-  select(-route_short_name) %>% 
+rm(links_south_rd_raw)
+
+# Add start and end longitudes for each link and whether link going down map or up
+links_south_rd_dir <- links_south_rd %>% 
+  group_by(linkid) %>%
+  arrange(ordernumber, .by_group = TRUE) %>% 
+  mutate(start_lat = ifelse(ordernumber == 0, latitude, NA),
+         end_lat = ifelse(ordernumber == max(ordernumber), latitude, NA)) %>% 
+  fill(start_lat, .direction = "down") %>% 
+  fill(end_lat, .direction = "up") %>%
+  mutate(going_up = start_lat < end_lat) %>%  
+  ungroup()
+```
+
+## Route-Trips-Stops
+
+```{r}
+stops_south_rd <- clean_names(routes_trips_stops_raw) %>%
   # Very small part of South Road
-  filter(route_id != "982")
-
+  filter(route_id != "982") %>% 
+  rename(stop_id = stop_id_gtfs_history_prod_stops_csv) %>% 
+  select(stop_id) %>% 
+  distinct()
+  
 rm(routes_trips_stops_raw)
+```
 
-# stops
-stops <- stops_raw %>% 
+## Full Stops
+
+```{r}
+full_stops <- full_stops_raw %>% 
   select(stop_id, stop_name, stop_desc, stop_lat, stop_lon) %>% 
   distinct(stop_id, .keep_all = TRUE)
 
-rm(stops_raw)
+rm(full_stops_raw)
+```
 
-# Updates
+## Updates
+
+```{r}
 updates <- updates_raw %>% 
   rename(trip_id = id,
          vehicle_id = label) %>%
@@ -79,34 +115,40 @@ updates <- updates_raw %>%
   ungroup()
 
 rm(updates_raw)
+```
 
-# Link Stats
+## Link Stats
+
+```{r}
 link_stats <- link_stats_raw %>% 
   select(logtime:closed) %>% 
   mutate(logtime = as_datetime(str_remove(logtime, " \\+10:30"), tz = "UTC"))
 
 rm(link_stats_raw)
+```
 
-# Site Stats
+## Site Stats
+
+```{r}
 site_stats <- site_stats_raw %>% 
   select(logtime:avgduration) %>% 
   mutate(logtime = as_datetime(str_remove(logtime, " \\+10:30"), tz = "UTC"))
 
 rm(site_stats_raw)
+```
 
+## Joins
 
+```{r}
+# Join stops_south_rd with stops to get stop details
+stops_south_rd <- stops_south_rd %>% 
+  left_join(full_stops) %>% 
+  # If stop is on East side, that means trip going down, and vice versa
+  mutate(direction = ifelse(str_detect(stop_name, "East"), "down", "up"))
 
-
-
-
-
-
-
-
-# Joining
-## Join routes_trips_stops with stops to get stopd coordinates
-routes_trips_stops <- routes_trips_stops %>% 
-  left_join(stops, by = "stop_id")
+# Join updates with stops_south_rd
+updates_stops_filtered <- updates %>% 
+  inner_join(stops_south_rd)
 ```
 
 # Getting Information for Analysis
@@ -140,23 +182,10 @@ sites_south %>%
 
 ## Identify Links
 
-```{r}
-# Add start and end longitudes for each link and whether link going down map or up
-links_south_rd_dir <- links_south_rd %>% 
-  group_by(linkid) %>%
-  arrange(ordernumber, .by_group = TRUE) %>% 
-  mutate(start_lat = ifelse(ordernumber == 0, latitude, NA),
-         end_lat = ifelse(ordernumber == max(ordernumber), latitude, NA)) %>% 
-  fill(start_lat, .direction = "down") %>% 
-  fill(end_lat, .direction = "up") %>%
-  mutate(going_up = start_lat < end_lat) %>%  
-  ungroup()
-```
-
 #### Build map going up
 
 ```{r}
-links_up <- links_south_rd_dir %>% 
+links_up <- links_south_rd %>% 
   filter(going_up == TRUE)
 
 # Keep one row per linkid for now to see sequence of links
@@ -278,7 +307,7 @@ links_north <- unique(links_map_up$linkid)
 ```{r}
 # Same process as map going up above
 
-links_down <- links_south_rd_dir %>% 
+links_down <- links_south_rd %>% 
   filter(going_up == FALSE)
 
 links_dist_down <- links_down %>% 
@@ -418,6 +447,8 @@ links_full <- c(links_north, links_south)
 
 Routes were identified by examining the [network map](https://www.adelaidemetro.com.au/__data/assets/pdf_file/0009/824247/Adelaide-Metro-network-map.pdf).
 
+All the routes were overlayed on a map on Tableu and routs on South Road were selected and exported.
+
 ## Identify Stops
 
 Same as above
@@ -425,10 +456,10 @@ Same as above
 ```{r}
 # Plot on map to check the stops are all on South Rd
 
-routes_trips_stops %>% 
+stops_south_rd %>% 
     leaflet() %>% 
     addTiles() %>% 
-    addCircles(lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, fillOpacity = 1)
+    addCircles(lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id)
 ```
 
 # Analysis
