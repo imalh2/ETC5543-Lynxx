@@ -533,10 +533,16 @@ updates_5mins <- updates_stops_filtered  %>%
   mutate(timestamp = ceiling_date(timestamp, "5 mins")) %>% 
   mutate(time = glue("{hour(timestamp)}:{minute(timestamp)}:{second(timestamp)}"), .after = timestamp)
 
-# Average delay per stop per timestamp
+# Average delay per stop per timestamp per direction
 updates_5min_agg <- updates_5mins %>% 
-  group_by(timestamp, stop_id) %>% 
+  group_by(timestamp, stop_id, direction) %>% 
   summarise(avg_delay = mean(stop_delay)) %>% 
+  ungroup()
+
+# Calculate delay over entire road per timestamp and direction
+delay_5mins <- updates_5min_agg %>% 
+  group_by(timestamp, direction) %>% 
+  summarise(delay = sum(avg_delay)) %>% 
   ungroup()
 ```
 
