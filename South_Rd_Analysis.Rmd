@@ -24,6 +24,9 @@ sites_raw <- read_csv(here("data/addinsight/addinsight_prod.btsites.csv.csv"))
 links_south_rd <- read_csv(here("data/South-Rd/BT Links - South Rd.csv"))
 stops_raw <- read_csv(here("data/GTFS_feed_version_1157/large/gtfs_history_prod.stops.csv"))
 routes_trips_stops_raw <- read_csv(here("data/South-Rd/South Rd Routes and Trips gtfs 1157.csv"))
+updates_raw <- read_csv(here("data/South-Rd/trip_updates_SouthRd.csv"))
+link_stats_raw <- read_csv(here("data/South-Rd/link_stats.csv"))
+site_stats_raw <- read_csv(here("data/South-Rd/site_stats.csv"))
 ```
 
 # Data Wrangling
@@ -49,7 +52,9 @@ links_south_rd <- links_south_rd %>%
 # routes_trips_stops
 routes_trips_stops <- clean_names(routes_trips_stops_raw) %>% 
   rename(stop_id = stop_id_gtfs_history_prod_stops_csv) %>% 
-  select(-route_short_name)
+  select(-route_short_name) %>% 
+  # Very small part of South Road
+  filter(route_id != "982")
 
 rm(routes_trips_stops_raw)
 
@@ -59,6 +64,44 @@ stops <- stops_raw %>%
   distinct(stop_id, .keep_all = TRUE)
 
 rm(stops_raw)
+
+# Updates
+updates <- updates_raw %>% 
+  rename(trip_id = id,
+         vehicle_id = label) %>%
+  mutate(start_date = ymd(start_date),
+         timestamp = as_datetime(timestamp),
+         arrival_time = as_datetime(arrival_time)) %>% 
+  # Get individual stop delay per group
+  group_by(route_id, direction_id, start_date, trip_id) %>% 
+  arrange(stop_sequence, .by_group = TRUE) %>%
+  mutate(stop_delay = delay - lag(delay, default = 0), .after = delay) %>%
+  ungroup()
+
+rm(updates_raw)
+
+# Link Stats
+link_stats <- link_stats_raw %>% 
+  select(logtime:closed) %>% 
+  mutate(logtime = as_datetime(str_remove(logtime, " \\+10:30"), tz = "UTC"))
+
+rm(link_stats_raw)
+
+# Site Stats
+site_stats <- site_stats_raw %>% 
+  select(logtime:avgduration) %>% 
+  mutate(logtime = as_datetime(str_remove(logtime, " \\+10:30"), tz = "UTC"))
+
+rm(site_stats_raw)
+
+
+
+
+
+
+
+
+
 
 # Joining
 ## Join routes_trips_stops with stops to get stopd coordinates
@@ -366,6 +409,9 @@ for (link in unique(links_map_down$linkid)) {
 }
 
 map_both
+
+# Save linkid's both directions
+links_full <- c(links_north, links_south)
 ```
 
 ## Identify Routes
@@ -384,6 +430,34 @@ routes_trips_stops %>%
     addTiles() %>% 
     addCircles(lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, fillOpacity = 1)
 ```
+
+# Analysis
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
