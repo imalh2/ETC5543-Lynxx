@@ -499,9 +499,9 @@ stops_south_rd %>%
 
 # Analysis
 
-## Delays
+## Outliers
 
-### Outliers
+### Delays
 
 ```{r}
 ggplot(updates_stops_filtered, aes(stop_delay)) +
@@ -524,28 +524,106 @@ updates_stops_filtered <- updates_stops_filtered %>%
   filter(stop_delay < 600)
 ```
 
-## Aggregation
+### Stats
 
-### 5 Minute Aggregation
+## Compare
+
+### Delays
 
 ```{r}
-updates_5mins <- updates_stops_filtered  %>% 
-  mutate(timestamp = ceiling_date(timestamp, "5 mins")) %>% 
-  mutate(time = glue("{hour(timestamp)}:{minute(timestamp)}:{second(timestamp)}"), .after = timestamp)
+# Ceiling date by aggregate duration
+delays_agg <- updates_stops_filtered  %>% 
+  mutate(timestamp = ceiling_date(timestamp, "10 mins")) %>% 
+  mutate(time = str_sub(timestamp, start = 12), .after = timestamp)
 
-# Average delay per stop per timestamp per direction
-updates_5min_agg <- updates_5mins %>% 
+# Without direction
+
+## Average delay per stop per timestamp
+stop_delays_stamp <- delays_agg %>% 
+  group_by(timestamp, stop_id) %>% 
+  summarise(avg_delay = mean(stop_delay)) %>% 
+  ungroup()
+
+## Average delay of all stops per timestamp (average full road delay)
+delays_stamp <- delays_agg %>% 
+  group_by(timestamp) %>% 
+  summarise(avg_delay = mean(stop_delay)) %>% 
+  ungroup()
+
+## Average delay per stop per time
+stop_delays_time <- delays_agg %>% 
+  group_by(time, stop_id) %>% 
+  summarise(avg_delay = mean(stop_delay)) %>% 
+  ungroup()
+
+## Average delay of all stops per time (average full road delay)
+delays_time <- delays_agg %>% 
+  group_by(time) %>% 
+  summarise(avg_delay = mean(stop_delay)) %>% 
+  ungroup()
+
+# With direction
+
+## Average delay per stop per timestamp per direction
+stop_delays_stamp_dir <- delays_agg %>% 
   group_by(timestamp, stop_id, direction) %>% 
   summarise(avg_delay = mean(stop_delay)) %>% 
   ungroup()
 
-# Calculate delay over entire road per timestamp and direction
-delay_5mins <- updates_5min_agg %>% 
+## Average delay of all stops per timestamp per direction (average full road delay by direction)
+delays_stamp_dir <- delays_agg %>% 
   group_by(timestamp, direction) %>% 
-  summarise(delay = sum(avg_delay)) %>% 
+  summarise(avg_delay = mean(stop_delay)) %>% 
+  ungroup()
+
+## Average delay per stop per time per direction
+stop_delays_time_dir <- delays_agg %>% 
+  group_by(time, stop_id, direction) %>% 
+  summarise(avg_delay = mean(stop_delay)) %>% 
+  ungroup()
+
+## Average delay of all stops per time per direction (average full road delay by direction)
+delays_time_dir <- delays_agg %>% 
+  group_by(time, direction) %>% 
+  summarise(avg_delay = mean(stop_delay)) %>% 
   ungroup()
 ```
 
+### Congestion
+
+####  Sites
+
+```{r}
+sites_agg <- site_stats  %>% 
+  mutate(logtime = ceiling_date(logtime, "10 mins")) %>% 
+  mutate(time = str_sub(logtime, start = 12), .after = logtime)
+
+# Average congestion per site per logtime
+sites_cong_logtime <- sites_agg %>% 
+  group_by(logtime, siteid) %>% 
+  summarise(avg_congestion = mean(probecount),
+            avg_duration = mean(avgduration)) %>% 
+  ungroup()
+
+# Average congestion of all sites per logtime (average full road congestion)
+ind_site_cong_logtime <- sites_agg %>% 
+  group_by(logtime) %>% 
+  summarise(avg_congestion = mean(probecount),
+            avg_duration = mean(avgduration))
+
+# Average congestion per site per time
+sites_cong_time <- sites_agg %>% 
+  group_by(time, siteid) %>% 
+  summarise(avg_congestion = mean(probecount),
+            avg_duration = mean(avgduration)) %>% 
+  ungroup()
+
+# Average congestion of all sites per time (average full road congestion)
+ind_site_cong_time <- sites_agg %>% 
+  group_by(time) %>% 
+  summarise(avg_congestion = mean(probecount),
+            avg_duration = mean(avgduration))
+```
 
 
 
