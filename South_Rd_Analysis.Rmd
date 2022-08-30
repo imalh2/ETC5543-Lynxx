@@ -524,66 +524,74 @@ updates_stops_filtered <- updates_stops_filtered %>%
   filter(stop_delay < 600)
 ```
 
-### Stats
+### Sites Stats
+
+### Links Stats
 
 ## Compare
 
 ### Delays
 
 ```{r}
-# Ceiling date by aggregate duration
+# Ceiling date by aggregate duration. Get time and weekday
 delays_agg <- updates_stops_filtered  %>% 
-  mutate(timestamp = ceiling_date(timestamp, "10 mins")) %>% 
-  mutate(time = str_sub(timestamp, start = 12), .after = timestamp)
+  mutate(timestamp = ceiling_date(timestamp, "10 mins"),
+         time = hms::as_hms(timestamp),
+         wday = wday(timestamp, label = TRUE)) %>% 
+  relocate(time:wday, .after = timestamp)
 
 # Without direction
 
-## Average delay per stop per timestamp
-stop_delays_stamp <- delays_agg %>% 
-  group_by(timestamp, stop_id) %>% 
-  summarise(avg_delay = mean(stop_delay)) %>% 
-  ungroup()
+# ## Average delay per stop per timestamp
+# stop_delay_stamp <- delays_agg %>% 
+#   group_by(timestamp, stop_id) %>% 
+#   summarise(avg_delay = mean(stop_delay)) %>% 
+#   ungroup()
+# 
+# ## Average delay of all stops per timestamp (average full road delay)
+# delay_stamp <- delays_agg %>% 
+#   group_by(timestamp) %>% 
+#   summarise(avg_delay = mean(stop_delay)) %>% 
+#   ungroup()
 
-## Average delay of all stops per timestamp (average full road delay)
-delays_stamp <- delays_agg %>% 
-  group_by(timestamp) %>% 
-  summarise(avg_delay = mean(stop_delay)) %>% 
-  ungroup()
-
-## Average delay per stop per time
-stop_delays_time <- delays_agg %>% 
+## Average delay per stop per time (exclude weekends)
+stop_delay_time <- delays_agg %>%
+  filter(!wday %in% c("Sat", "Sun")) %>% 
   group_by(time, stop_id) %>% 
   summarise(avg_delay = mean(stop_delay)) %>% 
   ungroup()
 
 ## Average delay of all stops per time (average full road delay)
-delays_time <- delays_agg %>% 
+delay_time <- delays_agg %>%
+  filter(!wday %in% c("Sat", "Sun")) %>% 
   group_by(time) %>% 
   summarise(avg_delay = mean(stop_delay)) %>% 
   ungroup()
 
 # With direction
 
-## Average delay per stop per timestamp per direction
-stop_delays_stamp_dir <- delays_agg %>% 
-  group_by(timestamp, stop_id, direction) %>% 
-  summarise(avg_delay = mean(stop_delay)) %>% 
-  ungroup()
-
-## Average delay of all stops per timestamp per direction (average full road delay by direction)
-delays_stamp_dir <- delays_agg %>% 
-  group_by(timestamp, direction) %>% 
-  summarise(avg_delay = mean(stop_delay)) %>% 
-  ungroup()
+# ## Average delay per stop per timestamp per direction
+# stop_delay_stamp_dir <- delays_agg %>% 
+#   group_by(timestamp, stop_id, direction) %>% 
+#   summarise(avg_delay = mean(stop_delay)) %>% 
+#   ungroup()
+# 
+# ## Average delay of all stops per timestamp per direction (average full road delay by direction)
+# delay_stamp_dir <- delays_agg %>% 
+#   group_by(timestamp, direction) %>% 
+#   summarise(avg_delay = mean(stop_delay)) %>% 
+#   ungroup()
 
 ## Average delay per stop per time per direction
-stop_delays_time_dir <- delays_agg %>% 
+stop_delay_time_dir <- delays_agg %>%
+  filter(!wday %in% c("Sat", "Sun")) %>% 
   group_by(time, stop_id, direction) %>% 
   summarise(avg_delay = mean(stop_delay)) %>% 
   ungroup()
 
 ## Average delay of all stops per time per direction (average full road delay by direction)
-delays_time_dir <- delays_agg %>% 
+delay_time_dir <- delays_agg %>%
+  filter(!wday %in% c("Sat", "Sun")) %>% 
   group_by(time, direction) %>% 
   summarise(avg_delay = mean(stop_delay)) %>% 
   ungroup()
@@ -595,40 +603,101 @@ delays_time_dir <- delays_agg %>%
 
 ```{r}
 sites_agg <- site_stats  %>% 
-  mutate(logtime = ceiling_date(logtime, "10 mins")) %>% 
-  mutate(time = str_sub(logtime, start = 12), .after = logtime)
+  mutate(logtime = ceiling_date(logtime, "10 mins"),
+         time = hms::as_hms(logtime),
+         wday = wday(logtime, label = TRUE)) %>% 
+  relocate(time:wday, .after = logtime)
 
-# Average congestion per site per logtime
-sites_cong_logtime <- sites_agg %>% 
-  group_by(logtime, siteid) %>% 
-  summarise(avg_congestion = mean(probecount),
-            avg_duration = mean(avgduration)) %>% 
-  ungroup()
+# # Average congestion per site per logtime
+# ind_site_cong_logtime <- sites_agg %>% 
+#   group_by(logtime, siteid) %>% 
+#   summarise(avg_congestion = mean(probecount),
+#             avg_duration = mean(avgduration)) %>% 
+#   ungroup()
 
-# Average congestion of all sites per logtime (average full road congestion)
-ind_site_cong_logtime <- sites_agg %>% 
-  group_by(logtime) %>% 
-  summarise(avg_congestion = mean(probecount),
-            avg_duration = mean(avgduration))
+# # Average congestion of all sites per logtime (average full road congestion)
+# sites_cong_logtime <- sites_agg %>% 
+#   group_by(logtime) %>% 
+#   summarise(avg_congestion = mean(probecount),
+#             avg_duration = mean(avgduration))
 
 # Average congestion per site per time
-sites_cong_time <- sites_agg %>% 
-  group_by(time, siteid) %>% 
+ind_site_cong_time <- sites_agg %>% 
+  filter(!wday %in% c("Sat", "Sun")) %>% 
+  group_by(time, siteid) %>%
   summarise(avg_congestion = mean(probecount),
             avg_duration = mean(avgduration)) %>% 
   ungroup()
 
 # Average congestion of all sites per time (average full road congestion)
-ind_site_cong_time <- sites_agg %>% 
+sites_cong_time <- sites_agg %>% 
   group_by(time) %>% 
+  filter(!wday %in% c("Sat", "Sun")) %>% 
   summarise(avg_congestion = mean(probecount),
             avg_duration = mean(avgduration))
 ```
 
+#### Links
+
+```{r}
+links_agg <- link_stats  %>% 
+  mutate(logtime = ceiling_date(logtime, "10 mins"),
+         time = hms::as_hms(logtime),
+         wday = wday(logtime, label = TRUE)) %>% 
+  relocate(time:wday, .after = logtime)
+
+# # Average congestion per link per logtime
+# ind_link_cong_logtime <- links_agg %>% 
+#   group_by(logtime, linkid) %>% 
+#   summarise(avg_congestion = mean(congestion)) %>% 
+#   ungroup()
+
+# # Average congestion of all links per logtime (average full road congestion)
+# links_cong_logtime <- links_agg %>% 
+#   group_by(logtime) %>% 
+#   summarise(avg_congestion = mean(congestion))
+
+# Average congestion per link per time
+ind_link_cong_time <- links_agg %>% 
+  filter(!wday %in% c("Sat", "Sun")) %>%
+  group_by(time, linkid) %>% 
+  summarise(avg_congestion = mean(congestion)) %>% 
+  ungroup()
+
+# Average congestion of all links per time (average full road congestion)
+links_cong_time <- links_agg %>% 
+  filter(!wday %in% c("Sat", "Sun")) %>%
+  group_by(time) %>% 
+  summarise(avg_congestion = mean(congestion))
+```
+
+```{r}
+# # Join delay, sites congestion and links congestion
+# delay_congestion_stamp <- delay_stamp %>% 
+#   full_join(sites_cong_logtime, by = c("timestamp" = "logtime")) %>% 
+#   full_join(links_cong_logtime, by = c("timestamp" = "logtime"), suffix = c("_sites", "_links")) %>% 
+#   pivot_longer(cols = !timestamp, names_to = "stat", values_to = "value")
+# 
+# delay_congestion_stamp %>% 
+#   #filter(stat != "avg_duration") %>% 
+#   ggplot(aes(x = timestamp, y = value)) +
+#   geom_line() +
+#   facet_grid(vars(stat), scales = "free_y")
+```
 
 
+```{r}
+delay_congestion_time <- delay_time %>% 
+  full_join(sites_cong_time) %>% 
+  full_join(links_cong_time, by = "time", suffix = c("_sites", "_links")) %>% 
+  pivot_longer(cols = !time, names_to = "stat", values_to = "value")
 
-
+delay_congestion_time %>% 
+  #filter(stat != "avg_duration") %>% 
+  ggplot(aes(x = time, y = value)) +
+  geom_line() +
+  facet_grid(vars(stat), scales = "free_y")
+```
 
 
 
