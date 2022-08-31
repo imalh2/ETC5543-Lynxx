@@ -680,13 +680,13 @@ links_agg <- link_stats  %>%
 
 # Average congestion per link per time
 ind_link_cong_time <- links_agg %>% 
-  group_by(time, linkid) %>% 
+  group_by(time, linkid, direction) %>% 
   summarise(avg_congestion = mean(congestion)) %>% 
   ungroup()
 
 # Average congestion of all links per time (average full road congestion)
 links_cong_time <- links_agg %>% 
-  group_by(time) %>% 
+  group_by(time, direction) %>% 
   summarise(avg_congestion = mean(congestion))
 ```
 
@@ -695,45 +695,161 @@ links_cong_time <- links_agg %>%
 ### Delays vs Sites Congestion
 
 ```{r}
-delay_congestion_sites <- delay_time %>% 
+delay_cong_sites <- delay_time %>% 
   full_join(sites_cong_time) %>%  
   pivot_longer(cols = !time, names_to = "stat", values_to = "value")
 
-delay_congestion_sites %>% 
-  ggplot(aes(x = time, y = value)) +
-  geom_line() +
+# Filter to rush hours (6-10am, 3-7pm)
+delay_cong_sites_mor_rush <- delay_cong_sites %>% 
+  filter(between(time, as_hms("06:00:00"), as_hms("10:00:00")))
+
+delay_cong_sites_eve_rush <- delay_cong_sites %>% 
+  filter(between(time, as_hms("15:00:00"), as_hms("19:00:00")))
+
+ggplot() +
+  geom_line(data = delay_cong_sites, aes(x = time, y = value)) +
+  geom_line(data = delay_cong_sites_mor_rush, aes(x = time, y = value), color = "red", size = 1) +
+  geom_line(data = delay_cong_sites_eve_rush, aes(x = time, y = value), color = "red", size = 1) +
   facet_grid(vars(stat), scales = "free_y") +
   scale_x_time(breaks = as_hms(c("00:00:00", "04:00:00", "08:00:00", "12:00:00", 
-                                 "16:00:00", "20:00:00")))
+                                 "16:00:00", "20:00:00")),
+               labels = c("00", "4", "8", "12", "16", "20"))
 ```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+### Delays vs Links Congestion
 
 ```{r}
-delay_congestion_time %>% 
-  #filter(stat != "avg_duration") %>% 
-  ggplot(aes(x = time, y = value)) +
-  geom_line() +
-  facet_grid(vars(stat), scales = "free_y")
+delay_cong_links <- delay_time_dir %>% 
+  full_join(links_cong_time) %>% 
+  pivot_longer(cols = avg_delay:avg_congestion, names_to = "stat", values_to = "value")
+
+# Filter to rush hours (6-10am, 3-7pm)
+delay_cong_links_mor_rush <- delay_cong_links %>% 
+  filter(between(time, as_hms("06:00:00"), as_hms("10:00:00")))
+
+delay_cong_links_eve_rush <- delay_cong_links %>% 
+  filter(between(time, as_hms("15:00:00"), as_hms("19:00:00")))
+
+ggplot() +
+  geom_line(data = delay_cong_links, aes(x = time, y = value)) +
+  geom_line(data = delay_cong_links_mor_rush, aes(x = time, y = value), color = "red", size = 1) +
+  geom_line(data = delay_cong_links_eve_rush, aes(x = time, y = value), color = "red", size = 1) +
+  facet_grid(rows = vars(stat), cols = vars(direction), scales = "free_y") +
+  scale_x_time(breaks = as_hms(c("00:00:00", "04:00:00", "08:00:00", "12:00:00", 
+                                 "16:00:00", "20:00:00")),
+               labels = c("00", "4", "8", "12", "16", "20"))
 ```
 
+### Function
+
+Perform analysis based on aggregate time provided
+
+```{r}
+compare_aggregate <- function(comparison, timeframe = "10 minutes") {
+  
+  delays_agg <- updates_stops_filtered  %>% 
+    mutate(timestamp = ceiling_date(timestamp, timeframe),
+           time = hms::as_hms(timestamp),
+           wday = wday(timestamp, label = TRUE)) %>%
+    filter(!wday %in% c("Sat", "Sun")) %>% 
+    relocate(time:wday, .after = timestamp)
 
 
+  stop_delay_time <- delays_agg %>% 
+    group_by(time, stop_id) %>% 
+    summarise(avg_delay = mean(stop_delay)) %>% 
+    ungroup()
+  
+  delay_time <- delays_agg %>%
+    group_by(time) %>% 
+    summarise(avg_delay = mean(stop_delay)) %>% 
+    ungroup()
+  
+  stop_delay_time_dir <- delays_agg %>%
+    group_by(time, stop_id, direction) %>% 
+    summarise(avg_delay = mean(stop_delay)) %>% 
+    ungroup()
+  
+  delay_time_dir <- delays_agg %>%
+    group_by(time, direction) %>% 
+    summarise(avg_delay = mean(stop_delay)) %>% 
+    ungroup()
+  
+  sites_agg <- site_stats  %>% 
+    mutate(logtime = ceiling_date(logtime, timeframe),
+           time = hms::as_hms(logtime),
+           wday = wday(logtime, label = TRUE)) %>%
+    filter(!wday %in% c("Sat", "Sun")) %>% 
+    relocate(time:wday, .after = logtime)
+  
+  ind_site_cong_time <- sites_agg %>%
+    group_by(time, siteid) %>%
+    summarise(avg_congestion = mean(probecount),
+              avg_duration = mean(avgduration)) %>% 
+    ungroup()
+  
+  sites_cong_time <- sites_agg %>% 
+    group_by(time) %>%
+    summarise(avg_congestion = mean(probecount),
+              avg_duration = mean(avgduration))
+  
+  links_agg <- link_stats  %>% 
+    mutate(logtime = ceiling_date(logtime, timeframe),
+           time = hms::as_hms(logtime),
+           wday = wday(logtime, label = TRUE)) %>%
+    filter(!wday %in% c("Sat", "Sun")) %>% 
+    relocate(time:wday, .after = logtime)
+  
+  ind_link_cong_time <- links_agg %>% 
+    group_by(time, linkid, direction) %>% 
+    summarise(avg_congestion = mean(congestion)) %>% 
+    ungroup()
+  
+  links_cong_time <- links_agg %>% 
+    group_by(time, direction) %>% 
+    summarise(avg_congestion = mean(congestion))
+  
+  if (comparison == "sites") {
+    delay_cong_sites <- delay_time %>%
+    full_join(sites_cong_time) %>%
+    pivot_longer(cols = !time, names_to = "stat", values_to = "value")
 
+  delay_cong_sites_mor_rush <- delay_cong_sites %>% 
+    filter(between(time, as_hms("06:00:00"), as_hms("10:00:00")))
+  
+  delay_cong_sites_eve_rush <- delay_cong_sites %>% 
+    filter(between(time, as_hms("15:00:00"), as_hms("19:00:00")))
+  
+  ggplot() +
+    geom_line(data = delay_cong_sites, aes(x = time, y = value)) +
+    geom_line(data = delay_cong_sites_mor_rush, aes(x = time, y = value), color = "red", size = 1) +
+    geom_line(data = delay_cong_sites_eve_rush, aes(x = time, y = value), color = "red", size = 1) +
+    facet_grid(vars(stat), scales = "free_y") +
+    scale_x_time(breaks = as_hms(c("00:00:00", "04:00:00", "08:00:00", "12:00:00", 
+                                   "16:00:00", "20:00:00")),
+                 labels = c("00", "4", "8", "12", "16", "20"))
+  } else if(comparison == "links") {
+    delay_cong_links <- delay_time_dir %>%
+      full_join(links_cong_time) %>%
+      pivot_longer(cols = avg_delay:avg_congestion, names_to = "stat", values_to = "value")
+
+    delay_cong_links_mor_rush <- delay_cong_links %>% 
+      filter(between(time, as_hms("06:00:00"), as_hms("10:00:00")))
+    
+    delay_cong_links_eve_rush <- delay_cong_links %>% 
+      filter(between(time, as_hms("15:00:00"), as_hms("19:00:00")))
+    
+    ggplot() +
+      geom_line(data = delay_cong_links, aes(x = time, y = value)) +
+      geom_line(data = delay_cong_links_mor_rush, aes(x = time, y = value), color = "red", size = 1) +
+      geom_line(data = delay_cong_links_eve_rush, aes(x = time, y = value), color = "red", size = 1) +
+      facet_grid(rows = vars(stat), cols = vars(direction), scales = "free_y") +
+      scale_x_time(breaks = as_hms(c("00:00:00", "04:00:00", "08:00:00", "12:00:00", 
+                                     "16:00:00", "20:00:00")),
+                   labels = c("00", "4", "8", "12", "16", "20"))
+  }
+}
+```
 
 
 
