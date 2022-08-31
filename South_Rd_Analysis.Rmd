@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 ```
 
-```{r}
+```{r libraries}
 # Libraries
 library(tidyverse)
 library(here)
@@ -21,9 +21,10 @@ library(geosphere)
 library(geodist)
 library(janitor)
 library(glue)
+library(hms)
 ```
 
-```{r}
+```{r data}
 # Data
 sites_raw <- read_csv(here("data/addinsight/addinsight_prod.btsites.csv.csv"))
 links_south_rd_raw <- read_csv(here("data/South-Rd/BT Links - South Rd.csv"))
@@ -44,10 +45,6 @@ sites <- sites_raw %>%
   distinct(id, .keep_all = TRUE)
 
 rm(sites_raw)
-
-# DF with sites and coordinates only
-sites_coords <- sites %>% 
-  select(id, longitude, latitude)
 ```
 
 ## Links South Road
@@ -64,21 +61,10 @@ links_south_rd <- links_south_rd_raw %>%
          end_lat = ifelse(ordernumber == max(ordernumber), latitude, NA)) %>% 
   fill(start_lat, .direction = "down") %>% 
   fill(end_lat, .direction = "up") %>%
-  mutate(going_up = start_lat < end_lat) %>%  
+  mutate(direction = ifelse(start_lat < end_lat, "up", "down")) %>%  
   ungroup()
 
 rm(links_south_rd_raw)
-
-# Add start and end longitudes for each link and whether link going down map or up
-links_south_rd_dir <- links_south_rd %>% 
-  group_by(linkid) %>%
-  arrange(ordernumber, .by_group = TRUE) %>% 
-  mutate(start_lat = ifelse(ordernumber == 0, latitude, NA),
-         end_lat = ifelse(ordernumber == max(ordernumber), latitude, NA)) %>% 
-  fill(start_lat, .direction = "down") %>% 
-  fill(end_lat, .direction = "up") %>%
-  mutate(going_up = start_lat < end_lat) %>%  
-  ungroup()
 ```
 
 ## Route-Trips-Stops
@@ -125,7 +111,6 @@ updates <- updates_raw %>%
   # is late, the lateness is due to a previous stop
   mutate(stop_delay = ifelse(stop_delay < 0, 0, stop_delay))
   
-
 rm(updates_raw)
 ```
 
@@ -162,6 +147,10 @@ stops_south_rd <- stops_south_rd %>%
 # Join updates with stops_south_rd
 updates_stops_filtered <- updates %>% 
   inner_join(stops_south_rd)
+
+# Join link_stats with links_south_rd to get direction
+link_stats <- link_stats %>% 
+  left_join(select(links_south_rd, linkid, direction))
 ```
 
 # Getting Information for Analysis
@@ -195,11 +184,45 @@ sites_south %>%
 
 ## Identify Links
 
-#### Build map going up
+```{r}
+# OLD METHOD
+
+# DF with sites and coordinates only
+# sites_coords <- sites %>% 
+#   select(id, longitude, latitude)
+
+# ## Links DF for leaflet
+# ### add origin site coordinates
+# links_origin <- links %>% 
+#   left_join(sites_coords, by = c("originid" = "id"))
+# ### add destination site coordinates
+# links_dest <- links %>% 
+#   left_join(sites_coords, by = c("destid" = "id"))
+# ### Row bind links_south_origin and links_south_dest
+# links_leaflet <- bind_rows("origin" = links_origin, "dest" = links_dest, .id = "point") %>% 
+#   arrange(id)
+
+# Get all links that have a start site and end site in the sites identified
+
+# links_south <- links_leaflet %>% 
+#   filter(originid %in% sites_south$id,
+#          destid %in% sites_south$id)
+# 
+# # Map to check the sites are all in the correct spot. They are
+# links_south %>% 
+#   leaflet() %>% 
+#     addTiles() %>% 
+#     addPolylines(lng = ~longitude, lat = ~latitude, group = ~id)
+
+# Next: need to select sites along the road but do not overlap
+```
+
+
+### Build map going up
 
 ```{r}
 links_up <- links_south_rd %>% 
-  filter(going_up == TRUE)
+  filter(direction == "up")
 
 # Keep one row per linkid for now to see sequence of links
 links_dist_up <- links_up %>% 
@@ -240,7 +263,7 @@ for (i in 2:nrow(links_dist_up)) {
 ```
 
 ```{r}
-links_map_up <- links_south_rd_dir %>%
+links_map_up <- links_south_rd %>%
   filter(linkid %in% links_order_up) %>% 
   arrange(start_lat, ordernumber)
 
@@ -270,22 +293,22 @@ for (link in unique(links_map_up$linkid)) {
 temp_map_up
 
 # Missing link between Southern Avenue and Celtic Avenue. Locate a link between the two
-link_southern_celt_up <- links_south_rd_dir %>%
+link_southern_celt_up <- links_south_rd %>%
   filter(str_detect(tolower(name), "southern"),
          str_detect(tolower(name), "celtic"),
-         going_up == TRUE)
+         direction == "up")
 
 # Missing link between Daws Road and Corunna Avenue. Locate a link between the two
-link_daws_cor_up <- links_south_rd_dir %>%
+link_daws_cor_up <- links_south_rd %>%
   filter(str_detect(tolower(name), "daws"),
          str_detect(tolower(name), "corunna"),
-         going_up == TRUE)
+         direction == "up")
 
 # Missing link between John Street and Barwell Avenue. Locate a link between the two
-link_john_bar_up <- links_south_rd_dir %>%
+link_john_bar_up <- links_south_rd %>%
   filter(str_detect(tolower(name), "john"),
          str_detect(tolower(name), "barwell"),
-         going_up == TRUE)
+         direction == "up")
 
 # Check links are correct
 temp_map_up %>%
@@ -315,13 +338,13 @@ map_up
 links_north <- unique(links_map_up$linkid)
 ```
 
-#### Build map going down
+### Build map going down
 
 ```{r}
 # Same process as map going up above
 
 links_down <- links_south_rd %>% 
-  filter(going_up == FALSE)
+  filter(direction == "down")
 
 links_dist_down <- links_down %>% 
   distinct(linkid, .keep_all = TRUE) %>%
@@ -349,7 +372,7 @@ for (i in 2:nrow(links_dist_down)) {
   }
 }
 
-links_map_down <- links_south_rd_dir %>%
+links_map_down <- links_south_rd %>%
   filter(linkid %in% links_order_down) %>% 
   arrange(-start_lat, ordernumber)
 
@@ -375,28 +398,28 @@ for (link in unique(links_map_down$linkid)) {
 temp_map_down
 
 # Missing link between Walsh Avenue and Celtic Avenue. Locate a link between the two
-link_walsh_celt_down <- links_south_rd_dir %>%
+link_walsh_celt_down <- links_south_rd %>%
   filter(str_detect(tolower(name), "walsh"),
          str_detect(tolower(name), "celtic"),
-         going_up == FALSE)
+         direction == "down")
 
 # Missing link between Daws Road and Corunna Avenue. Locate a link between the two
-link_daws_cor_down <- links_south_rd_dir %>%
+link_daws_cor_down <- links_south_rd %>%
   filter(str_detect(tolower(name), "daws"),
          str_detect(tolower(name), "corunna"),
-         going_up == FALSE)
+         direction == "down")
 
 # Missing link between Edward Street and Albert Street. Locate a link between the two
-link_edw_alb_down <- links_south_rd_dir %>%
+link_edw_alb_down <- links_south_rd %>%
   filter(str_detect(tolower(name), "edward"),
          str_detect(tolower(name), "albert"),
-         going_up == FALSE)
+         direction == "down")
 
 # Missing link between Anzac Highway and Everard Avenue Locate a link between the two
-link_anz_ever_down <- links_south_rd_dir %>%
+link_anz_ever_down <- links_south_rd %>%
   filter(str_detect(tolower(name), "anzac"),
          str_detect(tolower(name), "everard"),
-         going_up == FALSE)
+         direction == "down")
 
 # Check links are correct
 temp_map_down %>%
@@ -456,7 +479,7 @@ map_both
 links_full <- c(links_north, links_south)
 ```
 
-Links with no stats
+### Links with no stats
 
 ```{r}
 sort(setdiff(links_full, link_stats$linkid))
@@ -528,7 +551,7 @@ updates_stops_filtered <- updates_stops_filtered %>%
 
 ### Links Stats
 
-## Compare
+## Calculations
 
 ### Delays
 
@@ -537,7 +560,9 @@ updates_stops_filtered <- updates_stops_filtered %>%
 delays_agg <- updates_stops_filtered  %>% 
   mutate(timestamp = ceiling_date(timestamp, "10 mins"),
          time = hms::as_hms(timestamp),
-         wday = wday(timestamp, label = TRUE)) %>% 
+         wday = wday(timestamp, label = TRUE)) %>%
+  # Exclude weekends
+  filter(!wday %in% c("Sat", "Sun")) %>% 
   relocate(time:wday, .after = timestamp)
 
 # Without direction
@@ -554,16 +579,14 @@ delays_agg <- updates_stops_filtered  %>%
 #   summarise(avg_delay = mean(stop_delay)) %>% 
 #   ungroup()
 
-## Average delay per stop per time (exclude weekends)
-stop_delay_time <- delays_agg %>%
-  filter(!wday %in% c("Sat", "Sun")) %>% 
+## Average delay per stop per time
+stop_delay_time <- delays_agg %>% 
   group_by(time, stop_id) %>% 
   summarise(avg_delay = mean(stop_delay)) %>% 
   ungroup()
 
 ## Average delay of all stops per time (average full road delay)
 delay_time <- delays_agg %>%
-  filter(!wday %in% c("Sat", "Sun")) %>% 
   group_by(time) %>% 
   summarise(avg_delay = mean(stop_delay)) %>% 
   ungroup()
@@ -584,14 +607,12 @@ delay_time <- delays_agg %>%
 
 ## Average delay per stop per time per direction
 stop_delay_time_dir <- delays_agg %>%
-  filter(!wday %in% c("Sat", "Sun")) %>% 
   group_by(time, stop_id, direction) %>% 
   summarise(avg_delay = mean(stop_delay)) %>% 
   ungroup()
 
 ## Average delay of all stops per time per direction (average full road delay by direction)
 delay_time_dir <- delays_agg %>%
-  filter(!wday %in% c("Sat", "Sun")) %>% 
   group_by(time, direction) %>% 
   summarise(avg_delay = mean(stop_delay)) %>% 
   ungroup()
@@ -605,7 +626,8 @@ delay_time_dir <- delays_agg %>%
 sites_agg <- site_stats  %>% 
   mutate(logtime = ceiling_date(logtime, "10 mins"),
          time = hms::as_hms(logtime),
-         wday = wday(logtime, label = TRUE)) %>% 
+         wday = wday(logtime, label = TRUE)) %>%
+  filter(!wday %in% c("Sat", "Sun")) %>% 
   relocate(time:wday, .after = logtime)
 
 # # Average congestion per site per logtime
@@ -622,8 +644,7 @@ sites_agg <- site_stats  %>%
 #             avg_duration = mean(avgduration))
 
 # Average congestion per site per time
-ind_site_cong_time <- sites_agg %>% 
-  filter(!wday %in% c("Sat", "Sun")) %>% 
+ind_site_cong_time <- sites_agg %>%
   group_by(time, siteid) %>%
   summarise(avg_congestion = mean(probecount),
             avg_duration = mean(avgduration)) %>% 
@@ -631,8 +652,7 @@ ind_site_cong_time <- sites_agg %>%
 
 # Average congestion of all sites per time (average full road congestion)
 sites_cong_time <- sites_agg %>% 
-  group_by(time) %>% 
-  filter(!wday %in% c("Sat", "Sun")) %>% 
+  group_by(time) %>%
   summarise(avg_congestion = mean(probecount),
             avg_duration = mean(avgduration))
 ```
@@ -643,7 +663,8 @@ sites_cong_time <- sites_agg %>%
 links_agg <- link_stats  %>% 
   mutate(logtime = ceiling_date(logtime, "10 mins"),
          time = hms::as_hms(logtime),
-         wday = wday(logtime, label = TRUE)) %>% 
+         wday = wday(logtime, label = TRUE)) %>%
+  filter(!wday %in% c("Sat", "Sun")) %>% 
   relocate(time:wday, .after = logtime)
 
 # # Average congestion per link per logtime
@@ -659,54 +680,56 @@ links_agg <- link_stats  %>%
 
 # Average congestion per link per time
 ind_link_cong_time <- links_agg %>% 
-  filter(!wday %in% c("Sat", "Sun")) %>%
   group_by(time, linkid) %>% 
   summarise(avg_congestion = mean(congestion)) %>% 
   ungroup()
 
 # Average congestion of all links per time (average full road congestion)
 links_cong_time <- links_agg %>% 
-  filter(!wday %in% c("Sat", "Sun")) %>%
   group_by(time) %>% 
   summarise(avg_congestion = mean(congestion))
 ```
 
+## Compare
+
+### Delays vs Sites Congestion
+
 ```{r}
-# # Join delay, sites congestion and links congestion
-# delay_congestion_stamp <- delay_stamp %>% 
-#   full_join(sites_cong_logtime, by = c("timestamp" = "logtime")) %>% 
-#   full_join(links_cong_logtime, by = c("timestamp" = "logtime"), suffix = c("_sites", "_links")) %>% 
-#   pivot_longer(cols = !timestamp, names_to = "stat", values_to = "value")
-# 
-# delay_congestion_stamp %>% 
-#   #filter(stat != "avg_duration") %>% 
-#   ggplot(aes(x = timestamp, y = value)) +
-#   geom_line() +
-#   facet_grid(vars(stat), scales = "free_y")
+delay_congestion_sites <- delay_time %>% 
+  full_join(sites_cong_time) %>%  
+  pivot_longer(cols = !time, names_to = "stat", values_to = "value")
+
+delay_congestion_sites %>% 
+  ggplot(aes(x = time, y = value)) +
+  geom_line() +
+  facet_grid(vars(stat), scales = "free_y") +
+  scale_x_time(breaks = as_hms(c("00:00:00", "04:00:00", "08:00:00", "12:00:00", 
+                                 "16:00:00", "20:00:00")))
 ```
 
 
-```{r}
-delay_congestion_time <- delay_time %>% 
-  full_join(sites_cong_time) %>% 
-  full_join(links_cong_time, by = "time", suffix = c("_sites", "_links")) %>% 
-  pivot_longer(cols = !time, names_to = "stat", values_to = "value")
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
 delay_congestion_time %>% 
   #filter(stat != "avg_duration") %>% 
   ggplot(aes(x = time, y = value)) +
   geom_line() +
   facet_grid(vars(stat), scales = "free_y")
 ```
-
-
-
-
-
-
-
-
-
 
 
 
