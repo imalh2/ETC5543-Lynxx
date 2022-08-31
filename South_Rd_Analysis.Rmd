@@ -22,6 +22,7 @@ library(geodist)
 library(janitor)
 library(glue)
 library(hms)
+library(patchwork)
 ```
 
 ```{r data}
@@ -30,9 +31,9 @@ sites_raw <- read_csv(here("data/addinsight/addinsight_prod.btsites.csv.csv"))
 links_south_rd_raw <- read_csv(here("data/South-Rd/BT Links - South Rd.csv"))
 full_stops_raw <- read_csv(here("data/GTFS_feed_version_1157/large/gtfs_history_prod.stops.csv"))
 routes_trips_stops_raw <- read_csv(here("data/South-Rd/South Rd Routes and Trips gtfs 1157.csv"))
-updates_raw <- read_csv(here("data/South-Rd/trip_updates_SouthRd.csv"))
-link_stats_raw <- read_csv(here("data/South-Rd/link_stats.csv"))
-site_stats_raw <- read_csv(here("data/South-Rd/site_stats.csv"))
+updates_raw <- read_csv(here("data/South-Rd/trip_updates_SouthRd_Mar.csv"))
+link_stats_raw <- read_csv(here("data/South-Rd/link_stats_Mar.csv"))
+site_stats_raw <- read_csv(here("data/South-Rd/site_stats_Mar.csv"))
 ```
 
 # Data Wrangling
@@ -696,48 +697,73 @@ links_cong_time <- links_agg %>%
 
 ```{r}
 delay_cong_sites <- delay_time %>% 
-  full_join(sites_cong_time) %>%  
-  pivot_longer(cols = !time, names_to = "stat", values_to = "value")
+  full_join(sites_cong_time)
 
 # Filter to rush hours (6-10am, 3-7pm)
-delay_cong_sites_mor_rush <- delay_cong_sites %>% 
+delay_cong_sites_rush <- delay_cong_sites %>% 
+  filter(between(time, as_hms("06:00:00"), as_hms("10:00:00")) |
+           between(time, as_hms("15:00:00"), as_hms("19:00:00")))
+
+delay_cong_sites_pivot <- delay_cong_sites %>%
+  pivot_longer(cols = !time, names_to = "stat", values_to = "value")
+
+delay_cong_sites_pivot_mor_rush <- delay_cong_sites_pivot %>% 
   filter(between(time, as_hms("06:00:00"), as_hms("10:00:00")))
 
-delay_cong_sites_eve_rush <- delay_cong_sites %>% 
+delay_cong_sites_pivot_eve_rush <- delay_cong_sites_pivot %>% 
   filter(between(time, as_hms("15:00:00"), as_hms("19:00:00")))
 
 ggplot() +
-  geom_line(data = delay_cong_sites, aes(x = time, y = value)) +
-  geom_line(data = delay_cong_sites_mor_rush, aes(x = time, y = value), color = "red", size = 1) +
-  geom_line(data = delay_cong_sites_eve_rush, aes(x = time, y = value), color = "red", size = 1) +
+  geom_line(data = delay_cong_sites_pivot, aes(x = time, y = value), alpha = 0.3) +
+  geom_line(data = delay_cong_sites_pivot_mor_rush, aes(x = time, y = value), color = "red", size = 1) +
+  geom_line(data = delay_cong_sites_pivot_eve_rush, aes(x = time, y = value), color = "blue", size = 1) +
+  geom_vline(xintercept = c(as_hms(c("06:00:00", "10:00:00"))), linetype = "dashed", color = "red") +
+  geom_vline(xintercept = c(as_hms(c("15:00:00", "19:00:00"))), linetype = "dashed", color = "blue") +
   facet_grid(vars(stat), scales = "free_y") +
   scale_x_time(breaks = as_hms(c("00:00:00", "04:00:00", "08:00:00", "12:00:00", 
                                  "16:00:00", "20:00:00")),
-               labels = c("00", "4", "8", "12", "16", "20"))
+               labels = c("00", "4", "8", "12", "16", "20")) +
+  theme_bw()
+
+ggplot(delay_cong_sites_rush, aes(x = avg_congestion, y = avg_delay)) +
+  geom_point() +
+  theme_bw()
 ```
 
 ### Delays vs Links Congestion
 
 ```{r}
 delay_cong_links <- delay_time_dir %>% 
-  full_join(links_cong_time) %>% 
+  full_join(links_cong_time)
+
+delay_cong_links_rush <- delay_cong_links %>% 
+  filter(between(time, as_hms("06:00:00"), as_hms("10:00:00")) |
+           between(time, as_hms("15:00:00"), as_hms("19:00:00")))
+
+delay_cong_links_pivot <- delay_cong_links %>%
   pivot_longer(cols = avg_delay:avg_congestion, names_to = "stat", values_to = "value")
 
-# Filter to rush hours (6-10am, 3-7pm)
-delay_cong_links_mor_rush <- delay_cong_links %>% 
+delay_cong_links_pivot_mor_rush <- delay_cong_links_pivot %>% 
   filter(between(time, as_hms("06:00:00"), as_hms("10:00:00")))
 
-delay_cong_links_eve_rush <- delay_cong_links %>% 
+delay_cong_links_pivot_eve_rush <- delay_cong_links_pivot %>% 
   filter(between(time, as_hms("15:00:00"), as_hms("19:00:00")))
 
 ggplot() +
-  geom_line(data = delay_cong_links, aes(x = time, y = value)) +
-  geom_line(data = delay_cong_links_mor_rush, aes(x = time, y = value), color = "red", size = 1) +
-  geom_line(data = delay_cong_links_eve_rush, aes(x = time, y = value), color = "red", size = 1) +
+  geom_line(data = delay_cong_links_pivot, aes(x = time, y = value), alpha = 0.3) +
+  geom_line(data = delay_cong_links_pivot_mor_rush, aes(x = time, y = value), color = "red", size = 1) +
+  geom_line(data = delay_cong_links_pivot_eve_rush, aes(x = time, y = value), color = "blue", size = 1) +
+  geom_vline(xintercept = c(as_hms(c("06:00:00", "10:00:00"))), linetype = "dashed", color = "red") +
+  geom_vline(xintercept = c(as_hms(c("15:00:00", "19:00:00"))), linetype = "dashed", color = "blue") +
   facet_grid(rows = vars(stat), cols = vars(direction), scales = "free_y") +
   scale_x_time(breaks = as_hms(c("00:00:00", "04:00:00", "08:00:00", "12:00:00", 
                                  "16:00:00", "20:00:00")),
-               labels = c("00", "4", "8", "12", "16", "20"))
+               labels = c("00", "4", "8", "12", "16", "20")) +
+  theme_bw()
+
+ggplot(delay_cong_links_rush, aes(x = avg_congestion, y = avg_delay)) +
+  geom_point() +
+  theme_bw()
 ```
 
 ### Function
@@ -745,7 +771,7 @@ ggplot() +
 Perform analysis based on aggregate time provided
 
 ```{r}
-compare_aggregate <- function(comparison, timeframe = "10 minutes") {
+compare_aggregate <- function(comparison, timeframe = "10 minutes", plot = "line") {
   
   delays_agg <- updates_stops_filtered  %>% 
     mutate(timestamp = ceiling_date(timestamp, timeframe),
@@ -810,45 +836,116 @@ compare_aggregate <- function(comparison, timeframe = "10 minutes") {
     summarise(avg_congestion = mean(congestion))
   
   if (comparison == "sites") {
-    delay_cong_sites <- delay_time %>%
-    full_join(sites_cong_time) %>%
-    pivot_longer(cols = !time, names_to = "stat", values_to = "value")
+    delay_cong_sites <- delay_time %>% 
+      full_join(sites_cong_time)
 
-  delay_cong_sites_mor_rush <- delay_cong_sites %>% 
-    filter(between(time, as_hms("06:00:00"), as_hms("10:00:00")))
-  
-  delay_cong_sites_eve_rush <- delay_cong_sites %>% 
-    filter(between(time, as_hms("15:00:00"), as_hms("19:00:00")))
-  
-  ggplot() +
-    geom_line(data = delay_cong_sites, aes(x = time, y = value)) +
-    geom_line(data = delay_cong_sites_mor_rush, aes(x = time, y = value), color = "red", size = 1) +
-    geom_line(data = delay_cong_sites_eve_rush, aes(x = time, y = value), color = "red", size = 1) +
-    facet_grid(vars(stat), scales = "free_y") +
-    scale_x_time(breaks = as_hms(c("00:00:00", "04:00:00", "08:00:00", "12:00:00", 
-                                   "16:00:00", "20:00:00")),
-                 labels = c("00", "4", "8", "12", "16", "20"))
-  } else if(comparison == "links") {
-    delay_cong_links <- delay_time_dir %>%
-      full_join(links_cong_time) %>%
-      pivot_longer(cols = avg_delay:avg_congestion, names_to = "stat", values_to = "value")
+    delay_cong_sites_rush <- delay_cong_sites %>% 
+      filter(between(time, as_hms("06:00:00"), as_hms("10:00:00")) |
+               between(time, as_hms("15:00:00"), as_hms("19:00:00")))
 
-    delay_cong_links_mor_rush <- delay_cong_links %>% 
+    delay_cong_sites_pivot <- delay_cong_sites %>%
+      pivot_longer(cols = !time, names_to = "stat", values_to = "value")
+
+
+    delay_cong_sites_pivot_mor_rush <- delay_cong_sites_pivot %>% 
       filter(between(time, as_hms("06:00:00"), as_hms("10:00:00")))
     
-    delay_cong_links_eve_rush <- delay_cong_links %>% 
+    delay_cong_sites_pivot_eve_rush <- delay_cong_sites_pivot %>% 
       filter(between(time, as_hms("15:00:00"), as_hms("19:00:00")))
     
-    ggplot() +
-      geom_line(data = delay_cong_links, aes(x = time, y = value)) +
-      geom_line(data = delay_cong_links_mor_rush, aes(x = time, y = value), color = "red", size = 1) +
-      geom_line(data = delay_cong_links_eve_rush, aes(x = time, y = value), color = "red", size = 1) +
-      facet_grid(rows = vars(stat), cols = vars(direction), scales = "free_y") +
-      scale_x_time(breaks = as_hms(c("00:00:00", "04:00:00", "08:00:00", "12:00:00", 
-                                     "16:00:00", "20:00:00")),
-                   labels = c("00", "4", "8", "12", "16", "20"))
+    if (plot == "line") {
+      ggplot() +
+        geom_line(data = delay_cong_sites_pivot, aes(x = time, y = value), alpha = 0.3) +
+        geom_line(data = delay_cong_sites_pivot_mor_rush, aes(x = time, y = value), color = "red", size = 1) +
+        geom_line(data = delay_cong_sites_pivot_eve_rush, aes(x = time, y = value), color = "blue", size = 1) +
+        geom_vline(xintercept = c(as_hms(c("06:00:00", "10:00:00"))), linetype = "dashed", color = "red") +
+        geom_vline(xintercept = c(as_hms(c("15:00:00", "19:00:00"))), linetype = "dashed", color = "blue") +
+        facet_grid(vars(stat), scales = "free_y") +
+        scale_x_time(breaks = as_hms(c("00:00:00", "04:00:00", "08:00:00", "12:00:00", 
+                                       "16:00:00", "20:00:00")),
+                     labels = c("00", "4", "8", "12", "16", "20")) +
+        theme_bw()
+    } else if (plot == "scatter") {
+      ggplot(delay_cong_sites_rush, aes(x = avg_congestion, y = avg_delay)) +
+        geom_point() +
+        theme_bw()
+    } else if (plot == "both") {
+      p1 <- ggplot() +
+        geom_line(data = delay_cong_sites_pivot, aes(x = time, y = value), alpha = 0.3) +
+        geom_line(data = delay_cong_sites_pivot_mor_rush, aes(x = time, y = value), color = "red", size = 1) +
+        geom_line(data = delay_cong_sites_pivot_eve_rush, aes(x = time, y = value), color = "blue", size = 1) +
+        geom_vline(xintercept = c(as_hms(c("06:00:00", "10:00:00"))), linetype = "dashed", color = "red") +
+        geom_vline(xintercept = c(as_hms(c("15:00:00", "19:00:00"))), linetype = "dashed", color = "blue") +
+        facet_grid(vars(stat), scales = "free_y") +
+        scale_x_time(breaks = as_hms(c("00:00:00", "04:00:00", "08:00:00", "12:00:00", 
+                                       "16:00:00", "20:00:00")),
+                     labels = c("00", "4", "8", "12", "16", "20")) +
+        theme_bw()
+      
+      p2 <- ggplot(delay_cong_sites_rush, aes(x = avg_congestion, y = avg_delay)) +
+        geom_point() +
+        theme_bw()
+      
+      p1 / p2
+    }
+  } else if(comparison == "links") {
+    delay_cong_links <- delay_time_dir %>% 
+      full_join(links_cong_time)
+
+    delay_cong_links_rush <- delay_cong_links %>% 
+      filter(between(time, as_hms("06:00:00"), as_hms("10:00:00")) |
+               between(time, as_hms("15:00:00"), as_hms("19:00:00")))
+
+    delay_cong_links_pivot <- delay_cong_links %>%
+      pivot_longer(cols = avg_delay:avg_congestion, names_to = "stat", values_to = "value")
+
+    delay_cong_links_pivot_mor_rush <- delay_cong_links_pivot %>% 
+      filter(between(time, as_hms("06:00:00"), as_hms("10:00:00")))
+    
+    delay_cong_links_pivot_eve_rush <- delay_cong_links_pivot %>% 
+      filter(between(time, as_hms("15:00:00"), as_hms("19:00:00")))
+    
+    if (plot == "line") {
+      ggplot() +
+        geom_line(data = delay_cong_links_pivot, aes(x = time, y = value), alpha = 0.3) +
+        geom_line(data = delay_cong_links_pivot_mor_rush, aes(x = time, y = value), color = "red", size = 1) +
+        geom_line(data = delay_cong_links_pivot_eve_rush, aes(x = time, y = value), color = "blue", size = 1) +
+        geom_vline(xintercept = c(as_hms(c("06:00:00", "10:00:00"))), linetype = "dashed", color = "red") +
+        geom_vline(xintercept = c(as_hms(c("15:00:00", "19:00:00"))), linetype = "dashed", color = "blue") +
+        facet_grid(rows = vars(stat), cols = vars(direction), scales = "free_y") +
+        scale_x_time(breaks = as_hms(c("00:00:00", "04:00:00", "08:00:00", "12:00:00", 
+                                       "16:00:00", "20:00:00")),
+                     labels = c("00", "4", "8", "12", "16", "20")) +
+        theme_bw()
+    } else if (plot == "scatter") {
+      ggplot(delay_cong_links_rush, aes(x = avg_congestion, y = avg_delay)) +
+        geom_point() +
+        theme_bw()
+    } else if (plot == "both") {
+      p1 <- ggplot() +
+        geom_line(data = delay_cong_links_pivot, aes(x = time, y = value), alpha = 0.3) +
+        geom_line(data = delay_cong_links_pivot_mor_rush, aes(x = time, y = value), color = "red", size = 1) +
+        geom_line(data = delay_cong_links_pivot_eve_rush, aes(x = time, y = value), color = "blue", size = 1) +
+        geom_vline(xintercept = c(as_hms(c("06:00:00", "10:00:00"))), linetype = "dashed", color = "red") +
+        geom_vline(xintercept = c(as_hms(c("15:00:00", "19:00:00"))), linetype = "dashed", color = "blue") +
+        facet_grid(rows = vars(stat), cols = vars(direction), scales = "free_y") +
+        scale_x_time(breaks = as_hms(c("00:00:00", "04:00:00", "08:00:00", "12:00:00", 
+                                       "16:00:00", "20:00:00")),
+                     labels = c("00", "4", "8", "12", "16", "20")) +
+        theme_bw()
+      
+      p2 <- ggplot(delay_cong_links_rush, aes(x = avg_congestion, y = avg_delay)) +
+        geom_point() +
+        theme_bw()
+      
+      p1 / p2
+    }
   }
 }
+```
+
+```{r}
+compare_aggregate("links", "30 minutes", "both")
 ```
 
 
