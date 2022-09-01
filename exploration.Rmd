@@ -34,6 +34,37 @@ site_stats_raw <- read_csv(here("data/addinsight/large/addinsight_prod.btsitesta
 
 ```{r}
 # Updates
+# updates <- updates_raw %>%
+#   rename(trip_id = id,
+#          vehicle_id = label) %>%
+#   # The same trip on the same date for the same stop can have multiple delay updates,
+#   # therefore filter updates to the most recent timestamp
+#   group_by(route_id, direction_id, start_date, trip_id, stop_sequence, stop_id) %>%
+#   filter(timestamp == max(timestamp)) %>%
+#   ungroup() %>% 
+#   mutate(direction_id = factor(direction_id, levels = c(1, 0)),
+#          start_date = ymd(start_date),
+#          vehicle_id = as.character(vehicle_id),
+#          timestamp = as_datetime(timestamp),
+#          trip_id = as.character(trip_id),
+#          stop_id = as.character(stop_id),
+#          arrival_time = as_datetime(arrival_time),
+#          date = date(timestamp),
+#          wday = wday(timestamp, label = TRUE, abbr = TRUE, week_start = 1),
+#          hour = hour(timestamp),
+#          time_stamp_floor = floor_date(timestamp, unit = "hour")) %>%
+#   mutate(delay_mins = delay/60, .after = delay) %>%
+#   mutate(stop_direction = paste0(stop_id, "-", direction_id), .after = stop_id) %>% 
+#   mutate(route_direction = paste0(route_id, "-", direction_id), .after = route_id) %>%
+#   mutate(route_dir_hr = paste0(route_id, "-", direction_id, "-", hour), .after = route_direction) %>% 
+#   # Get stop to stop delay per group
+#   group_by(route_id, direction_id, start_date, trip_id) %>% 
+#   arrange(stop_sequence, .by_group = TRUE) %>%
+#   mutate(stop_pair_dir = paste0(lag(stop_id), "-", stop_id, "-", unique(direction_id)), .after = delay_mins) %>%
+#   mutate(stop_to_stop_delay = delay - lag(delay, default = 0), .after = stop_pair_dir) %>%
+#   ungroup() %>%
+#   mutate(stop_to_stop_delay_mins = stop_to_stop_delay/60, .after = stop_to_stop_delay)
+
 updates <- updates_raw %>%
   rename(trip_id = id,
          vehicle_id = label) %>%
@@ -45,10 +76,10 @@ updates <- updates_raw %>%
   mutate(direction_id = factor(direction_id, levels = c(1, 0)),
          start_date = ymd(start_date),
          vehicle_id = as.character(vehicle_id),
-         timestamp = as_datetime(timestamp),
+         timestamp = as_datetime(timestamp + (60*60*10.5)),
          trip_id = as.character(trip_id),
          stop_id = as.character(stop_id),
-         arrival_time = as_datetime(arrival_time),
+         arrival_time = as_datetime(arrival_time + (60*60*10.5)),
          date = date(timestamp),
          wday = wday(timestamp, label = TRUE, abbr = TRUE, week_start = 1),
          hour = hour(timestamp),
@@ -63,6 +94,7 @@ updates <- updates_raw %>%
   mutate(stop_pair_dir = paste0(lag(stop_id), "-", stop_id, "-", unique(direction_id)), .after = delay_mins) %>%
   mutate(stop_to_stop_delay = delay - lag(delay, default = 0), .after = stop_pair_dir) %>%
   ungroup() %>%
+  mutate(stop_to_stop_delay = ifelse(stop_to_stop_delay < 0, 0, stop_to_stop_delay)) %>% 
   mutate(stop_to_stop_delay_mins = stop_to_stop_delay/60, .after = stop_to_stop_delay)
   
 rm(updates_raw)
@@ -208,9 +240,15 @@ ggplot(routes_combined, aes(x = timestamp, y = stop_to_stop_delay_mins, color = 
 ### Delays per Hour
 
 ```{r}
+# hourly_delays <- combined %>%
+#   group_by(hour) %>% 
+#   summarise(avg_delay = mean(delay_mins)) %>%
+#   ungroup() %>%
+#   arrange(hour)
+
 hourly_delays <- combined %>%
   group_by(hour) %>% 
-  summarise(avg_delay = mean(delay_mins)) %>%
+  summarise(avg_delay = mean(stop_to_stop_delay)) %>%
   ungroup() %>%
   arrange(hour)
 

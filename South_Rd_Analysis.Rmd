@@ -98,20 +98,19 @@ updates <- updates_raw %>%
   rename(trip_id = id,
          vehicle_id = label) %>%
   mutate(start_date = ymd(start_date),
-         timestamp = as_datetime(timestamp),
-         arrival_time = as_datetime(arrival_time)) %>% 
+         # Add 10.5 hours to UTC to match Adelaide time
+         timestamp = as_datetime(timestamp + (60*60*10.5)),
+         arrival_time = as_datetime(arrival_time + (60*60*10.5))) %>% 
   # Get individual stop delay per group
   group_by(route_id, direction_id, start_date, trip_id) %>% 
   arrange(stop_sequence, .by_group = TRUE) %>%
   mutate(stop_delay = delay - lag(delay, default = 0), .after = delay) %>%
-  ungroup() %>% 
-  # Remove 2021 timestamp entries
-  filter(as_date(timestamp) > "2021-12-31") %>% 
+  ungroup() %>%
   # If a stop_delay is negative, set the stop_delay to zero, because early
   # arrival_time does not matter. Even if stop_delay is negative and arrival_time is
   # is late, the lateness is due to a previous stop
   mutate(stop_delay = ifelse(stop_delay < 0, 0, stop_delay))
-  
+
 rm(updates_raw)
 ```
 
@@ -153,6 +152,18 @@ updates_stops_filtered <- updates %>%
 link_stats <- link_stats %>% 
   left_join(select(links_south_rd, linkid, direction))
 ```
+
+```{r}
+# Hours with no updates
+sort(unique(hour(updates$timestamp)))
+
+# Hours with no updates after filtering to stops
+sort(unique(hour(updates_stops_filtered$timestamp)))
+
+missing_times <- updates %>% 
+  distinct(as_hms(ceiling_date(timestamp, "1 minutes")))
+```
+
 
 # Getting Information for Analysis
 
@@ -945,7 +956,7 @@ compare_aggregate <- function(comparison, timeframe = "10 minutes", plot = "line
 ```
 
 ```{r}
-compare_aggregate("links", "30 minutes", "both")
+compare_aggregate("links", "15 minutes")
 ```
 
 
