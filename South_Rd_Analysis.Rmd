@@ -293,42 +293,20 @@ for (link in unique(links_map_up$linkid)) {
 
 temp_map_up
 
-# Remove problematic links
-links_order_up <- links_order_up[!links_order_up %in% c(1603, 1604, 1606, 3573, 3574)]
+# Remove problematic links and insert replacement links either because links
+# don't appear right on the map or because stats for the link don't exist
+links_order_up <- c(links_order_up[!links_order_up %in% c(289, 697, 3573, 3574)],
+                    1966, 2871, 2869, 1962, 1970, 1972)
 
 # Update with changes
 links_map_up <- links_south_rd %>%
   filter(linkid %in% links_order_up) %>% 
   arrange(start_lat, ordernumber)
 
-# Rerun map
-temp_map_up <- leaflet() %>% 
-  addTiles()
-for (link in unique(links_map_up$linkid)) {
-  map_df <- links_map_up %>% 
-    filter(linkid == link)
-  
-  temp_map_up <- temp_map_up %>% 
-    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = links_colors[n],
-                 label = ~linkid, opacity = 0.3)
-  if (n == 1) {
-    n <- 2
-  } else {
-    n <- 1
-  }
-}
-temp_map_up
-
 # Missing link between School Avenue and Everard Avenue. Locate a link between the two
 link_school_eve_up <- links_south_rd %>%
   filter(str_detect(tolower(name), "school"),
          str_detect(tolower(name), "everard"),
-         direction == "up")
-
-# Missing link between Ayliffs Road and Celtic Avenue. Locate a link between the two
-link_ayliffs_celt_up <- links_south_rd %>%
-  filter(str_detect(tolower(name), "ayliffes"),
-         str_detect(tolower(name), "celtic"),
          direction == "up")
 
 # Missing link between Southern Avenue and Celtic Avenue. Locate a link between the two
@@ -358,14 +336,14 @@ temp_map_up %>%
   addPolylines(data = link_john_bar_up, lng = ~longitude, lat = ~latitude, color = "red",
                label = ~linkid, opacity = 0.3) %>% 
   addPolylines(data = link_school_eve_up, lng = ~longitude, lat = ~latitude, color = "red",
-               label = ~linkid, opacity = 0.3) %>% 
-  addPolylines(data = link_ayliffs_celt_up, lng = ~longitude, lat = ~latitude, color = "red",
                label = ~linkid, opacity = 0.3)
+  #addPolylines(data = link_ayliffs_celt_up, lng = ~longitude, lat = ~latitude, color = "red",
+  #             label = ~linkid, opacity = 0.3)
 
 # Combine missing links with map links up DF and plot
 links_map_up <- links_map_up %>% 
-  rbind(link_southern_celt_up, link_daws_cor_up, link_john_bar_up, link_school_eve_up,
-        link_ayliffs_celt_up)
+  rbind(link_southern_celt_up, link_daws_cor_up, link_john_bar_up, link_school_eve_up) %>% 
+  arrange(start_lat, ordernumber)
 
 # Output final map up
 map_up <- leaflet() %>% 
@@ -376,7 +354,13 @@ for (link in unique(links_map_up$linkid)) {
     filter(linkid == link)
   
   map_up <- map_up %>% 
-    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = "green", opacity = 1, label = ~linkid)
+    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = links_colors[n], opacity = 0.3, label = ~linkid)
+  
+  if (n == 1) {
+    n <- 2
+  } else {
+    n <- 1
+  }
 }
 
 map_up
@@ -444,11 +428,15 @@ for (link in unique(links_map_down$linkid)) {
 
 temp_map_down
 
-# Missing link between Walsh Avenue and Celtic Avenue. Locate a link between the two
-link_walsh_celt_down <- links_south_rd %>%
-  filter(str_detect(tolower(name), "walsh"),
-         str_detect(tolower(name), "celtic"),
-         direction == "down")
+# Remove problematic links and insert replacement links either because links
+# don't appear right on the map or because stats for the link don't exist
+links_order_down <- c(links_order_down[!links_order_down %in% c(624, 698, 691)],
+                    2818, 2820, 1963, 2870, 2872, 1967, 1611, 1609, 1607, 1605, 1602)
+
+# Update with changes
+links_map_down <- links_south_rd %>%
+  filter(linkid %in% links_order_down) %>% 
+  arrange(start_lat, ordernumber)
 
 # Missing link between Daws Road and Corunna Avenue. Locate a link between the two
 link_daws_cor_down <- links_south_rd %>%
@@ -470,14 +458,18 @@ link_anz_ever_down <- links_south_rd %>%
 
 # Check links are correct
 temp_map_down %>%
-  addPolylines(data = link_walsh_celt_down, lng = ~longitude, lat = ~latitude, color = "red", label = ~linkid, opacity = 0.3) %>%
-  addPolylines(data = link_daws_cor_down, lng = ~longitude, lat = ~latitude, color = "red", label = ~linkid, opacity = 0.3) %>% 
-  addPolylines(data = link_edw_alb_down, lng = ~longitude, lat = ~latitude, color = "red", label = ~linkid, opacity = 0.3) %>% 
-  addPolylines(data = link_anz_ever_down, lng = ~longitude, lat = ~latitude, color = "red", label = ~linkid, opacity = 0.3)
+  # addPolylines(data = link_walsh_celt_down, lng = ~longitude, lat = ~latitude, color = "red", label = ~linkid, opacity = 0.3) %>%
+  addPolylines(data = link_daws_cor_down, lng = ~longitude, lat = ~latitude,
+               color = "red", label = ~linkid, opacity = 0.3) %>% 
+  addPolylines(data = link_edw_alb_down, lng = ~longitude, lat = ~latitude,
+               color = "red", label = ~linkid, opacity = 0.3) %>% 
+  addPolylines(data = link_anz_ever_down, lng = ~longitude, lat = ~latitude,
+               color = "red", label = ~linkid, opacity = 0.3)
 
 # Combine missing links with map links down DF and plot
 links_map_down <- links_map_down %>% 
-  rbind(link_walsh_celt_down, link_daws_cor_down, link_edw_alb_down, link_anz_ever_down)
+  rbind(link_daws_cor_down, link_edw_alb_down, link_anz_ever_down) %>% 
+  arrange(start_lat, ordernumber)
 
 # Output final map down
 map_down <- leaflet() %>% 
@@ -488,7 +480,13 @@ for (link in unique(links_map_down$linkid)) {
     filter(linkid == link)
   
   map_down <- map_down %>% 
-    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = "red", opacity = 1)
+    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = links_colors[n], opacity = 0.3, label = ~linkid)
+  
+  if (n == 1) {
+    n <- 2
+  } else {
+    n <- 1
+  }
 }
 
 map_down
@@ -544,7 +542,7 @@ for (link in unique(links_with_stats$linkid)) {
     filter(linkid == link)
   
   map_links_no_stats <- map_links_no_stats %>% 
-    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = "red", opacity = 1, label = ~linkid)
+    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = "yellow", opacity = 1, label = ~linkid)
 }
 
 map_links_no_stats
