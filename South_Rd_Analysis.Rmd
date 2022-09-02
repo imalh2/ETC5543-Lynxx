@@ -62,7 +62,7 @@ links_south_rd <- links_south_rd_raw %>%
          end_lat = ifelse(ordernumber == max(ordernumber), latitude, NA)) %>% 
   fill(start_lat, .direction = "down") %>% 
   fill(end_lat, .direction = "up") %>%
-  mutate(direction = ifelse(start_lat < end_lat, "up", "down")) %>%  
+  mutate(direction = if_else(start_lat < end_lat, "up", "down")) %>%  
   ungroup()
 
 rm(links_south_rd_raw)
@@ -94,22 +94,57 @@ rm(full_stops_raw)
 ## Updates
 
 ```{r}
+#### OLD WAY
+# updates <- updates_raw %>% 
+#   rename(trip_id = id,
+#          vehicle_id = label) %>%
+#   mutate(start_date = ymd(start_date),
+#          timestamp = as_datetime(timestamp, tz = "Australia/Adelaide"),
+#          arrival_time = as_datetime(arrival_time, tz = "Australia/Adelaide")) %>%
+#   # If a delay is negative, set the delay to zero, because early
+#   # arrival_time does not matter
+#   mutate(delay = if_else(delay < 0, 0, delay)) %>% 
+#   # Get individual stop delay per group
+#   group_by(route_id, direction_id, start_date, trip_id) %>% 
+#   arrange(stop_sequence, .by_group = TRUE) %>%
+#   mutate(stop_delay = delay - lag(delay, default = 0), .after = delay) %>%
+#   ungroup() %>% 
+#   # If a stop_delay is negative set it to zero, because if delay is positive, 
+#   # none of the delay is due to that stop. And if delay is negative, then again
+#   # we don't care about early arrivals
+#   mutate(stop_delay = if_else(stop_delay < 0, 0, stop_delay))
+
 updates <- updates_raw %>% 
   rename(trip_id = id,
          vehicle_id = label) %>%
   mutate(start_date = ymd(start_date),
-         # Add 10.5 hours to UTC to match Adelaide time
          timestamp = as_datetime(timestamp, tz = "Australia/Adelaide"),
-         arrival_time = as_datetime(arrival_time, tz = "Australia/Adelaide")) %>% 
-  # Get individual stop delay per group
-  group_by(route_id, direction_id, start_date, trip_id) %>% 
+         arrival_time = as_datetime(arrival_time, tz = "Australia/Adelaide"),
+ # Subtract accumulated delay prior to commencing section analysed to isolate to only section in question
+         stop_in_SouthRd = if_else(stop_id %in% stops_south_rd$stop_id, "yes", "no")) %>%
+  group_by(route_id, direction_id, start_date, trip_id) %>%
   arrange(stop_sequence, .by_group = TRUE) %>%
-  mutate(stop_delay = delay - lag(delay, default = 0), .after = delay) %>%
+  # Locate when section commences, get final accumulated delay prior
+  mutate(last_delay_prior = ifelse(stop_in_SouthRd == "yes" & lag(stop_in_SouthRd) == "no", lag(delay), NA)) %>% 
+  fill(last_delay_prior, .direction = "down") %>%
+  ungroup() %>% 
+  mutate(delay_SouthRd = ifelse(stop_in_SouthRd == "yes", delay - last_delay_prior, NA)) %>%
+  filter(stop_in_SouthRd == "yes") %>% 
+  # If a delay is negative, that means arrival would've been early if not for the accumulated
+  # delay prior to the specific section, and we don't care about early arrival, so set to zero
+  mutate(delay_SouthRd = if_else(delay_SouthRd < 0, 0, delay_SouthRd)) %>%
+  # Get individual delay per stop in group
+  group_by(route_id, direction_id, start_date, trip_id) %>%
+  arrange(stop_sequence, .by_group = TRUE) %>%
+  mutate(stop_delay = delay_SouthRd - lag(delay_SouthRd, default = 0)) %>%
   ungroup() %>%
-  # If a stop_delay is negative, set the stop_delay to zero, because early
-  # arrival_time does not matter. Even if stop_delay is negative and arrival_time is
-  # is late, the lateness is due to a previous stop
-  mutate(stop_delay = ifelse(stop_delay < 0, 0, stop_delay))
+  # If a stop_delay is negative set it to zero, because if delay_SouthRd is positive,
+  # then none of the stop_delay is due to that stop. And if delay_SouthRd is negative, then again
+  # we don't care about early arrivals
+  mutate(stop_delay = if_else(stop_delay < 0, 0, stop_delay)) %>% 
+  select(-stop_in_SouthRd) %>% 
+  relocate(last_delay_prior:stop_delay, .after = delay) %>% 
+  arrange(start_date, trip_id, stop_sequence)
 
 rm(updates_raw)
 ```
@@ -142,7 +177,7 @@ rm(site_stats_raw)
 stops_south_rd <- stops_south_rd %>% 
   left_join(full_stops) %>% 
   # If stop is on East side, that means trip going down, and vice versa
-  mutate(direction = ifelse(str_detect(stop_name, "East"), "down", "up"))
+  mutate(direction = if_else(str_detect(stop_name, "East"), "down", "up"))
 
 # Join updates with stops_south_rd
 updates_stops_filtered <- updates %>% 
