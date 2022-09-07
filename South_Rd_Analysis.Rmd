@@ -158,6 +158,9 @@ link_stats <- link_stats_raw %>%
   distinct()
 
 rm(link_stats_raw)
+
+ggplot(link_stats, aes(congestion)) +
+  geom_histogram()
 ```
 
 ## Site Stats
