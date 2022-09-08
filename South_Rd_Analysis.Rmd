@@ -34,6 +34,7 @@ routes_trips_stops_raw <- read_csv(here("data/South-Rd/South Rd Routes and Trips
 updates_raw <- read_csv(here("data/South-Rd/trip_updates_SouthRd_Mar.csv"))
 link_stats_raw <- read_csv(here("data/South-Rd/link_stats_Mar.csv"))
 site_stats_raw <- read_csv(here("data/South-Rd/site_stats_Mar.csv"))
+holidays_raw <- read_csv(here("data/addinsight/addinsight_prod.btspecialdays.csv.csv"))
 ```
 
 # Data Wrangling
