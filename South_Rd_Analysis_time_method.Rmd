@@ -1,0 +1,1267 @@
+---
+title: "South Rd Analysis"
+author: "Ibrahim Al-Hindi"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+```{r libraries}
+# Libraries
+library(tidyverse)
+library(here)
+library(lubridate)
+library(leaflet)
+library(hms)
+library(janitor)
+library(GGally)
+```
+
+```{r data}
+# Data
+sites_raw <- read_csv(here("data/addinsight/addinsight_prod.btsites.csv.csv"))
+links_segment_raw <- read_csv(here("data/South-Rd/BT Links - South Rd.csv"))
+full_stops_raw <- read_csv(here("data/GTFS_feed_version_1157/large/gtfs_history_prod.stops.csv"))
+routes_trips_stops_raw <- read_csv(here("data/South-Rd/South Rd Routes and Trips gtfs 1157.csv"))
+updates_raw <- read_csv(here("data/South-Rd/trip_updates_SouthRd_Mar.csv"))
+link_stats_raw <- read_csv(here("data/South-Rd/link_stats_Mar.csv"))
+site_stats_raw <- read_csv(here("data/South-Rd/site_stats_Mar.csv"))
+holidays_raw <- read_csv(here("data/addinsight/addinsight_prod.btspecialdays.csv.csv"))
+```
+
+# Data Wrangling and Exploration
+
+## Sites
+
+```{r}
+# Remove duplicates
+sites <- sites_raw %>% 
+  distinct(id, .keep_all = TRUE)
+
+rm(sites_raw)
+```
+
+## Links South Road
+
+```{r}
+links_segment <- links_segment_raw %>% 
+  rename_with(tolower) %>% 
+  mutate(latitude = round(latitude, 5),
+         longitude = round(longitude, 5)) %>%
+  # Add start and end longitudes for each link and whether link going to or from city
+  # to identify non-overlapping sequence of links later
+  group_by(linkid) %>%
+  mutate(start_lat = first(latitude, order_by = ordernumber),
+         end_lat = last(latitude, order_by = ordernumber)) %>% 
+  ungroup() %>% 
+  mutate(direction = if_else(start_lat < end_lat, "to_city", "from_city"))
+
+rm(links_segment_raw)
+```
+
+## Route-Trips-Stops
+
+```{r}
+stops_segment <- clean_names(routes_trips_stops_raw) %>% 
+  pull(stop_id_gtfs_history_prod_stops_csv) %>% 
+  unique()
+  
+rm(routes_trips_stops_raw)
+```
+
+## Full Stops
+
+```{r}
+full_stops <- full_stops_raw %>% 
+  select(stop_id, stop_name, stop_desc, stop_lat, stop_lon) %>% 
+  distinct(stop_id, .keep_all = TRUE)
+
+rm(full_stops_raw)
+```
+
+## Updates
+
+```{r}
+updates <- updates_raw %>%
+  rename(trip_id = id,
+         vehicle_id = label) %>%
+  mutate(start_date = ymd(start_date),
+         timestamp = as_datetime(timestamp, tz = "Australia/Adelaide"),
+         arrival_time = as_datetime(arrival_time, tz = "Australia/Adelaide")) %>% 
+  group_by(route_id, direction_id, start_date, trip_id) %>% 
+  mutate(to_stop_time = as.numeric(arrival_time - lag(arrival_time, order_by = stop_sequence))) %>% 
+  ungroup() %>% 
+  filter(stop_id %in% stops_segment) %>% 
+  group_by(route_id, direction_id, start_date, trip_id) %>% 
+  mutate(trip_time = as.numeric((last(arrival_time, order_by = stop_sequence) -
+                                   first(arrival_time, order_by = stop_sequence)), units = "secs")) %>% 
+  ungroup() %>% 
+  mutate(to_stop_time = replace_na(to_stop_time, 0)) %>% 
+  arrange(start_date, trip_id, stop_sequence)
+  
+sequence_times_mis <- updates %>% 
+  group_by(route_id, direction_id, start_date, trip_id) %>%
+  mutate(chrono_error = lag(arrival_time) > arrival_time) %>%
+  filter(any(chrono_error == TRUE)) %>% 
+  ungroup() %>% 
+  mutate(chrono_error = replace_na(chrono_error, 0)) %>%
+  arrange(start_date, trip_id, stop_sequence)
+
+sequence_times_mis %>% count(chrono_error)
+
+rm(updates_raw)
+```
+
+
+## Link Stats
+
+```{r}
+link_stats <- link_stats_raw %>% 
+  select(logtime:closed) %>%
+  filter(enoughdata == TRUE) %>% 
+  mutate(logtime = as_datetime(str_remove(logtime, " \\+10:30"))) %>% 
+  distinct()
+
+rm(link_stats_raw)
+
+summary(link_stats)
+
+ggplot(link_stats, aes(congestion)) +
+  geom_histogram(binwidth = 1)
+
+ggplot(link_stats, aes(congestion)) +
+  geom_density()
+
+ggplot(link_stats, aes(congestion)) +
+  geom_boxplot()
+```
+
+## Site Stats
+
+```{r}
+site_stats <- site_stats_raw %>% 
+  select(logtime:avgduration) %>% 
+  mutate(logtime = as_datetime(str_remove(logtime, " \\+10:30")))
+
+rm(site_stats_raw)
+
+ggplot(site_stats, aes(probecount)) +
+  geom_histogram()
+
+ggplot(site_stats, aes(probecount)) +
+  geom_density()
+
+ggplot(site_stats, aes(probecount)) +
+  geom_boxplot()
+
+ggplot(site_stats, aes(avgduration)) +
+  geom_histogram()
+
+ggplot(site_stats, aes(avgduration)) +
+  geom_density()
+
+ggplot(site_stats, aes(avgduration)) +
+  geom_boxplot()
+
+ggplot(site_stats, aes(x = probecount, y = avgduration)) +
+  geom_point()
+```
+
+## Joins
+
+```{r}
+# Join stops_south_rd with stops to get stop details
+stops_south_rd <- stops_south_rd %>% 
+  left_join(full_stops) %>% 
+  # If stop is on East side, that means trip going down, and vice versa
+  mutate(direction = if_else(str_detect(stop_name, "East"), "down", "up"))
+
+# Join updates with stops_south_rd
+updates_stops_filtered <- updates %>% 
+  inner_join(stops_south_rd)
+
+# Join link_stats with links_south_rd to get direction
+link_stats <- link_stats %>% 
+  left_join(select(links_south_rd, linkid, direction))
+```
+
+# Getting Information for Analysis
+
+## Identify Sites
+
+Select sites from map on South Road between Anzac Highway and Ayliffs Road
+
+```{r}
+sites %>% 
+    leaflet() %>% 
+    addTiles() %>% 
+    addCircles(label = ~ id, fillOpacity = 1)
+```
+
+Use Google maps to determine coordinates at each intersection of South Road required and get the sites within those coordinates
+
+```{r}
+sites_south <- sites %>% 
+  filter(str_detect(tolower(name), pattern = "south road") |
+           str_detect(tolower(instance_id), pattern = "south road"),
+         between(longitude, 138.5710, 138.5763),
+         between(latitude, -35.0116, -34.9420))
+
+# Map to double check
+sites_south %>% 
+    leaflet() %>% 
+    addTiles() %>% 
+    addCircles(label = ~ id, fillOpacity = 1)
+```
+
+## Identify Links
+
+```{r}
+# OLD METHOD
+
+# DF with sites and coordinates only
+# sites_coords <- sites %>% 
+#   select(id, longitude, latitude)
+
+# ## Links DF for leaflet
+# ### add origin site coordinates
+# links_origin <- links %>% 
+#   left_join(sites_coords, by = c("originid" = "id"))
+# ### add destination site coordinates
+# links_dest <- links %>% 
+#   left_join(sites_coords, by = c("destid" = "id"))
+# ### Row bind links_south_origin and links_south_dest
+# links_leaflet <- bind_rows("origin" = links_origin, "dest" = links_dest, .id = "point") %>% 
+#   arrange(id)
+
+# Get all links that have a start site and end site in the sites identified
+
+# links_south <- links_leaflet %>% 
+#   filter(originid %in% sites_south$id,
+#          destid %in% sites_south$id)
+# 
+# # Map to check the sites are all in the correct spot. They are
+# links_south %>% 
+#   leaflet() %>% 
+#     addTiles() %>% 
+#     addPolylines(lng = ~longitude, lat = ~latitude, group = ~id)
+
+# Next: need to select sites along the road but do not overlap
+```
+
+
+### Build map going up
+
+```{r}
+links_up <- links_south_rd %>% 
+  filter(direction == "up")
+
+# Keep one row per linkid for now to see sequence of links
+links_dist_up <- links_up %>% 
+  distinct(linkid, .keep_all = TRUE) %>%
+  # Build map from lower end of map to upper
+  arrange(start_lat) %>% 
+  # If two links have the same start_lat, keep the one that covers larger distance
+  group_by(start_lat) %>% 
+  filter(end_lat == max(end_lat)) %>%
+  ungroup()
+```
+
+```{r}
+# Identifying sequence of links with no overlaps
+
+## end_lat to be compared to
+flag_up <- links_dist_up$end_lat[1]
+
+## Empty vector to hold linkid's identified in order
+links_order_up <- vector("numeric")
+
+## First link in the vector is the link with the lowest latitude
+links_order_up[1] <- links_dist_up$linkid[1]
+
+n <- 2
+
+for (i in 2:nrow(links_dist_up)) {
+  # Make sure new link lat starts after flag lat ends
+  if (links_dist_up$start_lat[i] > flag_up) {
+    # Add linkid
+    links_order_up[n] <- links_dist_up$linkid[i]
+    # Update flag
+    flag_up <- links_dist_up$end_lat[i]
+    
+    n <- n+1
+  }
+}
+```
+
+```{r}
+links_map_up <- links_south_rd %>%
+  filter(linkid %in% links_order_up) %>% 
+  arrange(start_lat, ordernumber)
+
+links_colors <- c("green","yellow")
+
+n <- 1
+
+temp_map_up <- leaflet() %>% 
+  addTiles()
+
+# Iterate over links to add polyline of each link to the map
+for (link in unique(links_map_up$linkid)) {
+  map_df <- links_map_up %>% 
+    filter(linkid == link)
+  
+  temp_map_up <- temp_map_up %>% 
+    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = links_colors[n],
+                 label = ~linkid, opacity = 0.3)
+  
+  # Switch colors
+  if (n == 1) {
+    n <- 2
+  } else {
+    n <- 1
+  }
+}
+
+temp_map_up
+
+# Remove problematic links and insert replacement links either because links
+# don't appear right on the map or because stats for the link don't exist
+links_order_up <- c(links_order_up[!links_order_up %in% c(289, 697, 3573, 3574)],
+                    1966, 2871, 2869, 1962, 1970, 1972)
+
+# Update with changes
+links_map_up <- links_south_rd %>%
+  filter(linkid %in% links_order_up) %>% 
+  arrange(start_lat, ordernumber)
+
+# Missing link between School Avenue and Everard Avenue. Locate a link between the two
+link_school_eve_up <- links_south_rd %>%
+  filter(str_detect(tolower(name), "school"),
+         str_detect(tolower(name), "everard"),
+         direction == "up")
+
+# Missing link between Southern Avenue and Celtic Avenue. Locate a link between the two
+link_southern_celt_up <- links_south_rd %>%
+  filter(str_detect(tolower(name), "southern"),
+         str_detect(tolower(name), "celtic"),
+         direction == "up")
+
+# Missing link between Daws Road and Corunna Avenue. Locate a link between the two
+link_daws_cor_up <- links_south_rd %>%
+  filter(str_detect(tolower(name), "daws"),
+         str_detect(tolower(name), "corunna"),
+         direction == "up")
+
+# Missing link between John Street and Barwell Avenue. Locate a link between the two
+link_john_bar_up <- links_south_rd %>%
+  filter(str_detect(tolower(name), "john"),
+         str_detect(tolower(name), "barwell"),
+         direction == "up")
+
+# Check links are correct
+temp_map_up %>%
+  addPolylines(data = link_southern_celt_up, lng = ~longitude, lat = ~latitude, color = "red",
+               label = ~linkid, opacity = 0.3) %>% 
+  addPolylines(data = link_daws_cor_up, lng = ~longitude, lat = ~latitude, color = "red",
+               label = ~linkid, opacity = 0.3) %>% 
+  addPolylines(data = link_john_bar_up, lng = ~longitude, lat = ~latitude, color = "red",
+               label = ~linkid, opacity = 0.3) %>% 
+  addPolylines(data = link_school_eve_up, lng = ~longitude, lat = ~latitude, color = "red",
+               label = ~linkid, opacity = 0.3)
+  #addPolylines(data = link_ayliffs_celt_up, lng = ~longitude, lat = ~latitude, color = "red",
+  #             label = ~linkid, opacity = 0.3)
+
+# Combine missing links with map links up DF and plot
+links_map_up <- links_map_up %>% 
+  rbind(link_southern_celt_up, link_daws_cor_up, link_john_bar_up, link_school_eve_up) %>% 
+  arrange(start_lat, ordernumber)
+
+# Output final map up
+map_up <- leaflet() %>% 
+  addTiles()
+
+for (link in unique(links_map_up$linkid)) {
+  map_df <- links_map_up %>% 
+    filter(linkid == link)
+  
+  map_up <- map_up %>% 
+    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = links_colors[n], opacity = 0.3, label = ~linkid)
+  
+  if (n == 1) {
+    n <- 2
+  } else {
+    n <- 1
+  }
+}
+
+map_up
+
+# Save linkid's going north
+links_north <- unique(links_map_up$linkid)
+```
+
+### Build map going down
+
+```{r}
+# Same process as map going up above
+
+links_down <- links_south_rd %>% 
+  filter(direction == "down")
+
+links_dist_down <- links_down %>% 
+  distinct(linkid, .keep_all = TRUE) %>%
+  arrange(-start_lat) %>% 
+  group_by(start_lat) %>% 
+  filter(end_lat == min(end_lat)) %>%
+  ungroup()
+
+flag_down <- links_dist_down$end_lat[1]
+
+links_order_down <- vector("numeric")
+
+links_order_down[1] <- links_dist_down$linkid[1]
+
+n <- 2
+
+for (i in 2:nrow(links_dist_down)) {
+  if (links_dist_down$start_lat[i] < flag_down) {
+    
+    links_order_down[n] <- links_dist_down$linkid[i]
+    
+    flag_down <- links_dist_down$end_lat[i]
+    
+    n <- n+1
+  }
+}
+
+links_map_down <- links_south_rd %>%
+  filter(linkid %in% links_order_down) %>% 
+  arrange(-start_lat, ordernumber)
+
+n <- 1
+
+temp_map_down <- leaflet() %>% 
+  addTiles()
+
+for (link in unique(links_map_down$linkid)) {
+  map_df <- links_map_down %>% 
+    filter(linkid == link)
+  
+  temp_map_down <- temp_map_down %>% 
+    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = links_colors[n], label = ~linkid, opacity = 0.3)
+  
+  if (n == 1) {
+    n <- 2
+  } else {
+    n <- 1
+  }
+}
+
+temp_map_down
+
+# Remove problematic links and insert replacement links either because links
+# don't appear right on the map or because stats for the link don't exist
+links_order_down <- c(links_order_down[!links_order_down %in% c(624, 698, 691)],
+                    2818, 2820, 1963, 2870, 2872, 1967, 1611, 1609, 1607, 1605, 1602)
+
+# Update with changes
+links_map_down <- links_south_rd %>%
+  filter(linkid %in% links_order_down) %>% 
+  arrange(start_lat, ordernumber)
+
+# Missing link between Daws Road and Corunna Avenue. Locate a link between the two
+link_daws_cor_down <- links_south_rd %>%
+  filter(str_detect(tolower(name), "daws"),
+         str_detect(tolower(name), "corunna"),
+         direction == "down")
+
+# Missing link between Edward Street and Albert Street. Locate a link between the two
+link_edw_alb_down <- links_south_rd %>%
+  filter(str_detect(tolower(name), "edward"),
+         str_detect(tolower(name), "albert"),
+         direction == "down")
+
+# Missing link between Anzac Highway and Everard Avenue Locate a link between the two
+link_anz_ever_down <- links_south_rd %>%
+  filter(str_detect(tolower(name), "anzac"),
+         str_detect(tolower(name), "everard"),
+         direction == "down")
+
+# Check links are correct
+temp_map_down %>%
+  # addPolylines(data = link_walsh_celt_down, lng = ~longitude, lat = ~latitude, color = "red", label = ~linkid, opacity = 0.3) %>%
+  addPolylines(data = link_daws_cor_down, lng = ~longitude, lat = ~latitude,
+               color = "red", label = ~linkid, opacity = 0.3) %>% 
+  addPolylines(data = link_edw_alb_down, lng = ~longitude, lat = ~latitude,
+               color = "red", label = ~linkid, opacity = 0.3) %>% 
+  addPolylines(data = link_anz_ever_down, lng = ~longitude, lat = ~latitude,
+               color = "red", label = ~linkid, opacity = 0.3)
+
+# Combine missing links with map links down DF and plot
+links_map_down <- links_map_down %>% 
+  rbind(link_daws_cor_down, link_edw_alb_down, link_anz_ever_down) %>% 
+  arrange(start_lat, ordernumber)
+
+# Output final map down
+map_down <- leaflet() %>% 
+  addTiles()
+
+for (link in unique(links_map_down$linkid)) {
+  map_df <- links_map_down %>% 
+    filter(linkid == link)
+  
+  map_down <- map_down %>% 
+    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = links_colors[n], opacity = 0.3, label = ~linkid)
+  
+  if (n == 1) {
+    n <- 2
+  } else {
+    n <- 1
+  }
+}
+
+map_down
+
+# Save linkid's going south
+links_south <- unique(links_map_down$linkid)
+```
+
+### Links Both Directions Map
+
+```{r}
+# Plot links from both directions
+map_both <- leaflet() %>% 
+  addTiles()
+
+# Add links up map
+for (link in unique(links_map_up$linkid)) {
+  map_df <- links_map_up %>% 
+    filter(linkid == link)
+  
+  map_both <- map_both %>% 
+    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = "blue", opacity = 1, label = ~linkid)
+}
+
+# Add links down map
+for (link in unique(links_map_down$linkid)) {
+  map_df <- links_map_down %>% 
+    filter(linkid == link)
+  
+  map_both <- map_both %>% 
+    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = "blue", opacity = 1, label = ~linkid)
+}
+
+map_both
+
+# Save linkid's both directions
+links_both <- c(links_north, links_south)
+```
+
+### Links with no stats
+
+```{r}
+sort(setdiff(links_both, link_stats$linkid))
+
+links_with_stats <- links_south_rd %>% 
+  semi_join(link_stats, by = "linkid")
+  
+map_links_no_stats <- leaflet() %>% 
+  addTiles()
+
+for (link in unique(links_with_stats$linkid)) {
+  map_df <- links_with_stats %>% 
+    filter(linkid == link)
+  
+  map_links_no_stats <- map_links_no_stats %>% 
+    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = "yellow", opacity = 1, label = ~linkid)
+}
+
+map_links_no_stats
+```
+
+## Identify Routes
+
+Routes were identified by examining the [network map](https://www.adelaidemetro.com.au/__data/assets/pdf_file/0009/824247/Adelaide-Metro-network-map.pdf).
+
+All the routes were overlayed on a map on Tableu and routs on South Road were selected and exported.
+
+## Identify Stops
+
+Same as above
+
+```{r}
+# Plot on map to check the stops are all on South Rd
+
+stops_south_rd %>% 
+    leaflet() %>% 
+    addTiles() %>% 
+    addCircles(lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id)
+```
+
+# Analysis
+
+## Outliers
+
+### Delays
+
+```{r}
+ggplot(updates_stops_filtered, aes(stop_delay)) +
+  geom_histogram()
+
+ggplot(updates_stops_filtered, aes(stop_delay)) +
+  geom_density()
+
+ggplot(updates_stops_filtered, aes(stop_delay)) +
+  geom_dotplot()
+
+ggplot(updates_stops_filtered, aes(stop_delay)) +
+  geom_boxplot()
+```
+
+Remove stop_delays above 600 (10 minutes)
+
+```{r}
+updates_stops_filtered <- updates_stops_filtered %>% 
+  filter(stop_delay < 600)
+```
+
+### Sites Stats
+
+### Links Stats
+
+## Calculations
+
+### Delays
+
+```{r}
+# Ceiling date by aggregate duration. Get time and weekday
+delays_agg <- updates_stops_filtered  %>% 
+  mutate(timestamp = ceiling_date(timestamp, "10 mins"),
+         time = hms::as_hms(timestamp),
+         wday = wday(timestamp, label = TRUE)) %>%
+  # Exclude weekends and public holiday
+  filter(!wday %in% c("Sat", "Sun")) %>% 
+  relocate(time:wday, .after = timestamp)
+
+# Without direction
+
+## Average delay per stop per timestamp
+stop_delay_stamp <- delays_agg %>%
+  group_by(timestamp, stop_id) %>%
+  summarise(avg_delay = mean(stop_delay)) %>%
+  ungroup()
+
+## Average delay of all stops per timestamp (average full road delay)
+delay_stamp <- delays_agg %>%
+  group_by(timestamp) %>%
+  summarise(avg_delay = mean(delay_SouthRd)) %>%
+  ungroup()
+
+## Average delay per stop per time
+stop_delay_time <- delays_agg %>% 
+  group_by(time, stop_id) %>% 
+  summarise(avg_delay = mean(stop_delay)) %>% 
+  ungroup()
+
+## Average delay of all stops per time (average full road delay)
+delay_time <- delays_agg %>%
+  group_by(time) %>% 
+  summarise(avg_delay = mean(delay_SouthRd)) %>% 
+  ungroup()
+
+# With direction
+
+## Average delay per stop per timestamp per direction
+stop_delay_stamp_dir <- delays_agg %>%
+  group_by(timestamp, stop_id, direction) %>%
+  summarise(avg_delay = mean(stop_delay)) %>%
+  ungroup()
+
+## Average delay of all stops per timestamp per direction (average full road delay by direction)
+delay_stamp_dir <- delays_agg %>%
+  group_by(timestamp, direction) %>%
+  summarise(avg_delay = mean(delay_SouthRd)) %>%
+  ungroup()
+
+## Average delay per stop per time per direction
+stop_delay_time_dir <- delays_agg %>%
+  group_by(time, stop_id, direction) %>% 
+  summarise(avg_delay = mean(stop_delay)) %>% 
+  ungroup()
+
+## Average delay of all stops per time per direction (average full road delay by direction)
+delay_time_dir <- delays_agg %>%
+  group_by(time, direction) %>% 
+  summarise(avg_delay = mean(delay_SouthRd)) %>% 
+  ungroup()
+```
+
+### Congestion
+
+####  Sites
+
+```{r}
+sites_agg <- site_stats  %>% 
+  mutate(logtime = ceiling_date(logtime, "10 mins"),
+         time = hms::as_hms(logtime),
+         wday = wday(logtime, label = TRUE)) %>%
+  filter(!wday %in% c("Sat", "Sun")) %>% 
+  relocate(time:wday, .after = logtime)
+
+# Average congestion per site per logtime
+ind_site_cong_logtime <- sites_agg %>%
+  group_by(logtime, siteid) %>%
+  summarise(avg_congestion = mean(probecount),
+            avg_duration = mean(avgduration)) %>%
+  ungroup()
+
+# Average congestion of all sites per logtime (average full road congestion)
+sites_cong_logtime <- sites_agg %>%
+  group_by(logtime) %>%
+  summarise(avg_congestion = mean(probecount),
+            avg_duration = mean(avgduration))
+
+# Average congestion per site per time
+ind_site_cong_time <- sites_agg %>%
+  group_by(time, siteid) %>%
+  summarise(avg_congestion = mean(probecount),
+            avg_duration = mean(avgduration)) %>% 
+  ungroup()
+
+# Average congestion of all sites per time (average full road congestion)
+sites_cong_time <- sites_agg %>% 
+  group_by(time) %>%
+  summarise(avg_congestion = mean(probecount),
+            avg_duration = mean(avgduration))
+```
+
+#### Links
+
+```{r}
+links_agg <- link_stats  %>% 
+  mutate(logtime = ceiling_date(logtime, "10 mins"),
+         time = as_hms(logtime),
+         wday = wday(logtime, label = TRUE)) %>%
+  filter(!wday %in% c("Sat", "Sun")) %>% 
+  relocate(time:wday, .after = logtime)
+
+# Average congestion per link per logtime per direction
+ind_link_cong_logtime <- links_agg %>%
+  group_by(logtime, direction, linkid) %>%
+  summarise(avg_congestion = mean(congestion)) %>%
+  ungroup()
+
+# Average congestion of all links per logtime per direction (average full road congestion)
+links_cong_logtime <- links_agg %>%
+  group_by(logtime, direction) %>%
+  summarise(avg_congestion = mean(congestion))
+
+# Average congestion per link per time
+ind_link_cong_time <- links_agg %>% 
+  group_by(time, linkid, direction) %>% 
+  summarise(avg_congestion = mean(congestion)) %>% 
+  ungroup()
+
+# Average congestion of all links per time (average full road congestion)
+links_cong_time <- links_agg %>% 
+  group_by(time, direction) %>% 
+  summarise(avg_congestion = mean(congestion))
+```
+
+## Compare
+
+### Delays vs Sites Congestion
+
+```{r}
+delay_cong_sites <- delay_time %>% 
+  full_join(sites_cong_time)
+
+delay_cong_sites_pivot <- delay_cong_sites %>%
+  pivot_longer(cols = !time, names_to = "stat", values_to = "value")%>% 
+  mutate(stat = recode(stat, avg_congestion = "Avg Congestion", avg_delay = "Avg Delay (secs)",
+                       avg_duration = "Avg Duration (secs)"))
+
+# Filter to rush hours (3-7pm)
+delay_cong_sites_pivot_mor_rush <- delay_cong_sites_pivot %>% 
+  filter(between(time, as_hms("06:00:00"), as_hms("10:00:00")))
+
+# Filter to rush hours (6-10am)
+delay_cong_sites_pivot_eve_rush <- delay_cong_sites_pivot %>% 
+  filter(between(time, as_hms("15:00:00"), as_hms("19:00:00")))
+
+ggplot() +
+  geom_line(data = delay_cong_sites_pivot, aes(x = time, y = value), alpha = 0.2) +
+  geom_line(data = delay_cong_sites_pivot_mor_rush, aes(x = time, y = value), color = "blue", size = 0.5) +
+  geom_line(data = delay_cong_sites_pivot_eve_rush, aes(x = time, y = value), color = "blue", size = 0.5) +
+  # geom_vline(xintercept = c(as_hms(c("06:00:00", "10:00:00"))), linetype = "dashed", color = "red") +
+  # geom_vline(xintercept = c(as_hms(c("15:00:00", "19:00:00"))), linetype = "dashed", color = "blue") +
+  annotate("rect", xmin = as_hms("06:00:00"), xmax = as_hms("10:00:00"), ymin = -Inf, ymax = Inf,
+  fill = "red", alpha = .1) +
+  annotate("rect", xmin = as_hms("15:00:00"), xmax = as_hms("19:00:00"), ymin = -Inf, ymax = Inf,
+  fill = "red", alpha = .1) +
+  facet_grid(rows = vars(stat), scales = "free_y") +
+  scale_x_time(breaks = as_hms(c("00:00:00", "06:00:00", "10:00:00", 
+                                 "15:00:00", "19:00:00")),
+               labels = c("00", "6", "10", "15", "19")) +
+  labs(x = "", y = "") +
+  theme_minimal()
+
+delay_cong_sites_scatter <- delay_stamp %>% 
+  inner_join(sites_cong_logtime, by = c("timestamp" = "logtime")) %>% 
+  filter(between(as_hms(timestamp), as_hms("06:00:00"), as_hms("10:00:00")) |
+           between(as_hms(timestamp), as_hms("15:00:00"), as_hms("19:00:00")))
+
+ggplot(delay_cong_sites_scatter, aes(x = avg_congestion, y = avg_delay)) +
+  geom_point() +
+  labs(x = "Avg Congestion", y = "Avg Delay (secs)") +
+  theme_minimal()
+```
+
+### Delays vs Links Congestion
+
+```{r}
+delay_cong_links <- delay_time_dir %>% 
+  full_join(links_cong_time)
+
+delay_cong_links_pivot <- delay_cong_links %>%
+  pivot_longer(cols = avg_delay:avg_congestion, names_to = "stat", values_to = "value") %>% 
+  mutate(direction = recode(direction, down = "From City", up = "To City"),
+         stat = recode(stat, avg_congestion = "Avg Congestion", avg_delay = "Avg Delay (secs)"))
+
+delay_cong_links_pivot_mor_rush <- delay_cong_links_pivot %>% 
+  filter(between(time, as_hms("06:00:00"), as_hms("10:00:00")))
+
+delay_cong_links_pivot_eve_rush <- delay_cong_links_pivot %>% 
+  filter(between(time, as_hms("15:00:00"), as_hms("19:00:00")))
+
+ggplot() +
+  geom_line(data = delay_cong_links_pivot, aes(x = time, y = value), alpha = 0.2) +
+  geom_line(data = delay_cong_links_pivot_mor_rush, aes(x = time, y = value), color = "blue", size = 0.5) +
+  geom_line(data = delay_cong_links_pivot_eve_rush, aes(x = time, y = value), color = "blue", size = 0.5) +
+  annotate("rect", xmin = as_hms("06:00:00"), xmax = as_hms("10:00:00"), ymin = -Inf, ymax = Inf,
+  fill = "red", alpha = .1) +
+  annotate("rect", xmin = as_hms("15:00:00"), xmax = as_hms("19:00:00"), ymin = -Inf, ymax = Inf,
+  fill = "red", alpha = .1) +
+  facet_grid(rows = vars(stat), cols = vars(direction), scales = "free_y") +
+  scale_x_time(breaks = as_hms(c("00:00:00", "06:00:00", "10:00:00", 
+                                 "15:00:00", "19:00:00")),
+               labels = c("00", "6", "10", "15", "19")) +
+  labs(x = "", y = "") +
+  theme_minimal()
+
+delay_cong_links_scatter <- delay_stamp_dir %>% 
+  inner_join(links_cong_logtime, by = c("timestamp" = "logtime", "direction")) %>% 
+  filter(between(as_hms(timestamp), as_hms("06:00:00"), as_hms("10:00:00")) |
+           between(as_hms(timestamp), as_hms("15:00:00"), as_hms("19:00:00")))
+
+ggplot(delay_cong_links_scatter, aes(x = avg_congestion, y = avg_delay)) +
+  geom_point() +
+  labs(x = "Avg Congestion", y = "Avg Delay (secs)") +
+  theme_minimal()
+```
+
+### Function
+
+Perform analysis based on aggregate time provided
+
+```{r}
+compare_aggregate <- function(comparison, timeframe = "10 minutes", plot = "line") {
+  
+  delays_agg <- updates_stops_filtered  %>% 
+    mutate(timestamp = ceiling_date(timestamp, timeframe),
+           time = hms::as_hms(timestamp),
+           wday = wday(timestamp, label = TRUE)) %>%
+    filter(!wday %in% c("Sat", "Sun")) %>% 
+    relocate(time:wday, .after = timestamp)
+
+
+  road_delay_time <- delays_agg %>% 
+    group_by(time, stop_id) %>% 
+    summarise(avg_delay = mean(delay_SouthRd)) %>% 
+    ungroup()
+  
+  delay_time <- delays_agg %>%
+    group_by(time) %>% 
+    summarise(avg_delay = mean(delay_SouthRd)) %>% 
+    ungroup()
+  
+  road_delay_time_dir <- delays_agg %>%
+    group_by(time, stop_id, direction) %>% 
+    summarise(avg_delay = mean(delay_SouthRd)) %>% 
+    ungroup()
+  
+  delay_time_dir <- delays_agg %>%
+    group_by(time, direction) %>% 
+    summarise(avg_delay = mean(delay_SouthRd)) %>% 
+    ungroup()
+  
+  sites_agg <- site_stats  %>% 
+    mutate(logtime = ceiling_date(logtime, timeframe),
+           time = hms::as_hms(logtime),
+           wday = wday(logtime, label = TRUE)) %>%
+    filter(!wday %in% c("Sat", "Sun")) %>% 
+    relocate(time:wday, .after = logtime)
+  
+  ind_site_cong_time <- sites_agg %>%
+    group_by(time, siteid) %>%
+    summarise(avg_congestion = mean(probecount),
+              avg_duration = mean(avgduration)) %>% 
+    ungroup()
+  
+  sites_cong_time <- sites_agg %>% 
+    group_by(time) %>%
+    summarise(avg_congestion = mean(probecount),
+              avg_duration = mean(avgduration))
+  
+  links_agg <- link_stats  %>% 
+    mutate(logtime = ceiling_date(logtime, timeframe),
+           time = hms::as_hms(logtime),
+           wday = wday(logtime, label = TRUE)) %>%
+    filter(!wday %in% c("Sat", "Sun")) %>% 
+    relocate(time:wday, .after = logtime)
+  
+  ind_link_cong_time <- links_agg %>% 
+    group_by(time, linkid, direction) %>% 
+    summarise(avg_congestion = mean(congestion)) %>% 
+    ungroup()
+  
+  links_cong_time <- links_agg %>% 
+    group_by(time, direction) %>% 
+    summarise(avg_congestion = mean(congestion))
+  
+  if (comparison == "sites") {
+    delay_cong_sites <- delay_time %>% 
+      full_join(sites_cong_time)
+
+    delay_cong_sites_pivot <- delay_cong_sites %>%
+  pivot_longer(cols = !time, names_to = "stat", values_to = "value")%>% 
+  mutate(stat = recode(stat, avg_congestion = "Avg Congestion", avg_delay = "Avg Delay (secs)",
+                       avg_duration = "Avg Duration (secs)"))
+
+    delay_cong_sites_pivot <- delay_cong_sites %>%
+      pivot_longer(cols = !time, names_to = "stat", values_to = "value")
+
+    delay_cong_sites_pivot_mor_rush <- delay_cong_sites_pivot %>% 
+      filter(between(time, as_hms("06:00:00"), as_hms("10:00:00")))
+    
+    delay_cong_sites_pivot_eve_rush <- delay_cong_sites_pivot %>% 
+      filter(between(time, as_hms("15:00:00"), as_hms("19:00:00")))
+    
+    if (plot == "line") {
+      ggplot() +
+        geom_line(data = delay_cong_sites_pivot, aes(x = time, y = value), alpha = 0.2) +
+        geom_line(data = delay_cong_sites_pivot_mor_rush, aes(x = time, y = value), color = "blue", size = 0.5) +
+        geom_line(data = delay_cong_sites_pivot_eve_rush, aes(x = time, y = value), color = "blue", size = 0.5) +
+        annotate("rect", xmin = as_hms("06:00:00"), xmax = as_hms("10:00:00"), ymin = -Inf, ymax = Inf,
+        fill = "red", alpha = .1) +
+        annotate("rect", xmin = as_hms("15:00:00"), xmax = as_hms("19:00:00"), ymin = -Inf, ymax = Inf,
+        fill = "red", alpha = .1) +
+        facet_grid(rows = vars(stat), scales = "free_y") +
+        scale_x_time(breaks = as_hms(c("00:00:00", "06:00:00", "10:00:00", 
+                                       "15:00:00", "19:00:00")),
+                     labels = c("00", "6", "10", "15", "19")) +
+        labs(x = "", y = "") +
+        theme_minimal()
+    } else if (plot == "scatter") {
+      ggplot(delay_cong_sites_rush, aes(x = avg_congestion, y = avg_delay)) +
+        geom_point() +
+        theme_bw()
+    } else if (plot == "both") {
+      p1 <- ggplot() +
+        geom_line(data = delay_cong_sites_pivot, aes(x = time, y = value), alpha = 0.3) +
+        geom_line(data = delay_cong_sites_pivot_mor_rush, aes(x = time, y = value), color = "red", size = 1) +
+        geom_line(data = delay_cong_sites_pivot_eve_rush, aes(x = time, y = value), color = "blue", size = 1) +
+        geom_vline(xintercept = c(as_hms(c("06:00:00", "10:00:00"))), linetype = "dashed", color = "red") +
+        geom_vline(xintercept = c(as_hms(c("15:00:00", "19:00:00"))), linetype = "dashed", color = "blue") +
+        facet_grid(vars(stat), scales = "free_y") +
+        scale_x_time(breaks = as_hms(c("00:00:00", "04:00:00", "08:00:00", "12:00:00", 
+                                       "16:00:00", "20:00:00")),
+                     labels = c("00", "4", "8", "12", "16", "20")) +
+        theme_bw()
+      
+      p2 <- ggplot(delay_cong_sites_rush, aes(x = avg_congestion, y = avg_delay)) +
+        geom_point() +
+        theme_bw()
+      
+      p1 / p2
+    }
+  } else if(comparison == "links") {
+    delay_cong_links <- delay_time_dir %>% 
+      full_join(links_cong_time)
+
+    delay_cong_links_rush <- delay_cong_links %>% 
+      filter(between(time, as_hms("06:00:00"), as_hms("10:00:00")) |
+               between(time, as_hms("15:00:00"), as_hms("19:00:00")))
+
+    delay_cong_links_pivot <- delay_cong_links %>%
+      pivot_longer(cols = avg_delay:avg_congestion, names_to = "stat", values_to = "value")
+
+    delay_cong_links_pivot_mor_rush <- delay_cong_links_pivot %>% 
+      filter(between(time, as_hms("06:00:00"), as_hms("10:00:00")))
+    
+    delay_cong_links_pivot_eve_rush <- delay_cong_links_pivot %>% 
+      filter(between(time, as_hms("15:00:00"), as_hms("19:00:00")))
+    
+    if (plot == "line") {
+      ggplot() +
+        geom_line(data = delay_cong_links_pivot, aes(x = time, y = value), alpha = 0.3) +
+        geom_line(data = delay_cong_links_pivot_mor_rush, aes(x = time, y = value), color = "red", size = 1) +
+        geom_line(data = delay_cong_links_pivot_eve_rush, aes(x = time, y = value), color = "blue", size = 1) +
+        geom_vline(xintercept = c(as_hms(c("06:00:00", "10:00:00"))), linetype = "dashed", color = "red") +
+        geom_vline(xintercept = c(as_hms(c("15:00:00", "19:00:00"))), linetype = "dashed", color = "blue") +
+        facet_grid(rows = vars(stat), cols = vars(direction), scales = "free_y") +
+        scale_x_time(breaks = as_hms(c("00:00:00", "04:00:00", "08:00:00", "12:00:00", 
+                                       "16:00:00", "20:00:00")),
+                     labels = c("00", "4", "8", "12", "16", "20")) +
+        theme_bw()
+    } else if (plot == "scatter") {
+      ggplot(delay_cong_links_rush, aes(x = avg_congestion, y = avg_delay)) +
+        geom_point() +
+        theme_bw()
+    } else if (plot == "both") {
+      p1 <- ggplot() +
+        geom_line(data = delay_cong_links_pivot, aes(x = time, y = value), alpha = 0.3) +
+        geom_line(data = delay_cong_links_pivot_mor_rush, aes(x = time, y = value), color = "red", size = 1) +
+        geom_line(data = delay_cong_links_pivot_eve_rush, aes(x = time, y = value), color = "blue", size = 1) +
+        geom_vline(xintercept = c(as_hms(c("06:00:00", "10:00:00"))), linetype = "dashed", color = "red") +
+        geom_vline(xintercept = c(as_hms(c("15:00:00", "19:00:00"))), linetype = "dashed", color = "blue") +
+        facet_grid(rows = vars(stat), cols = vars(direction), scales = "free_y") +
+        scale_x_time(breaks = as_hms(c("00:00:00", "04:00:00", "08:00:00", "12:00:00", 
+                                       "16:00:00", "20:00:00")),
+                     labels = c("00", "4", "8", "12", "16", "20")) +
+        theme_bw()
+      
+      p2 <- ggplot(delay_cong_links_rush, aes(x = avg_congestion, y = avg_delay)) +
+        geom_point() +
+        theme_bw()
+      
+      p1 / p2
+    }
+  }
+}
+```
+
+```{r}
+compare_aggregate("links", "15 minutes")
+```
+
+
+
+```{r}
+compare_delays_sites <- function(timeframe = "10 minutes", plot = "line"){
+  delays_agg <- updates_stops_filtered  %>% 
+  mutate(timestamp = ceiling_date(timestamp, timeframe),
+         time = hms::as_hms(timestamp),
+         wday = wday(timestamp, label = TRUE)) %>%
+  filter(!wday %in% c("Sat", "Sun")) %>% 
+  relocate(time:wday, .after = timestamp)
+  
+  sites_agg <- site_stats  %>% 
+  mutate(logtime = ceiling_date(logtime, timeframe),
+         time = hms::as_hms(logtime),
+         wday = wday(logtime, label = TRUE)) %>%
+  filter(!wday %in% c("Sat", "Sun")) %>% 
+  relocate(time:wday, .after = logtime)
+
+  if (plot == "line") {
+    
+      delay_time <- delays_agg %>%
+        group_by(time) %>% 
+        summarise(avg_delay = mean(delay_SouthRd)) %>% 
+        ungroup()
+      
+      sites_cong_time <- sites_agg %>% 
+        group_by(time) %>%
+        summarise(avg_congestion = mean(probecount),
+                  avg_duration = mean(avgduration))
+      
+      delay_cong_sites <- delay_time %>% 
+        full_join(sites_cong_time)
+
+      delay_cong_sites_pivot <- delay_cong_sites %>%
+        pivot_longer(cols = !time, names_to = "stat", values_to = "value")%>% 
+        mutate(stat = recode(stat, avg_congestion = "Avg Congestion", avg_delay = "Avg Delay (secs)",
+                             avg_duration = "Avg Duration (secs)"))
+
+      delay_cong_sites_pivot_mor_rush <- delay_cong_sites_pivot %>% 
+        filter(between(time, as_hms("06:00:00"), as_hms("10:00:00")))
+
+      delay_cong_sites_pivot_eve_rush <- delay_cong_sites_pivot %>% 
+        filter(between(time, as_hms("15:00:00"), as_hms("19:00:00")))
+      
+      ggplot() +
+        geom_line(data = delay_cong_sites_pivot, aes(x = time, y = value), alpha = 0.2) +
+        geom_line(data = delay_cong_sites_pivot_mor_rush, aes(x = time, y = value), color = "blue", size = 0.5) +
+        geom_line(data = delay_cong_sites_pivot_eve_rush, aes(x = time, y = value), color = "blue", size = 0.5) +
+        annotate("rect", xmin = as_hms("06:00:00"), xmax = as_hms("10:00:00"), ymin = -Inf, ymax = Inf,
+        fill = "red", alpha = .1) +
+        annotate("rect", xmin = as_hms("15:00:00"), xmax = as_hms("19:00:00"), ymin = -Inf, ymax = Inf,
+        fill = "red", alpha = .1) +
+        facet_grid(rows = vars(stat), scales = "free_y") +
+        scale_x_time(breaks = as_hms(c("00:00:00", "06:00:00", "10:00:00", 
+                                       "15:00:00", "19:00:00")),
+                     labels = c("00", "6", "10", "15", "19")) +
+        labs(x = "", y = "") +
+        theme_minimal()
+  } else if (plot == "scatter") {
+      delay_stamp <- delays_agg %>%
+        group_by(timestamp) %>%
+        summarise(avg_delay = mean(delay_SouthRd)) %>%
+        ungroup()
+      
+      sites_cong_logtime <- sites_agg %>%
+        group_by(logtime) %>%
+        summarise(avg_congestion = mean(probecount),
+                  avg_duration = mean(avgduration))
+      
+      delay_cong_sites_scatter <- delay_stamp %>% 
+        inner_join(sites_cong_logtime, by = c("timestamp" = "logtime")) %>% 
+        filter(between(as_hms(timestamp), as_hms("06:00:00"), as_hms("10:00:00")) |
+                 between(as_hms(timestamp), as_hms("15:00:00"), as_hms("19:00:00")))
+
+      ggplot(delay_cong_sites_scatter, aes(x = avg_congestion, y = avg_delay)) +
+        geom_point() +
+        labs(x = "Avg Congestion", y = "Avg Delay (secs)") +
+        theme_minimal()
+  } 
+}
+```
+
+
+```{r}
+compare_delays_links <- function(timeframe = "10 minutes", plot = "line"){
+  delays_agg <- updates_stops_filtered  %>% 
+  mutate(timestamp = ceiling_date(timestamp, timeframe),
+         time = hms::as_hms(timestamp),
+         wday = wday(timestamp, label = TRUE)) %>%
+  filter(!wday %in% c("Sat", "Sun")) %>% 
+  relocate(time:wday, .after = timestamp)
+
+  links_agg <- link_stats  %>% 
+  mutate(logtime = ceiling_date(logtime, timeframe),
+         time = as_hms(logtime),
+         wday = wday(logtime, label = TRUE)) %>%
+  filter(!wday %in% c("Sat", "Sun")) %>% 
+  relocate(time:wday, .after = logtime)
+
+  if (plot == "line") {
+    
+      delay_time_dir <- delays_agg %>%
+        group_by(time, direction) %>% 
+        summarise(avg_delay = mean(delay_SouthRd)) %>% 
+        ungroup()
+      
+      links_cong_time <- links_agg %>% 
+        group_by(time, direction) %>% 
+        summarise(avg_congestion = mean(congestion))
+      
+      delay_cong_links <- delay_time_dir %>% 
+        full_join(links_cong_time)
+
+      delay_cong_links_pivot <- delay_cong_links %>%
+        pivot_longer(cols = avg_delay:avg_congestion, names_to = "stat", values_to = "value") %>% 
+        mutate(direction = recode(direction, down = "From City", up = "To City"),
+               stat = recode(stat, avg_congestion = "Avg Congestion", avg_delay = "Avg Delay (secs)"))
+      
+      delay_cong_links_pivot_mor_rush <- delay_cong_links_pivot %>% 
+        filter(between(time, as_hms("06:00:00"), as_hms("10:00:00")))
+      
+      delay_cong_links_pivot_eve_rush <- delay_cong_links_pivot %>% 
+        filter(between(time, as_hms("15:00:00"), as_hms("19:00:00")))
+      
+      ggplot() +
+        geom_line(data = delay_cong_links_pivot, aes(x = time, y = value), alpha = 0.2) +
+        geom_line(data = delay_cong_links_pivot_mor_rush, aes(x = time, y = value), color = "blue", size = 0.5) +
+        geom_line(data = delay_cong_links_pivot_eve_rush, aes(x = time, y = value), color = "blue", size = 0.5) +
+        annotate("rect", xmin = as_hms("06:00:00"), xmax = as_hms("10:00:00"), ymin = -Inf, ymax = Inf,
+        fill = "red", alpha = .1) +
+        annotate("rect", xmin = as_hms("15:00:00"), xmax = as_hms("19:00:00"), ymin = -Inf, ymax = Inf,
+        fill = "red", alpha = .1) +
+        facet_grid(rows = vars(stat), cols = vars(direction), scales = "free_y") +
+        scale_x_time(breaks = as_hms(c("00:00:00", "06:00:00", "10:00:00", 
+                                       "15:00:00", "19:00:00")),
+                     labels = c("00", "6", "10", "15", "19")) +
+        labs(x = "", y = "") +
+        theme_minimal()
+  } else if (plot == "scatter") {
+    
+      delay_stamp_dir <- delays_agg %>%
+        group_by(timestamp, direction) %>%
+        summarise(avg_delay = mean(delay_SouthRd)) %>%
+        ungroup()
+      
+      links_cong_logtime <- links_agg %>%
+        group_by(logtime, direction) %>%
+        summarise(avg_congestion = mean(congestion))
+      
+      delay_cong_links_scatter <- delay_stamp_dir %>% 
+        inner_join(links_cong_logtime, by = c("timestamp" = "logtime", "direction")) %>% 
+        filter(between(as_hms(timestamp), as_hms("06:00:00"), as_hms("10:00:00")) |
+                 between(as_hms(timestamp), as_hms("15:00:00"), as_hms("19:00:00")))
+
+      ggplot(delay_cong_links_scatter, aes(x = avg_congestion, y = avg_delay)) +
+        geom_point() +
+        labs(x = "Avg Congestion", y = "Avg Delay (secs)") +
+        theme_minimal()
+  }
+}
+```
+
+
+```{r}
+compare_delays_sites(timeframe = "15 minutes")
+```
+
+```{r}
+compare_delays_links(timeframe = "15 minutes")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
