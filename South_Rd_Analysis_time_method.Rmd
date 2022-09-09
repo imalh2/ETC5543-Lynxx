@@ -86,33 +86,73 @@ rm(full_stops_raw)
 
 ```{r}
 updates <- updates_raw %>%
+  # Remove duplicate rows
+  distinct() %>% 
   rename(trip_id = id,
          vehicle_id = label) %>%
   mutate(start_date = ymd(start_date),
          timestamp = as_datetime(timestamp, tz = "Australia/Adelaide"),
          arrival_time = as_datetime(arrival_time, tz = "Australia/Adelaide")) %>% 
   group_by(route_id, direction_id, start_date, trip_id) %>% 
-  mutate(to_stop_time = as.numeric(arrival_time - lag(arrival_time, order_by = stop_sequence))) %>% 
-  ungroup() %>% 
-  filter(stop_id %in% stops_segment) %>% 
-  group_by(route_id, direction_id, start_date, trip_id) %>% 
-  mutate(trip_time = as.numeric((last(arrival_time, order_by = stop_sequence) -
-                                   first(arrival_time, order_by = stop_sequence)), units = "secs")) %>% 
+  arrange(stop_sequence, .by_group = TRUE) %>%
+  # Remove updates with arrival_time greater than next arrival_time due to measurement error
+  # Or slightly incorrect prediction (1 wrong row only in trip)
+  filter(arrival_time > lag(arrival_time, default = ymd("0000-01-01", tz = "UTC")),
+         arrival_time < lead(arrival_time, default = ymd("9999-01-01", tz = "UTC"))) %>%
+  # Remove trips where arrival_time goes back for upcoming stops
+  filter(all(arrival_time > lag(arrival_time, default = ymd("0000-01-01", tz = "UTC")))) %>%
+  # Remove trips that have stop(s) with delay over 2500
+  filter(all(delay < 2500)) %>% 
+  mutate(#prior_arrival = lag(arrival_time),
+         #post_arrival = lead(arrival_time),
+         to_stop_time = as.numeric(arrival_time - lag(arrival_time))) %>% 
+         #prior_stop_time = lag(to_stop_time, default = 0),
+         #post_stop_time = lead(to_stop_time, default = 0)) %>%
   ungroup() %>% 
   mutate(to_stop_time = replace_na(to_stop_time, 0)) %>% 
-  arrange(start_date, trip_id, stop_sequence)
+         #prior_stop_time = replace_na(prior_stop_time, 0),
+         #post_stop_time = replace_na(post_stop_time, 0)) %>% 
   
-sequence_times_mis <- updates %>% 
-  group_by(route_id, direction_id, start_date, trip_id) %>%
-  mutate(chrono_error = lag(arrival_time) > arrival_time) %>%
-  filter(any(chrono_error == TRUE)) %>% 
-  ungroup() %>% 
-  mutate(chrono_error = replace_na(chrono_error, 0)) %>%
-  arrange(start_date, trip_id, stop_sequence)
+  
+  # group_by(route_id, direction_id, start_date, trip_id) %>%
+  # mutate(trip_time = as.numeric((last(arrival_time, order_by = stop_sequence) -
+  #                                  first(arrival_time, order_by = stop_sequence)), units = "secs")) %>%
+  # ungroup() %>%
+  # arrange(start_date, trip_id, stop_sequence)
 
-sequence_times_mis %>% count(chrono_error)
+updates_in_segment <- updates %>% 
+  filter(stop_id %in% stops_segment)
+
+test <- updates %>% 
+  filter(start_date == "2022-03-10", trip_id == 643512)
 
 rm(updates_raw)
+```
+
+### Data Validation
+
+```{r}
+anyNA(updates)
+glimpse(updates)
+summary(updates)
+
+# Check if a trip_id happens more than once per day. Included stop_id because
+# trip_id will be repeated for each stop in the trip
+updates %>% 
+  count(start_date, trip_id, stop_id, sort = TRUE)
+
+ggplot(updates, aes(to_stop_time)) +
+  geom_histogram()
+
+ggplot(updates, aes(to_stop_time)) +
+  geom_density()
+
+ggplot(updates, aes(to_stop_time)) +
+  geom_boxplot()
+
+# Check if large positive or negative to_stop_times are related to prior_stop_time
+ggplot(updates,aes(to_stop_time, delay)) +
+  geom_point()
 ```
 
 
