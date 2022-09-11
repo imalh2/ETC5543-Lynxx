@@ -17,7 +17,6 @@ library(lubridate)
 library(leaflet)
 library(hms)
 library(janitor)
-library(GGally)
 ```
 
 ```{r data}
@@ -86,8 +85,6 @@ rm(full_stops_raw)
 
 ```{r}
 updates <- updates_raw %>%
-  # Remove duplicate rows
-  distinct() %>% 
   rename(trip_id = id,
          vehicle_id = label) %>%
   mutate(start_date = ymd(start_date),
@@ -109,7 +106,7 @@ updates <- updates_raw %>%
          #prior_stop_time = lag(to_stop_time, default = 0),
          #post_stop_time = lead(to_stop_time, default = 0)) %>%
   ungroup() %>% 
-  mutate(to_stop_time = replace_na(to_stop_time, 0)) %>% 
+  mutate(to_stop_time = replace_na(to_stop_time, 0))
          #prior_stop_time = replace_na(prior_stop_time, 0),
          #post_stop_time = replace_na(post_stop_time, 0)) %>% 
   
