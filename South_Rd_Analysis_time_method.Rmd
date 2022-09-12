@@ -64,7 +64,7 @@ rm(links_segment_raw)
 ## Route-Trips-Stops
 
 ```{r}
-stops_segment <- clean_names(routes_trips_stops_raw) %>% 
+stops_needed <- clean_names(routes_trips_stops_raw) %>% 
   pull(stop_id_gtfs_history_prod_stops_csv) %>% 
   unique()
   
@@ -74,9 +74,18 @@ rm(routes_trips_stops_raw)
 ## Full Stops
 
 ```{r}
-full_stops <- full_stops_raw %>% 
+stops_segment <- full_stops_raw %>% 
   select(stop_id, stop_name, stop_desc, stop_lat, stop_lon) %>% 
-  distinct(stop_id, .keep_all = TRUE)
+  filter(stop_id %in% stops_needed) %>% 
+  distinct(stop_id, .keep_all = TRUE) %>% 
+  # If stop is on East side, that means trip going down, and vice versa
+  mutate(direction = if_else(str_detect(stop_name, "East"), "from_city", "to_city"))
+
+stops_to_city <- stops_segment %>% 
+  filter(direction == "to_city")
+
+stops_from_city <- stops_segment %>% 
+  filter(direction == "from_city")
 
 rm(full_stops_raw)
 ```
@@ -84,74 +93,98 @@ rm(full_stops_raw)
 ## Updates
 
 ```{r}
-updates <- updates_raw %>%
+updates_adj <- updates_raw %>%
   rename(trip_id = id,
-         vehicle_id = label) %>%
+         vehicle_id = label) %>% 
   mutate(start_date = ymd(start_date),
          timestamp = as_datetime(timestamp, tz = "Australia/Adelaide"),
-         arrival_time = as_datetime(arrival_time, tz = "Australia/Adelaide")) %>% 
-  group_by(route_id, direction_id, start_date, trip_id) %>% 
+         arrival_time = as_datetime(arrival_time, tz = "Australia/Adelaide"))
+
+updates <- updates_adj %>% 
+  filter(stop_id %in% stops_needed) %>%
+  group_by(start_date, trip_id) %>%
+  # To join later with first and last stop pairs on segment
+  mutate(first_stop = first(stop_id, order_by = stop_sequence),
+         last_stop = last(stop_id, order_by = stop_sequence)) %>%
+  ungroup()
+
+# Take top 4 occurring stops pair for each direction
+top_first_last_stops <- updates %>%
+  group_by(direction_id) %>% 
+  count(first_stop, last_stop, sort = TRUE) %>% 
+  slice_max(order_by = n, n = 4) %>% 
+  ungroup()
+
+updates_segment <- updates %>% 
+  # Keep updates for trips that have first and last stop from pairs identified
+  semi_join(top_first_last_stops, by = c("direction_id", "first_stop", "last_stop")) %>% 
+  group_by(start_date, trip_id) %>% 
   arrange(stop_sequence, .by_group = TRUE) %>%
+  # Remove any observations that have an arrival_time later than any following arrival_time in the trip
+  # AND the timestamp is earlier than any following timestamps in the trip.
+  # This ensures the most recent timestamp is preferred when discrepancy occurs
+  filter(!(as.numeric(arrival_time) > order_by(-stop_sequence, cummin(as.numeric(arrival_time))) &
+             as.numeric(timestamp) == order_by(-stop_sequence, cummin(as.numeric(timestamp))))) %>%
+  # Remove if the arrival_time is less than the previous arrival_time AND the timestamp is older
+  # than the previous timestamp
+  filter(!(arrival_time < lag(arrival_time, order_by = stop_sequence, default = ymd("0000-01-01", tz = "UTC")) &
+             timestamp < lag(timestamp, order_by = stop_sequence, default = ymd("0000-01-01", tz = "UTC")))) %>%
+  # If after the above two consecutive stops have the same arrival_time, remove the one
+  # with an older timestamp
+  filter(!(arrival_time == lead(arrival_time, order_by = stop_sequence, default = ymd("9999-01-01", tz = "UTC")) &
+           timestamp < lead(timestamp, order_by = stop_sequence, default = ymd("9999-01-01", tz = "UTC")))) %>%
   # Remove updates with arrival_time greater than next arrival_time due to measurement error
-  # Or slightly incorrect prediction (1 wrong row only in trip)
-  filter(arrival_time > lag(arrival_time, default = ymd("0000-01-01", tz = "UTC")),
-         arrival_time < lead(arrival_time, default = ymd("9999-01-01", tz = "UTC"))) %>%
-  # Remove trips where arrival_time goes back for upcoming stops
-  filter(all(arrival_time > lag(arrival_time, default = ymd("0000-01-01", tz = "UTC")))) %>%
-  # Remove trips that have stop(s) with delay over 2500
-  filter(all(delay < 2500)) %>% 
+  # (if 2 rows are wrong one after another, only one is removed)
+  filter(!(arrival_time > lead(arrival_time, default = ymd("9999-01-01", tz = "UTC")) &
+             lead(arrival_time, default = ymd("9999-01-01", tz = "UTC")) > lag(arrival_time, default = ymd("0000-01-01", tz = "UTC")))) %>%
   mutate(#prior_arrival = lag(arrival_time),
          #post_arrival = lead(arrival_time),
          to_stop_time = as.numeric(arrival_time - lag(arrival_time))) %>% 
          #prior_stop_time = lag(to_stop_time, default = 0),
          #post_stop_time = lead(to_stop_time, default = 0)) %>%
-  ungroup() %>% 
-  mutate(to_stop_time = replace_na(to_stop_time, 0))
+  ungroup() %>%
+  mutate(to_stop_time = replace_na(to_stop_time, 0)) %>% 
          #prior_stop_time = replace_na(prior_stop_time, 0),
          #post_stop_time = replace_na(post_stop_time, 0)) %>% 
-  
-  
-  # group_by(route_id, direction_id, start_date, trip_id) %>%
+  # Remove remaining negative to_stop_times
+  filter(to_stop_time >= 0) %>% 
+  select(-first_stop, -last_stop)
+  # group_by(start_date, trip_id) %>%
   # mutate(trip_time = as.numeric((last(arrival_time, order_by = stop_sequence) -
   #                                  first(arrival_time, order_by = stop_sequence)), units = "secs")) %>%
   # ungroup() %>%
   # arrange(start_date, trip_id, stop_sequence)
-
-updates_in_segment <- updates %>% 
-  filter(stop_id %in% stops_segment)
-
-test <- updates %>% 
-  filter(start_date == "2022-03-10", trip_id == 643512)
-
-rm(updates_raw)
 ```
 
-### Data Validation
+### Data validation
 
 ```{r}
-anyNA(updates)
-glimpse(updates)
-summary(updates)
+glimpse(updates_segment)
+summary(updates_segment)
 
 # Check if a trip_id happens more than once per day. Included stop_id because
 # trip_id will be repeated for each stop in the trip
-updates %>% 
-  count(start_date, trip_id, stop_id, sort = TRUE)
 
-ggplot(updates, aes(to_stop_time)) +
+ggplot(updates_segment, aes(to_stop_time)) +
   geom_histogram()
 
-ggplot(updates, aes(to_stop_time)) +
-  geom_density()
-
-ggplot(updates, aes(to_stop_time)) +
-  geom_boxplot()
+ggplot(updates_segment, aes(to_stop_time)) +
+  geom_boxplot() +
+  theme_minimal()
 
 # Check if large positive or negative to_stop_times are related to prior_stop_time
-ggplot(updates,aes(to_stop_time, delay)) +
-  geom_point()
+ggplot(updates_segment,aes(to_stop_time, delay)) +
+  geom_point() +
+  theme_minimal()
+
+ggplot(updates_segment,aes(to_stop_time, post_stop_time)) +
+  geom_point() +
+  theme_minimal()
 ```
 
+If stop_time is large and post_stop_time is large negative, then definitely error in data entry of one stop. If stop_time is large, and post_stop_time is positive, then probably valid; if large delay is involved for the first stop, then makes sense that the next stops also have large delays.
+
+stop_time is negative due to arrival_time going back starting from a certain stop and forward. Likely due to update happening way later for the previous stops. Or because maybe bus arrives earlier than predicted and the following bus stop is predicted to arrive even earlier than originally thought, resulting in a negative to_stop_time
 
 ## Link Stats
 
@@ -210,12 +243,6 @@ ggplot(site_stats, aes(x = probecount, y = avgduration)) +
 ## Joins
 
 ```{r}
-# Join stops_south_rd with stops to get stop details
-stops_south_rd <- stops_south_rd %>% 
-  left_join(full_stops) %>% 
-  # If stop is on East side, that means trip going down, and vice versa
-  mutate(direction = if_else(str_detect(stop_name, "East"), "down", "up"))
-
 # Join updates with stops_south_rd
 updates_stops_filtered <- updates %>% 
   inner_join(stops_south_rd)
