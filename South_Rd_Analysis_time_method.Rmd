@@ -108,7 +108,7 @@ updates <- updates_adj %>%
          last_stop = last(stop_id, order_by = stop_sequence)) %>%
   ungroup()
 
-# Take top 4 occurring stops pair for each direction
+# Take top 2 occurring stops pair for each direction according to cumsum plot
 top_first_last_stops <- updates %>%
   group_by(direction_id) %>% 
   count(first_stop, last_stop, sort = TRUE) %>% 
@@ -163,14 +163,16 @@ updates_stop_times <- updates %>%
          #prior_stop_time = replace_na(prior_stop_time, 0),
          #post_stop_time = replace_na(post_stop_time, 0)) %>% 
 
+# Take top 2 occurring stops pair AGAIN for each direction according to cumsum plot
 top_first_last_stops2 <- updates_stop_times %>%
   group_by(direction_id) %>% 
   count(first_stop, last_stop) %>% 
-  slice_max(order_by = n, n = 6) %>% 
+  slice_max(order_by = n, n = 2) %>% 
   mutate(cumsum = cumsum(n),
-         row = nrow()) %>% 
+         row = row_number()) %>% 
   ungroup()
 
+# Rejoin to only stops pairs identified
 updates_stop_times <- updates_stop_times %>% 
    semi_join(top_first_last_stops2, by = c("direction_id", "first_stop", "last_stop"))
 
@@ -178,140 +180,33 @@ updates_trip_time <- updates_stop_times %>%
   group_by(start_date, trip_id) %>%
   mutate(trip_time = as.numeric((last(arrival_time, order_by = stop_sequence) -
                                    first(arrival_time, order_by = stop_sequence)), units = "secs")) %>%
-  ungroup() %>%
-  # # Remove trips with only one stop
-  # filter(trip_time > 0) %>%
-  arrange(start_date, trip_id, stop_sequence)
-
-updates_segment_trim_start <- updates %>% 
-  # Keep updates for trips that have first and last stop from pairs identified
-  semi_join(top_first_last_stops, by = c("direction_id", "first_stop", "last_stop")) %>%
-  # Remove delays over 3000 because they are most likely errors
-  filter(delay < 3000,
-         delay > -350) %>% 
-  group_by(start_date, trip_id) %>%
-  arrange(stop_sequence, .by_group = TRUE) %>%
-  # Remove one-off large jumps in between two observations
-  filter(!(delay - lag(delay, order_by = stop_sequence, default = 0) > 1000 & delay - lead(delay, order_by = stop_sequence, default = 0) > 1000)) %>% 
-  # Remove any observations that have an arrival_time later than any following arrival_time in the trip
-  # AND the timestamp is earlier than any following timestamps in the trip.
-  # This ensures the most recent timestamp is preferred when discrepancy occurs
-  filter(!(as.numeric(arrival_time) > order_by(-stop_sequence, cummin(as.numeric(arrival_time))) &
-             as.numeric(timestamp) == order_by(-stop_sequence, cummin(as.numeric(timestamp))))) %>%
-  # Remove if the arrival_time is less than the previous arrival_times AND the timestamp is older
-  # than the previous timestamps
-  filter(!(arrival_time < order_by(stop_sequence, cummax(as.numeric(arrival_time))) &
-             timestamp < order_by(stop_sequence, cummax(as.numeric(timestamp))))) %>%
-  # If arrival_time of a stop is less than prior stops but they all have the same timestamp,
-  # it's not possible to know which is correct. Assume earlier stop_sequence is correct
-  # since it is closer when the update is made
-  filter(!(timestamp == order_by(stop_sequence, cummax(as.numeric(timestamp))) &
-           arrival_time < order_by(stop_sequence, cummax(as.numeric(arrival_time))))) %>%
-  # If after the above two consecutive stops have the same arrival_time, remove the one
-  # with an older timestamp
-  filter(!(arrival_time == lead(arrival_time, order_by = stop_sequence, default = ymd("9999-01-01", tz = "UTC")) &
-           timestamp < lead(timestamp, order_by = stop_sequence, default = ymd("9999-01-01", tz = "UTC")))) %>%
-  # If two stops have the same arrival_time and same time_stamp, remove the one with a higher stop sequence.
-  # Make sure only 2 stops and not more
-  filter(!(arrival_time != lead(arrival_time, order_by = stop_sequence, default = ymd("9999-01-01", tz = "UTC")) &
-             arrival_time == lag(arrival_time, order_by = stop_sequence, default = ymd("0000-01-01", tz = "UTC")) &
-           timestamp == lag(timestamp, order_by = stop_sequence, default = ymd("0000-01-01", tz = "UTC")))) %>% 
-  mutate(#prior_stamp = lag(timestamp),
-         #prior_arrival = lag(arrival_time),
-         #post_arrival = lead(arrival_time),
-         to_stop_time = as.numeric(arrival_time - lag(arrival_time))) %>%   
-         #prior_stop_time = lag(to_stop_time, default = 0),
-         #post_stop_time = lead(to_stop_time, default = 0)) %>%
-  # Remove trips whith multiple repeating arrival_times
+  # Remove trips with multiple repeating arrival_times
   filter(!n_distinct(arrival_time) < n()) %>%
+  # Remove outliers, most likely due to sudden high delays in trip possibly by error
+  filter(trip_time < 1700) %>% 
   ungroup() %>%
-  mutate(to_stop_time = replace_na(to_stop_time, 0)) %>% 
-         #prior_stop_time = replace_na(prior_stop_time, 0),
-         #post_stop_time = replace_na(post_stop_time, 0))
-  group_by(start_date, trip_id) %>%
-  mutate(trip_time = as.numeric((last(arrival_time, order_by = stop_sequence) -
-                                   first(arrival_time, order_by = stop_sequence)), units = "secs")) %>%
-  ungroup() %>%
-  # Remove trips with only one stop
-  filter(trip_time > 0,
-         trip_time < 1700)%>%
   arrange(start_date, trip_id, stop_sequence)
 
-updates_segment_trim_end <- updates %>% 
-  # Keep updates for trips that have first and last stop from pairs identified
-  semi_join(top_first_last_stops, by = c("direction_id", "first_stop", "last_stop")) %>%
-  # Remove delays over 3000 because they are most likely errors
-  filter(delay < 3000) %>% 
-  group_by(start_date, trip_id) %>%
-  arrange(stop_sequence, .by_group = TRUE) %>%
-  # Remove one-off large jumps in between two observations
-  filter(!(delay - lag(delay, order_by = stop_sequence, default = 0) > 1000 & delay - lead(delay, order_by = stop_sequence, default = 0) > 1000)) %>% 
-  # Remove any observations that have an arrival_time later than any following arrival_time in the trip
-  # AND the timestamp is earlier than any following timestamps in the trip.
-  # This ensures the most recent timestamp is preferred when discrepancy occurs
-  filter(!(as.numeric(arrival_time) > order_by(-stop_sequence, cummin(as.numeric(arrival_time))) &
-             as.numeric(timestamp) == order_by(-stop_sequence, cummin(as.numeric(timestamp))))) %>%
-  # Remove if the arrival_time is less than the previous arrival_times AND the timestamp is older
-  # than the previous timestamps
-  filter(!(arrival_time < order_by(stop_sequence, cummax(as.numeric(arrival_time))) &
-             timestamp < order_by(stop_sequence, cummax(as.numeric(timestamp))))) %>%
-  # If arrival_time of a stop is less than prior stops but they all have the same timestamp,
-  # it's not possible to know which is correct. Assume earlier stop_sequence is correct
-  # since it is closer when the update is made
-  filter(!(timestamp == order_by(stop_sequence, cummax(as.numeric(timestamp))) &
-           arrival_time < order_by(stop_sequence, cummax(as.numeric(arrival_time))))) %>%
-  # If after the above two consecutive stops have the same arrival_time, remove the one
-  # with an older timestamp
-  filter(!(arrival_time == lead(arrival_time, order_by = stop_sequence, default = ymd("9999-01-01", tz = "UTC")) &
-           timestamp < lead(timestamp, order_by = stop_sequence, default = ymd("9999-01-01", tz = "UTC")))) %>%
-  # If two stops have the same arrival_time and same time_stamp, remove the one with a higher stop sequence.
-  # Make sure only 2 stops and not more
-  filter(!(arrival_time != lead(arrival_time, order_by = stop_sequence, default = ymd("9999-01-01", tz = "UTC")) &
-             arrival_time == lag(arrival_time, order_by = stop_sequence, default = ymd("0000-01-01", tz = "UTC")) &
-           timestamp == lag(timestamp, order_by = stop_sequence, default = ymd("0000-01-01", tz = "UTC")))) %>% 
-  mutate(#prior_stamp = lag(timestamp),
-         #prior_arrival = lag(arrival_time),
-         #post_arrival = lead(arrival_time),
-         to_stop_time = as.numeric(arrival_time - lag(arrival_time))) %>%   
-         #prior_stop_time = lag(to_stop_time, default = 0),
-         #post_stop_time = lead(to_stop_time, default = 0)) %>%
-  # Remove trips whith multiple repeating arrival_times
-  filter(!n_distinct(arrival_time) < n()) %>%
-  ungroup() %>%
-  mutate(to_stop_time = replace_na(to_stop_time, 0)) %>% 
-         #prior_stop_time = replace_na(prior_stop_time, 0),
-         #post_stop_time = replace_na(post_stop_time, 0))
-  group_by(start_date, trip_id) %>%
-  mutate(trip_time = as.numeric((last(arrival_time, order_by = stop_sequence) -
-                                   first(arrival_time, order_by = stop_sequence)), units = "secs")) %>%
-  ungroup() %>%
-  # Remove trips with only one stop
-  filter(trip_time > 0,
-         trip_time < 1700,
-         delay > -350)%>%
-  arrange(start_date, trip_id, stop_sequence)
-
-test <- updates_segment %>% 
-  filter(start_date == "2022-03-15", trip_id == 643511)
-
-time_delay <- updates_trip_time %>% 
+# One row per trip corresponding to highest delay in the trip
+trip_time_delay <- updates_trip_time %>% 
   group_by(start_date, trip_id) %>% 
   filter(abs(delay) == max(abs(delay))) %>%
   distinct(start_date, trip_id, .keep_all = TRUE) %>% 
   ungroup()
 
-time_delay_2000 <- updates_segment_2000 %>% 
+# One row per trip corresponding to highest to_stop_time in the trip
+trip_time_stop <- updates_trip_time %>% 
   group_by(start_date, trip_id) %>% 
-  filter(abs(delay) == max(abs(delay))) %>%
+  filter(abs(to_stop_time) == max(abs(to_stop_time))) %>%
   distinct(start_date, trip_id, .keep_all = TRUE) %>% 
   ungroup()
 
-updates_segment %>% 
-  summarise(n_distinct(start_date, trip_id))
+# For further analysis
+trip_times <- trip_time_delay
 ```
 
 ```{r}
-top_first_last_stops %>% 
+top_first_last_stops2 %>% 
   ggplot(aes(row, cumsum)) +
   geom_line() +
   facet_wrap(vars(direction_id)) +
@@ -332,20 +227,20 @@ top_first_last_stops %>%
 #   geom_point() +
 #   theme_minimal()
 
-ggplot(updates_stop_times, aes(to_stop_time)) +
-  geom_histogram()
-
-ggplot(updates_stop_times, aes(to_stop_time)) +
-  geom_boxplot()
-
-ggplot(updates_stop_times, aes(delay)) +
-  geom_histogram()
-
-ggplot(updates_stop_times, aes(delay)) +
-  geom_boxplot()
-
-ggplot(updates_stop_times, aes(delay, to_stop_time)) +
-  geom_point()
+# ggplot(updates_stop_times, aes(to_stop_time)) +
+#   geom_histogram()
+# 
+# ggplot(updates_stop_times, aes(to_stop_time)) +
+#   geom_boxplot()
+# 
+# ggplot(updates_stop_times, aes(delay)) +
+#   geom_histogram()
+# 
+# ggplot(updates_stop_times, aes(delay)) +
+#   geom_boxplot()
+# 
+# ggplot(updates_stop_times, aes(delay, to_stop_time)) +
+#   geom_point()
 
 ggplot(updates_trip_time, aes(trip_time)) +
   geom_histogram()
@@ -359,19 +254,12 @@ ggplot(updates_trip_time, aes(trip_time, to_stop_time)) +
 ggplot(updates_trip_time, aes(trip_time, delay)) +
   geom_point()
 
-ggplot(time_delay, aes(trip_time, delay)) +
+ggplot(trip_time_delay, aes(trip_time, delay)) +
   geom_point()
 
+ggplot(trip_time_stop, aes(trip_time, to_stop_time)) +
+  geom_point()
 ```
-
-```{r}
-test <- updates_stop_times %>% 
-  filter(start_date == "2022-03-28", trip_id == 642844)
-
-test1 <- updates_trip_time %>% 
-  filter(start_date == "2022-03-29", trip_id == 642707)
-```
-
 
 
 ## Link Stats
