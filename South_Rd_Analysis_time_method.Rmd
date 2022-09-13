@@ -122,6 +122,11 @@ updates_stop_times <- updates %>%
   semi_join(top_first_last_stops, by = c("direction_id", "first_stop", "last_stop")) %>%
   group_by(start_date, trip_id) %>%
   arrange(stop_sequence, .by_group = TRUE) %>%
+  # Remove trips where all the stops have a delay over 2000, ie entire trip is delayed.
+  # Most likely error due to entering the information later. This is done to prevent
+  # incorrectly influencing time aggregated figures since they're going to be in
+  # the wrong time aggregate
+  filter(!(all(delay > 2000))) %>%
   # Remove one-off large jumps in between two observations
   filter(!(delay - lag(delay, order_by = stop_sequence, default = 0) > 1000 &
              delay - lead(delay, order_by = stop_sequence, default = 0) > 1000)) %>%
@@ -153,6 +158,8 @@ updates_stop_times <- updates %>%
                                  default = ymd("0000-01-01", tz = "UTC")) &
            timestamp == lag(timestamp, order_by = stop_sequence, 
                             default = ymd("0000-01-01", tz = "UTC")))) %>%
+  # Remove trips with multiple repeating arrival_times
+  filter(!n_distinct(arrival_time) < n()) %>%
   mutate(#prior_stamp = lag(timestamp),
          #prior_arrival = lag(arrival_time),
          #post_arrival = lead(arrival_time),
@@ -168,7 +175,7 @@ updates_stop_times <- updates %>%
   ungroup() %>%
   mutate(to_stop_time = replace_na(to_stop_time, 0))
          #prior_stop_time = replace_na(prior_stop_time, 0))
-         #post_stop_time = replace_na(post_stop_time, 0)) %>% 
+         #post_stop_time = replace_na(post_stop_time, 0)) %>%
 
 # Take top 2 occurring stops pair AGAIN for each direction according to cumsum plot
 top_first_last_stops2 <- updates_stop_times %>%
@@ -188,11 +195,9 @@ updates_trip_time <- updates_stop_times %>%
   mutate(trip_time = as.numeric((last(arrival_time, order_by = stop_sequence) -
                                    first(arrival_time, order_by = stop_sequence)), 
                                 units = "secs")) %>%
-  # Remove trips with multiple repeating arrival_times
-  filter(!n_distinct(arrival_time) < n()) %>%
   # Remove outliers, most likely due to sudden high delays in trip possibly by error
-  filter(trip_time < 1700) %>% 
   ungroup() %>%
+  filter(trip_time < 1650) %>%
   arrange(start_date, trip_id, stop_sequence)
 
 # One row per trip corresponding to highest delay in the trip
@@ -209,8 +214,13 @@ trip_time_stop <- updates_trip_time %>%
   distinct(start_date, trip_id, .keep_all = TRUE) %>% 
   ungroup()
 
-# For further analysis
-trip_times <- trip_time_delay
+# For further analysis, take first stop only from each trip because the arrival_time
+# of the first stop will be used as the basis for aggregation
+trip_times <- updates_trip_time %>% 
+  group_by(start_date, trip_id) %>% 
+  filter(stop_sequence == first(stop_sequence, order_by = stop_sequence)) %>%
+  distinct(start_date, trip_id, .keep_all = TRUE) %>% 
+  ungroup()
 
 # Join with trip_time_delay to only have trips analysed
 updates_stop_times <- updates_stop_times %>% 
@@ -228,13 +238,6 @@ top_first_last_stops2 %>%
 ## Data Validation
 
 ```{r}
-ggplot(updates_stop_times, aes(delay)) +
-  geom_histogram()
-
-ggplot(updates_stop_times, aes(delay)) +
-  geom_boxplot() +
-  theme_minimal()
-
 # Check if large positive or negative to_stop_times are related to prior_stop_time
 ggplot(updates_stop_times,aes(to_stop_time, delay)) +
   geom_point() +
