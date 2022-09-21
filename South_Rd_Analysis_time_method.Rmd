@@ -27,6 +27,7 @@ full_stops_raw <- read_csv(here("data/GTFS_feed_version_1157/large/gtfs_history_
 routes_trips_stops_raw <- read_csv(here("data/South-Rd/South Rd Routes and Trips gtfs 1157.csv"))
 updates_raw <- read_csv(here("data/South-Rd/trip_updates_SouthRd_Mar.csv"))
 link_stats_raw <- read_csv(here("data/South-Rd/link_stats_Mar.csv"))
+link_5min_stats_raw <- read_csv(here("data/South-Rd/link_5minstats_Mar.csv"))
 site_stats_raw <- read_csv(here("data/South-Rd/site_stats_Mar.csv"))
 holidays_raw <- read_csv(here("data/addinsight/addinsight_prod.btspecialdays.csv.csv"))
 ```
@@ -333,11 +334,29 @@ link_stats <- link_stats_raw %>%
          enoughdata == TRUE) %>% 
   distinct()
 
+# Check against 5-minute stats
+link_5min_stats <- link_5min_stats_raw %>% 
+  select(logtime:avgdensity) %>%
+  mutate(logtime = as_datetime(str_remove(logtime, " \\+10:30"))) %>%
+  filter(!as_date(logtime) %in% holidays,
+         !wday(logtime, label = TRUE) %in% c("Sat", "Sun")) %>% 
+  distinct()
+  
+link_stats_agg <- link_stats %>% 
+  mutate(logtime = ceiling_date(logtime, "5 mins")) %>%
+  group_by(logtime, linkid) %>% 
+  summarise(tt = mean(tt)) %>% 
+  ungroup()
+
+# Different
+link_check <- link_stats_agg %>% 
+  left_join(link_5min_stats, by = c("logtime", "linkid"))
+
 # Join link_stats with links_segment to get direction
 link_stats <- link_stats %>% 
   left_join(select(links_segment, linkid, direction))
 
-rm(link_stats_raw)
+#rm(link_stats_raw)
 
 summary(link_stats)
 
@@ -826,7 +845,8 @@ Same as above
 
 ```{r}
 # Plot on map to check the stops are all on South Rd
-stops_segment %>% 
+stops_segment %>%
+  filter(stop_id %in% c(top_first_last_stops$first_stop, top_first_last_stops$last_stop)) %>% 
     leaflet() %>% 
     addTiles() %>% 
     addCircles(lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id)
