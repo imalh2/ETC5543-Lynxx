@@ -104,14 +104,12 @@ updates <- updates_raw %>%
          last_stop = last(stop_id, order_by = stop_sequence)) %>%
   ungroup()
 
-# Take top 2 occurring stops pair for each direction according to cumsum plot
+# Take top occurring stops pair for each direction according to cumsum plot
 top_first_last_stops <- updates %>% 
   distinct(start_date, trip_id, direction, first_stop, last_stop) %>%
   group_by(direction) %>% 
   count(first_stop, last_stop, sort = TRUE) %>% 
-  slice_max(order_by = n, n = 3) %>% 
-  mutate(cumsum = cumsum(n),
-         pairs = row_number()) %>% 
+  slice_max(order_by = n) %>% 
   ungroup()
 
 updates_stop_times <- updates %>% 
@@ -172,19 +170,9 @@ updates_stop_times <- updates %>%
          #prior_stop_time = replace_na(prior_stop_time, 0))
          #post_stop_time = replace_na(post_stop_time, 0)) %>%
 
-# Take top 2 occurring stops pair AGAIN for each direction according to cumsum plot
-top_first_last_stops2 <- updates_stop_times %>% 
-  distinct(start_date, trip_id, direction, first_stop, last_stop) %>%
-  group_by(direction) %>% 
-  count(first_stop, last_stop, sort = TRUE) %>% 
-  slice_max(order_by = n, n = 2) %>% 
-  mutate(cumsum = cumsum(n),
-         pairs = row_number()) %>% 
-  ungroup()
-
-# Rejoin to only stops pairs identified
+# Rejoin to only stops pairs identified again due to possible removal in filtering above
 updates_stop_times <- updates_stop_times %>% 
-   semi_join(top_first_last_stops2, by = c("direction", "first_stop", "last_stop"))
+   semi_join(top_first_last_stops, by = c("direction", "first_stop", "last_stop"))
 
 updates_trip_time <- updates_stop_times %>% 
   group_by(start_date, trip_id) %>%
@@ -192,10 +180,11 @@ updates_trip_time <- updates_stop_times %>%
   mutate(trip_time = as.numeric((last(arrival_time) -
                                    first(arrival_time)), 
                                 units = "secs"),
-         first_last = paste(first_stop, last_stop, sep = "-")) %>%
+         # Difference between delays of first and last stops of the trip
+         delay_diff = abs(last(delay) - first(delay))) %>% 
   ungroup() %>%
-  # Remove outliers, most likely due to sudden high delays in trip possibly by error
-  filter(trip_time < 1650) %>% 
+  # If the delay_diff is greater than 10 minutes, most likely an error
+  filter(delay_diff < 600) %>% 
   arrange(start_date, trip_id, stop_sequence)
 
 # One row per trip corresponding to highest delay in the trip
@@ -213,45 +202,33 @@ trip_time_stop <- updates_trip_time %>%
   distinct(start_date, trip_id, .keep_all = TRUE)
 
 # For further analysis, take first stop only from each trip because the arrival_time
-# of the first stop will be used as the basis for aggregation
+# of the first stop will be used as the basis for aggregation. Also add whether
+# each trip occurrs during in either of the peak times
 trip_times <- updates_trip_time %>% 
   group_by(start_date, trip_id) %>% 
   filter(stop_sequence == first(stop_sequence, order_by = stop_sequence)) %>%
   ungroup() %>% 
-  distinct(start_date, trip_id, .keep_all = TRUE)
+  distinct(start_date, trip_id, .keep_all = TRUE) %>% 
+  mutate(rush = case_when(
+    between(as_hms(arrival_time), as_hms("06:00:00"), as_hms("10:00:00")) ~ "morning",
+    between(as_hms(arrival_time), as_hms("15:00:00"), as_hms("19:00:00")) ~ "evening",
+    TRUE ~ "neither"),
+    rush = factor(rush, levels = c("morning", "evening", "neither"))
+  )
 
 trip_times_peaks <- trip_times %>% 
-  filter(between(as_hms(arrival_time), as_hms("06:00:00"), as_hms("10:00:00")) |
-           between(as_hms(arrival_time), as_hms("15:00:00"), as_hms("19:00:00"))) %>% 
-  mutate(rush = if_else(between(as_hms(arrival_time), as_hms("06:00:00"), as_hms("10:00:00")),
-                        "morning", "evening"))
+  filter(rush %in% c("morning", "evening"))
 
 # Join with trip_time_delay to only have trips analysed
 stop_times <- updates_stop_times %>% 
-  semi_join(updates_trip_time, by = c("start_date", "trip_id"))
+  semi_join(trip_times, by = c("start_date", "trip_id"))
 
 rm(updates_raw)
-```
-
-```{r}
-top_first_last_stops2 %>% 
-  ggplot(aes(pairs, cumsum)) +
-  geom_line() +
-  facet_wrap(vars(direction)) +
-  theme_minimal()
 ```
 
 ## Data Validation
 
 ```{r}
-# ggplot(updates_stop_times,aes(delay_diff)) +
-#   geom_boxplot() +
-#   theme_minimal()
-# 
-# ggplot(updates_stop_times,aes(to_stop_time, delay_diff)) +
-#   geom_point() +
-#   theme_minimal()
-
 ggplot(updates_stop_times, aes(to_stop_time)) +
   geom_histogram() +
   theme_minimal()
@@ -269,6 +246,40 @@ ggplot(updates_stop_times, aes(delay)) +
   theme_minimal()
 
 ggplot(updates_stop_times, aes(to_stop_time, delay)) +
+  geom_point() +
+  theme_minimal()
+
+ggplot(updates_trip_time, aes(trip_time)) +
+  geom_histogram() +
+  theme_minimal()
+
+ggplot(updates_trip_time, aes(trip_time)) +
+  geom_boxplot() +
+  theme_minimal()
+
+ggplot(trip_time_delay, aes(trip_time, delay)) +
+  geom_point() +
+  facet_wrap(vars(direction)) +
+  theme_minimal()
+
+ggplot(trip_time_stop, aes(trip_time, to_stop_time)) +
+  geom_point() +
+  facet_wrap(vars(direction)) +
+  theme_minimal()
+
+ggplot(trip_time_delay, aes(trip_time, delay_diff)) +
+  geom_point() +
+  facet_wrap(vars(direction)) +
+  theme_minimal()
+
+ggplot(trip_time_delay, aes(delay_diff, color = direction)) +
+  geom_boxplot()
+
+ggplot(trip_time_delay, aes(trip_time, delay_diff, color = direction)) +
+  geom_point() +
+  theme_minimal()
+
+ggplot(trip_time_stop, aes(trip_time, to_stop_time, color = direction)) +
   geom_point() +
   theme_minimal()
 
@@ -292,48 +303,12 @@ ggplot(stop_times, aes(to_stop_time, delay)) +
   geom_point() +
   theme_minimal()
 
-ggplot(updates_trip_time, aes(trip_time)) +
-  geom_histogram() +
-  theme_minimal()
-
-ggplot(updates_trip_time, aes(trip_time)) +
-  geom_boxplot() +
-  theme_minimal()
-
-ggplot(updates_trip_time, aes(trip_time, to_stop_time)) +
-  geom_point() +
-  theme_minimal()
-
-ggplot(updates_trip_time, aes(trip_time, delay)) +
-  geom_point() +
-  theme_minimal()
-
-ggplot(trip_time_delay, aes(trip_time, delay, colour = first_last)) +
-  geom_point() +
-  facet_wrap(vars(direction)) +
-  theme_minimal()
-
-ggplot(trip_time_stop, aes(trip_time, to_stop_time, colour = first_last)) +
-  geom_point() +
-  facet_wrap(vars(direction)) +
-  theme_minimal()
-
 ggplot(trip_times, aes(direction, trip_time)) +
   geom_boxplot() +
   theme_minimal()
 
 ggplot(trip_times, aes(trip_time, color = direction)) +
   geom_density() +
-  theme_minimal()
-
-ggplot(trip_times, aes(trip_time, color = first_last)) +
-  geom_boxplot() +
-  facet_wrap(vars(direction)) +
-  theme_minimal()
-
-ggplot(trip_times, aes(trip_time, color = first_last)) +
-  geom_density() +
-  facet_wrap(vars(direction)) +
   theme_minimal()
 
 ggplot(trip_times_peaks, aes(direction, trip_time)) +
@@ -344,10 +319,6 @@ ggplot(trip_times_peaks, aes(direction, trip_time)) +
 ggplot(trip_times_peaks, aes(trip_time, color = direction)) +
   geom_density() +
   facet_wrap(vars(rush)) +
-  theme_minimal()
-
-ggplot(trip_times, aes(trip_time, color = direction)) +
-  geom_density() +
   theme_minimal()
 ```
 
@@ -1067,7 +1038,7 @@ compare_trips_sites <- function(timeframe = "10 minutes", plot = "line") {
       ggplot(trip_time_cong_sites_scatter, aes(x = avg_congestion, y = avg_time)) +
         geom_point() +
         geom_smooth(se = FALSE) +
-        #facet_wrap(vars(rush)) +
+        facet_wrap(vars(rush), scales = "free") +
         labs(x = "Avg Congestion", y = "Avg Time (secs)") +
         theme_minimal()
   } 
@@ -1156,7 +1127,7 @@ compare_trips_links <- function(timeframe = "15 minutes", plot = "line", measure
 
 
 ```{r}
-compare_trips_sites(timeframe = "15 minutes", plot = "scatter")
+compare_trips_sites(timeframe = "15 minutes")
 ```
 
 ```{r}
@@ -1165,12 +1136,282 @@ compare_trips_links(timeframe = "30 minutes", measure = delay, plot = "scatter")
 
 
 
-TRIALS
+# Analysis 2
 
-timeseries
+## Calculations
+
+### Trip Times
 
 ```{r}
-compare_trips_sites <- function(aggregate = "time", timeframe = "10 minutes", plot = "line") {
+# Ceiling date by aggregate duration. Get time
+trip_times_agg <- trip_times %>% 
+  mutate(arrival_time = ceiling_date(arrival_time, "15 mins")) %>% 
+  mutate(time = hms::as_hms(arrival_time), .after = arrival_time)
+```
+
+
+#### Without Direction (for Sites)
+
+```{r}
+# Average trip time and number of trips per aggregated arrival_time
+trip_time_arrival <- trip_times_agg %>%
+  group_by(arrival_time) %>%
+  summarise(avg_time = mean(trip_time),
+            no_trips = n(),
+            rush = unique(rush)) %>%
+  ungroup()
+
+# Average trip time per time (hour and minute of the day)
+trip_time_hm <- trip_times_agg %>%
+  group_by(time) %>% 
+  summarise(avg_time = mean(trip_time),
+            no_trips = n(),
+            rush = unique(rush),
+            no_days = n_distinct(start_date),
+            avg_per_day = no_trips/n_distinct(trip_times_agg$start_date)) %>% 
+  ungroup()
+
+# Average trip time per day per peak time
+trip_times_peaks <- trip_times %>% 
+  filter(rush %in% c("morning", "evening")) %>% 
+  group_by(start_date, rush) %>% 
+  summarise(avg_time_day = mean(trip_time)) %>% 
+  ungroup() %>% 
+  group_by(rush) %>% 
+  mutate(avg_time_all_peak = mean(avg_time_day)) %>% 
+  ungroup()
+
+# Average trip time per day per peak time per hour
+trip_times_peaks_hours <- trip_times %>% 
+  filter(rush %in% c("morning", "evening")) %>%
+  mutate(hour = hour(arrival_time)) %>% 
+  group_by(start_date, rush, hour) %>% 
+  summarise(avg_time = mean(trip_time)) %>% 
+  ungroup() %>% 
+  group_by(rush, hour) %>% 
+  mutate(avg_time_all = mean(avg_time)) %>% 
+  ungroup()
+
+# Day with largest trip time per hour
+trip_times_peaks_hours_largest_day <- trip_times_peaks_hours %>% 
+  group_by(rush, hour) %>% 
+  filter(avg_time == max(avg_time)) %>% 
+  ungroup()
+```
+
+```{r}
+ggplot(filter(trip_time_hm, rush == "neither"), aes(x = time, y = avg_per_day)) +
+  geom_col(color = "grey", alpha = 0.3) +
+  geom_col(data = filter(trip_time_hm, rush %in% c("morning", "evening")), color = "grey") +
+  scale_x_time(breaks = as_hms(c("00:00:00", "06:00:00", "08:00:00", "10:00:00",
+                                 "15:00:00", "17:00:00", "19:00:00")),
+               labels = c("00", "6", "8", "10", "15", "17", "19")) +
+  theme_minimal()
+
+ggplot(trip_times_peaks, aes(start_date, avg_time_day)) +
+  geom_line() +
+  geom_point() +
+  geom_hline(aes(yintercept = avg_time_all_peak), linetype = "dashed", color = "red") +
+  facet_wrap(vars(rush), scales = "free_y") +
+  theme_minimal()
+
+trip_times_peaks_hours %>% 
+  filter(rush == "morning") %>% 
+  ggplot(aes(start_date, avg_time)) +
+  geom_line() +
+  geom_point() +
+  geom_hline(aes(yintercept = avg_time_all), linetype = "dashed", color = "red") +
+  facet_wrap(vars(hour), scales = "free_y") +
+  theme_minimal()
+
+trip_times_peaks_hours %>% 
+  filter(rush == "evening") %>% 
+  ggplot(aes(start_date, avg_time)) +
+  geom_line() +
+  geom_point() +
+  geom_hline(aes(yintercept = avg_time_all), linetype = "dashed", color = "red") +
+  facet_wrap(vars(hour), scales = "free_y") +
+  theme_minimal()
+
+trip_times_peaks_hours_largest_day %>% 
+  ggplot(aes(hour, avg_time, label = as.character(start_date))) +
+  geom_line() +
+  geom_point() +
+  geom_line(aes(y = avg_time_all), linetype = "dashed", color = "red") +
+  geom_point(aes(y = avg_time_all)) +
+  ggrepel::geom_label_repel() +
+  facet_wrap(vars(rush), scales = "free") +
+  theme_minimal()
+```
+
+
+#### With Direction (for Links)
+
+```{r}
+# Average trip time and number of trips per aggregated arrival_time per direction
+trip_time_arrival_dir <- trip_times_agg %>%
+  group_by(arrival_time, direction) %>%
+  summarise(avg_time = mean(trip_time),
+            no_trips = n(),
+            rush = unique(rush)) %>%
+  ungroup()
+
+# Average trip time per time and direction (hour and minute of the day)
+trip_time_hm_dir <- trip_times_agg %>%
+  group_by(time, direction) %>% 
+  summarise(avg_time = mean(trip_time),
+            no_trips = n(),
+            rush = unique(rush),
+            no_days = n_distinct(start_date),
+            avg_per_day = no_trips/n_distinct(trip_times_agg$start_date)) %>% 
+  ungroup()
+
+# Average trip time per day per peak time per direction
+trip_times_peaks_dir <- trip_times %>% 
+  filter(rush %in% c("morning", "evening")) %>% 
+  group_by(start_date, rush, direction) %>% 
+  summarise(avg_time_day = mean(trip_time)) %>% 
+  ungroup() %>% 
+  group_by(rush, direction) %>% 
+  mutate(avg_time_all_peak = mean(avg_time_day)) %>% 
+  ungroup()
+
+# Average trip time per day per peak time per hour per direction
+trip_times_peaks_hours_dir <- trip_times %>% 
+  filter(rush %in% c("morning", "evening")) %>%
+  mutate(hour = hour(arrival_time)) %>% 
+  group_by(start_date, rush, hour, direction) %>% 
+  summarise(avg_time = mean(trip_time)) %>% 
+  ungroup() %>% 
+  group_by(rush, direction, hour) %>% 
+  mutate(avg_time_all = mean(avg_time)) %>% 
+  ungroup()
+
+# Day with largest trip time per hour
+trip_times_peaks_hours_largest_day_dir <- trip_times_peaks_hours_dir %>% 
+  group_by(rush, hour, direction) %>% 
+  filter(avg_time == max(avg_time)) %>% 
+  ungroup()
+```
+
+```{r}
+ggplot(filter(trip_time_hm_dir, rush == "neither"), aes(x = time, y = avg_per_day)) +
+  geom_col(color = "grey", alpha = 0.3) +
+  geom_col(data = filter(trip_time_hm, rush %in% c("morning", "evening")), color = "grey") +
+  scale_x_time(breaks = as_hms(c("00:00:00", "06:00:00", "08:00:00", "10:00:00",
+                                 "15:00:00", "17:00:00", "19:00:00")),
+               labels = c("00", "6", "8", "10", "15", "17", "19")) +
+  theme_minimal()
+
+ggplot(trip_times_peaks_dir, aes(start_date, avg_time_day)) +
+  geom_line() +
+  geom_point() +
+  geom_hline(aes(yintercept = avg_time_all_peak), linetype = "dashed", color = "red") +
+  facet_wrap(vars(rush), scales = "free_y") +
+  theme_minimal()
+
+trip_times_peaks_hours_dir %>% 
+  filter(rush == "morning") %>% 
+  ggplot(aes(start_date, avg_time)) +
+  geom_line() +
+  geom_point() +
+  geom_hline(aes(yintercept = avg_time_all), linetype = "dashed", color = "red") +
+  facet_wrap(vars(hour), scales = "free_y") +
+  theme_minimal()
+
+trip_times_peaks_hours_dir %>% 
+  filter(rush == "evening") %>% 
+  ggplot(aes(start_date, avg_time)) +
+  geom_line() +
+  geom_point() +
+  geom_hline(aes(yintercept = avg_time_all), linetype = "dashed", color = "red") +
+  facet_wrap(vars(hour), scales = "free_y") +
+  theme_minimal()
+
+trip_times_peaks_hours_largest_day_dir %>% 
+  ggplot(aes(hour, avg_time, label = as.character(start_date))) +
+  geom_line() +
+  geom_point() +
+  geom_line(aes(y = avg_time_all), linetype = "dashed", color = "red") +
+  geom_point(aes(y = avg_time_all)) +
+  ggrepel::geom_label_repel() +
+  facet_wrap(vars(rush), scales = "free") +
+  theme_minimal()
+```
+
+
+### Congestion
+
+####  Sites
+
+```{r}
+sites_agg <- site_stats  %>% 
+  mutate(logtime = ceiling_date(logtime, "15 mins")) %>% 
+  mutate(time = hms::as_hms(logtime), .after = logtime)
+
+# Average congestion per site per logtime
+ind_site_cong_logtime <- sites_agg %>%
+  group_by(logtime, siteid) %>%
+  summarise(avg_congestion = mean(probecount),
+            avg_duration = mean(avgduration)) %>%
+  ungroup()
+
+# Average congestion of all sites per logtime (average full road congestion)
+sites_cong_logtime <- sites_agg %>%
+  group_by(logtime) %>%
+  summarise(avg_congestion = mean(probecount),
+            avg_duration = mean(avgduration))
+
+# Average congestion per site per time
+ind_site_cong_time <- sites_agg %>%
+  group_by(time, siteid) %>%
+  summarise(avg_congestion = mean(probecount),
+            avg_duration = mean(avgduration)) %>% 
+  ungroup()
+
+# Average congestion of all sites per time (average full road congestion)
+sites_cong_time <- sites_agg %>% 
+  group_by(time) %>%
+  summarise(avg_congestion = mean(probecount),
+            avg_duration = mean(avgduration))
+```
+
+#### Links
+
+```{r}
+links_agg <- link_stats  %>% 
+  mutate(logtime = ceiling_date(logtime, "15 mins")) %>% 
+  mutate(time = hms::as_hms(logtime), .after = logtime)
+
+# Average congestion per link per logtime per direction
+ind_link_cong_logtime <- links_agg %>%
+  group_by(logtime, direction, linkid) %>%
+  summarise(avg_congestion = mean(congestion)) %>%
+  ungroup()
+
+# Average congestion of all links per logtime per direction (average full road congestion)
+links_cong_logtime <- links_agg %>%
+  group_by(logtime, direction) %>%
+  summarise(avg_congestion = mean(congestion))
+
+# Average congestion per link per time
+ind_link_cong_time <- links_agg %>% 
+  group_by(time, linkid, direction) %>% 
+  summarise(avg_congestion = mean(congestion)) %>% 
+  ungroup()
+
+# Average congestion of all links per time (average full road congestion)
+links_cong_time <- links_agg %>% 
+  group_by(time, direction) %>% 
+  summarise(avg_congestion = mean(congestion))
+```
+
+## Compare
+
+### Sites
+
+```{r}
+compare_trips_sites <- function(timeframe = "10 minutes", plot = "line") {
   trip_times_agg <- trip_times %>% 
   mutate(arrival_time = ceiling_date(arrival_time, timeframe)) %>% 
   mutate(time = hms::as_hms(arrival_time), .after = arrival_time)
@@ -1180,7 +1421,7 @@ compare_trips_sites <- function(aggregate = "time", timeframe = "10 minutes", pl
   mutate(time = hms::as_hms(logtime), .after = logtime)
 
   if (plot == "line") {
-    if (aggregate == "time") {
+    
       trip_time_hm <- trip_times_agg %>%
         group_by(time) %>% 
         summarise(avg_time = mean(trip_time)) %>% 
@@ -1219,47 +1460,6 @@ compare_trips_sites <- function(aggregate = "time", timeframe = "10 minutes", pl
                      labels = c("00", "6", "8", "10", "15", "17", "19")) +
         labs(x = "Time", y = "") +
         theme_minimal()
-    } else if (aggregate == "day") {
-      trip_time_arrival <- trip_times_agg %>%
-        group_by(arrival_time) %>%
-        summarise(avg_time = mean(trip_time)) %>%
-        ungroup()
-      
-      sites_cong_logtime <- sites_agg %>%
-        group_by(logtime) %>%
-        summarise(avg_congestion = mean(probecount),
-                  avg_duration = mean(avgduration))
-      
-      trip_time_cong_sites <- trip_time_arrival %>% 
-        full_join(sites_cong_logtime, by = c("arrival_time" = "logtime"))
-
-      trip_time_cong_sites_pivot <- trip_time_cong_sites %>%
-        pivot_longer(cols = !arrival_time, names_to = "stat", values_to = "value")%>% 
-        mutate(stat = recode(stat, avg_congestion = "Avg Congestion", avg_time = "Avg Time (secs)",
-                             avg_duration = "Avg Duration (secs)"))
-
-      trip_time_cong_sites_pivot_mor_rush <- trip_time_cong_sites_pivot %>% 
-        filter(between(arrival_time, as_hms("06:00:00"), as_hms("10:00:00")))
-
-      trip_time_cong_sites_pivot_eve_rush <- trip_time_cong_sites_pivot %>% 
-        filter(between(arrival_time, as_hms("15:00:00"), as_hms("19:00:00")))
-      
-      ggplot() +
-        geom_line(data = trip_time_cong_sites_pivot, aes(x = arrival_time, y = value)) +
-        geom_line(data = trip_time_cong_sites_pivot_mor_rush, aes(x = arrival_time, y = value), color = "blue", size = 0.5) +
-        geom_line(data = trip_time_cong_sites_pivot_eve_rush, aes(x = arrival_time, y = value), color = "blue", size = 0.5) +
-        # annotate("rect", xmin = as_hms("06:00:00"), xmax = as_hms("10:00:00"), ymin = -Inf, ymax = Inf,
-        # fill = "red", alpha = .1) +
-        # annotate("rect", xmin = as_hms("15:00:00"), xmax = as_hms("19:00:00"), ymin = -Inf, ymax = Inf,
-        # fill = "red", alpha = .1) +
-        facet_grid(rows = vars(stat), scales = "free_y") +
-        # scale_x_time(breaks = as_hms(c("00:00:00", "06:00:00", "08:00:00", "10:00:00", 
-        #                                "15:00:00", "17:00:00", "19:00:00")),
-        #              labels = c("00", "6", "8", "10", "15", "17", "19")) +
-        labs(x = "Time", y = "") +
-        theme_minimal()
-    }
-      
   } else if (plot == "scatter") {
       trip_time_arrival <- trip_times_agg %>%
         group_by(arrival_time) %>%
@@ -1274,16 +1474,100 @@ compare_trips_sites <- function(aggregate = "time", timeframe = "10 minutes", pl
       trip_time_cong_sites_scatter <- trip_time_arrival %>% 
         inner_join(sites_cong_logtime, by = c("arrival_time" = "logtime")) %>% 
         filter(between(as_hms(arrival_time), as_hms("06:00:00"), as_hms("10:00:00")) |
-                 between(as_hms(arrival_time), as_hms("15:00:00"), as_hms("19:00:00")))
+                 between(as_hms(arrival_time), as_hms("15:00:00"), as_hms("19:00:00"))) %>% 
+         mutate(rush = if_else(between(as_hms(arrival_time), as_hms("06:00:00"), as_hms("10:00:00")),
+                        "morning", "evening"))
 
       ggplot(trip_time_cong_sites_scatter, aes(x = avg_congestion, y = avg_time)) +
         geom_point() +
         geom_smooth(se = FALSE) +
+        facet_wrap(vars(rush), scales = "free") +
         labs(x = "Avg Congestion", y = "Avg Time (secs)") +
         theme_minimal()
   } 
 }
 ```
+
+
+### Links
+
+```{r}
+compare_trips_links <- function(timeframe = "15 minutes", plot = "line", measure = congestion){
+  trip_times_agg <- trip_times %>% 
+  mutate(arrival_time = ceiling_date(arrival_time, timeframe)) %>% 
+  mutate(time = hms::as_hms(arrival_time), .after = arrival_time)
+
+  links_agg <- link_stats  %>% 
+  mutate(logtime = ceiling_date(logtime, timeframe)) %>% 
+  mutate(time = hms::as_hms(logtime), .after = logtime)
+
+  if (plot == "line") {
+    
+      trip_time_hm_dir <- trip_times_agg %>%
+        group_by(time, direction) %>% 
+        summarise(avg_time = mean(trip_time)) %>% 
+        ungroup()
+      
+      links_cong_time <- links_agg %>% 
+        group_by(time, direction) %>% 
+        summarise(avg_congestion = mean({{measure}}))
+      
+      trip_time_cong_links <- trip_time_hm_dir %>% 
+        full_join(links_cong_time)
+
+      trip_time_cong_links_pivot <- trip_time_cong_links %>%
+        pivot_longer(cols = avg_time:avg_congestion, names_to = "stat", values_to = "value") %>% 
+        mutate(direction = recode(direction, from_city = "From City", to_city = "To City"),
+               stat = recode(stat, avg_congestion = "Avg Congestion", avg_time = "Avg Time (secs)"))
+      
+      trip_time_cong_links_pivot_mor_rush <- trip_time_cong_links_pivot %>% 
+        filter(between(time, as_hms("06:00:00"), as_hms("10:00:00")))
+      
+      trip_time_cong_links_pivot_eve_rush <- trip_time_cong_links_pivot %>% 
+        filter(between(time, as_hms("15:00:00"), as_hms("19:00:00")))
+      
+      ggplot() +
+        geom_line(data = trip_time_cong_links_pivot, aes(x = time, y = value), alpha = 0.2) +
+        geom_line(data = trip_time_cong_links_pivot_mor_rush, aes(x = time, y = value), color = "blue", size = 0.5) +
+        geom_line(data = trip_time_cong_links_pivot_eve_rush, aes(x = time, y = value), color = "blue", size = 0.5) +
+        annotate("rect", xmin = as_hms("06:00:00"), xmax = as_hms("10:00:00"), ymin = -Inf, ymax = Inf,
+        fill = "red", alpha = .1) +
+        annotate("rect", xmin = as_hms("15:00:00"), xmax = as_hms("19:00:00"), ymin = -Inf, ymax = Inf,
+        fill = "red", alpha = .1) +
+        facet_grid(rows = vars(stat), cols = vars(direction), scales = "free_y") +
+        scale_x_time(breaks = as_hms(c("00:00:00", "06:00:00", "08:00:00", "10:00:00", 
+                                       "15:00:00", "17:00:00", "19:00:00")),
+                     labels = c("00", "6", "8", "10", "15", "17", "19")) +
+        labs(x = "Time", y = "") +
+        theme_minimal()
+  } else if (plot == "scatter") {
+    
+      trip_time_arrival_dir <- trip_times_agg %>%
+        group_by(arrival_time, direction) %>%
+        summarise(avg_time = mean(trip_time)) %>%
+        ungroup()
+      
+      links_cong_logtime <- links_agg %>%
+        group_by(logtime, direction) %>%
+        summarise(avg_congestion = mean({{measure}}))
+      
+      trip_time_cong_links_scatter <- trip_time_arrival_dir %>% 
+        inner_join(links_cong_logtime, by = c("arrival_time" = "logtime", "direction")) %>% 
+        filter(between(as_hms(arrival_time), as_hms("06:00:00"), as_hms("10:00:00")) |
+                 between(as_hms(arrival_time), as_hms("15:00:00"), as_hms("19:00:00"))) %>% 
+         mutate(rush = if_else(between(as_hms(arrival_time), as_hms("06:00:00"), as_hms("10:00:00")),
+                        "morning", "evening"))
+
+      ggplot(trip_time_cong_links_scatter, aes(x = avg_congestion, y = avg_time)) +
+        geom_point() +
+        geom_smooth(se = FALSE) +
+        facet_grid(vars(direction), vars(rush)) +
+        labs(x = "Avg Congestion", y = "Avg Time (secs)") +
+        theme_minimal()
+  }
+}
+```
+
 
 
 
