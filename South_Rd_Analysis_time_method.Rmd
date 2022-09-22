@@ -17,11 +17,13 @@ library(lubridate)
 library(leaflet)
 library(hms)
 library(janitor)
+library(geosphere)
 ```
 
 ```{r data}
 # Data
 sites_raw <- read_csv(here("data/addinsight/addinsight_prod.btsites.csv.csv"))
+links_raw <- read_csv(here("data/addinsight/addinsight_prod.btlinks.csv.csv"))
 links_segment_raw <- read_csv(here("data/South-Rd/BT Links - South Rd.csv"))
 full_stops_raw <- read_csv(here("data/GTFS_feed_version_1157/large/gtfs_history_prod.stops.csv"))
 routes_trips_stops_raw <- read_csv(here("data/South-Rd/South Rd Routes and Trips gtfs 1157.csv"))
@@ -47,7 +49,9 @@ rm(holidays_raw)
 ```{r}
 # Remove duplicates
 sites <- sites_raw %>% 
-  distinct(id, .keep_all = TRUE)
+  distinct(id, .keep_all = TRUE) %>% 
+  mutate(latitude = round(latitude, 5),
+         longitude = round(longitude, 5))
 
 rm(sites_raw)
 ```
@@ -55,18 +59,27 @@ rm(sites_raw)
 ## Links Segment
 
 ```{r}
+links <- links_raw %>% 
+  distinct(id, length)
+
 links_segment <- links_segment_raw %>% 
   rename_with(tolower) %>% 
   mutate(latitude = round(latitude, 5),
-         longitude = round(longitude, 5)) %>%
+         longitude = round(longitude, 5),
+         # Extract name of location where link starts and ends
+         start_loc = str_extract(name, "(?<=- ).*(?= to)"),
+         end_loc = str_extract(name, "(?<=to ).*")) %>%
   # Add start and end longitudes for each link and whether link going to or from city
-  # to identify non-overlapping sequence of links later
   group_by(linkid) %>%
   mutate(start_lat = first(latitude, order_by = ordernumber),
          end_lat = last(latitude, order_by = ordernumber)) %>% 
   ungroup() %>% 
-  mutate(direction = if_else(start_lat < end_lat, "to_city", "from_city"))
+  mutate(direction = if_else(start_lat < end_lat, "to_city", "from_city")) %>%
+  # Length is not correct, join with links to get correct lengths
+  select(-length) %>% 
+  left_join(links, c("linkid" = "id"))
 
+rm(links_raw)
 rm(links_segment_raw)
 ```
 
@@ -223,6 +236,10 @@ trip_times_peaks <- trip_times %>%
 # Join with trip_time_delay to only have trips analysed
 stop_times <- updates_stop_times %>% 
   semi_join(trip_times, by = c("start_date", "trip_id"))
+
+# Update stops_segment to only stops needed
+stops_segment <- stops_segment %>% 
+  filter(stop_id %in% c(top_first_last_stops$first_stop, top_first_last_stops$last_stop))
 
 rm(updates_raw)
 ```
@@ -406,6 +423,24 @@ ggplot(site_stats, aes(x = probecount, y = avgduration)) +
 
 # Getting Information for Analysis
 
+## Identify Routes
+
+Routes were identified by examining the [network map](https://www.adelaidemetro.com.au/__data/assets/pdf_file/0009/824247/Adelaide-Metro-network-map.pdf).
+
+All the routes were overlayed on a map on Tableu and routs on South Road were selected and exported.
+
+## Identify Stops
+
+Same as above
+
+```{r}
+# Plot on map to check the stops are all on South Rd
+stops_segment %>%
+    leaflet() %>% 
+    addTiles() %>% 
+    addCircles(lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id)
+```
+
 ## Identify Sites
 
 Select sites from map on South Road between Anzac Highway and Ayliffs Road
@@ -471,9 +506,12 @@ sites_south %>%
 
 ### Build map going to city
 
+### Identify Links OG
+
 ```{r}
 links_to_city <- links_segment %>% 
   filter(direction == "to_city")
+  
 
 # Keep one row per linkid for now to see sequence of links
 links_dist_to_city <- links_to_city %>% 
@@ -637,6 +675,7 @@ map_to_city
 # Save linkid's going north
 links_north <- unique(links_map_to_city$linkid)
 ```
+
 
 ### Build map going down
 
@@ -833,23 +872,153 @@ for (link in unique(links_with_stats$linkid)) {
 map_links_no_stats
 ```
 
-## Identify Routes
 
-Routes were identified by examining the [network map](https://www.adelaidemetro.com.au/__data/assets/pdf_file/0009/824247/Adelaide-Metro-network-map.pdf).
+### Identify Links 2
 
-All the routes were overlayed on a map on Tableu and routs on South Road were selected and exported.
-
-## Identify Stops
-
-Same as above
+#### To city
 
 ```{r}
-# Plot on map to check the stops are all on South Rd
-stops_segment %>%
-  filter(stop_id %in% c(top_first_last_stops$first_stop, top_first_last_stops$last_stop)) %>% 
-    leaflet() %>% 
-    addTiles() %>% 
-    addCircles(lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id)
+links_to_city <- links_segment %>%
+  filter(direction == "to_city") %>% 
+  # Build map from lower end of map to upper
+  arrange(start_lat, linkid, ordernumber) %>%
+  distinct(linkid, .keep_all = TRUE) %>% 
+  # Start and end at same locations as bus stops, in this case Walsh Ave and Anzac Hwy
+  filter(cumany(tolower(start_loc) == "walsh ave"),
+         cumall(!(tolower(lag(end_loc, default = "zzz")) == "anzac hwy")),
+         # Remove links where end_loc does not have a matching start_loc in another link
+         end_loc %in% c(start_loc, end_loc[length(end_loc)])) %>%
+  # If more than one link has the same start_loc, pick the shorter one
+  group_by(start_loc) %>% 
+  filter(length == min(length)) %>% 
+  ungroup() %>%  
+  pull(linkid)
+
+links_to_city_map <- links_segment %>% 
+  filter(linkid %in% links_to_city) %>% 
+  arrange(start_lat, ordernumber)
+
+links_colors <- c("green","yellow")
+
+n <- 1
+
+map_to_city <- leaflet() %>% 
+  addTiles()
+
+# Iterate over links to add polyline of each link to the map
+for (link in links_to_city) {
+  map_df <- links_to_city_map %>% 
+    filter(linkid == link)
+  
+  map_to_city <- map_to_city %>% 
+    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = links_colors[n],
+                 label = ~linkid, opacity = 0.3)
+  
+  # Switch colors
+  if (n == 1) {
+    n <- 2
+  } else {
+    n <- 1
+  }
+}
+
+map_to_city
+```
+
+#### From city
+
+```{r}
+links_from_city <- links_segment %>%
+  filter(direction == "from_city") %>%
+  arrange(-start_lat, linkid, ordernumber) %>%
+  distinct(linkid, .keep_all = TRUE) %>% 
+  filter(cumany(tolower(start_loc) == "anzac hwy"),
+         cumall(!(tolower(lag(end_loc, default = "zzz")) == "walsh ave")),
+         end_loc %in% c(start_loc, end_loc[length(end_loc)])) %>% 
+  # If more than one link has the same start_loc, pick the shorter one
+  group_by(start_loc) %>% 
+  filter(length == min(length)) %>% 
+  ungroup() %>% 
+  pull(linkid)
+  
+links_from_city_map <- links_segment %>% 
+  filter(linkid %in% links_from_city) %>% 
+  arrange(-start_lat, ordernumber)
+
+links_colors <- c("green","yellow")
+
+n <- 1
+
+map_from_city <- leaflet() %>% 
+  addTiles()
+
+# Iterate over links to add polyline of each link to the map
+for (link in links_from_city) {
+  map_df <- links_from_city_map %>% 
+    filter(linkid == link)
+  
+  map_from_city <- map_from_city %>% 
+    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = links_colors[n],
+                 label = ~linkid, opacity = 0.3)
+  
+  # Switch colors
+  if (n == 1) {
+    n <- 2
+  } else {
+    n <- 1
+  }
+}
+
+map_from_city
+```
+
+```{r}
+# Plot links from both directions
+map_both <- leaflet() %>% 
+  addTiles()
+
+# Add links up map
+for (link in unique(links_to_city_map$linkid)) {
+  map_df <- links_to_city_map %>% 
+    filter(linkid == link)
+  
+  map_both <- map_both %>% 
+    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = "green", opacity = 0.3, label = ~linkid)
+}
+
+# Add links down map
+for (link in unique(links_from_city_map$linkid)) {
+  map_df <- links_from_city_map %>% 
+    filter(linkid == link)
+  
+  map_both <- map_both %>% 
+    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = "red", opacity = 0.3, label = ~linkid)
+}
+
+map_both
+
+# Save linkid's both directions
+links_both <- c(links_to_city, links_from_city)
+```
+
+```{r}
+sort(setdiff(links_both, link_stats$linkid))
+
+links_with_stats <- links_segment %>% 
+  semi_join(link_stats, by = "linkid")
+  
+map_links_no_stats <- leaflet() %>% 
+  addTiles()
+
+for (link in unique(links_with_stats$linkid)) {
+  map_df <- links_with_stats %>% 
+    filter(linkid == link)
+  
+  map_links_no_stats <- map_links_no_stats %>% 
+    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = "yellow", opacity = 1, label = ~linkid)
+}
+
+map_links_no_stats
 ```
 
 # Analysis
