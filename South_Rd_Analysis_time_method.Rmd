@@ -335,54 +335,6 @@ ggplot(trip_times_peaks, aes(trip_time, color = direction)) +
   theme_minimal()
 ```
 
-## Link Stats
-
-```{r}
-link_stats <- link_stats_raw %>% 
-  select(logtime:avgdensity) %>%
-  mutate(logtime = as_datetime(str_remove(logtime, " \\+10:30"))) %>%
-  filter(!as_date(logtime) %in% holidays,
-         !wday(logtime, label = TRUE) %in% c("Sat", "Sun")) %>% 
-  distinct()
-
-# Join link_stats with links_segment to get direction and length
-link_stats <- link_stats %>% 
-  left_join(select(links_segment_unq, linkid, direction, length)) %>% 
-  # Calculate speed
-  mutate(speed = round((length/1000) / (tt/3600))) %>%
-  # Remove speeds over 150 km/h as most likely errors
-  filter(speed < 150)
-
-rm(link_stats_raw)
-
-summary(link_stats)
-```
-
-### Data Validation
-
-```{r}
-ggplot(link_stats, aes(tt)) +
-  geom_histogram()
-
-ggplot(link_stats, aes(tt)) +
-  geom_boxplot()
-
-ggplot(link_stats, aes(speed)) +
-  geom_histogram()
-
-ggplot(link_stats, aes(speed)) +
-  geom_boxplot()
-
-ggplot(link_stats, aes(factor(length), tt)) +
-  geom_boxplot()
-
-ggplot(link_stats, aes(speed, tt)) +
-  geom_point()
-
-ggplot(link_stats, aes(factor(length), speed)) +
-  geom_boxplot()
-```
-
 # Getting Information for Analysis
 
 ## Identify Routes
@@ -599,6 +551,54 @@ map_both
 links_both <- c(linkids_to_city, linkids_from_city, links_disabled$prior_linkid, links_disabled$post_linkid)
 ```
 
+### Link Stats
+
+```{r}
+link_stats <- link_stats_raw %>% 
+  select(logtime:avgdensity) %>%
+  mutate(logtime = as_datetime(str_remove(logtime, " \\+10:30"))) %>%
+  filter(!as_date(logtime) %in% holidays,
+         !wday(logtime, label = TRUE) %in% c("Sat", "Sun")) %>% 
+  distinct()
+
+# Join link_stats with links_segment to get direction and length
+link_stats <- link_stats %>% 
+  left_join(select(links_segment_unq, linkid, direction, length)) %>% 
+  # Calculate speed
+  mutate(speed = round((length/1000) / (tt/3600))) %>%
+  # Remove speeds over 150 km/h as most likely errors
+  filter(speed < 150)
+
+rm(link_stats_raw)
+
+summary(link_stats)
+```
+
+#### Data Validation
+
+```{r}
+ggplot(link_stats, aes(tt)) +
+  geom_histogram()
+
+ggplot(link_stats, aes(tt)) +
+  geom_boxplot()
+
+ggplot(link_stats, aes(speed)) +
+  geom_histogram()
+
+ggplot(link_stats, aes(speed)) +
+  geom_boxplot()
+
+ggplot(link_stats, aes(factor(length), tt)) +
+  geom_boxplot()
+
+ggplot(link_stats, aes(speed, tt)) +
+  geom_point()
+
+ggplot(link_stats, aes(factor(length), speed)) +
+  geom_boxplot()
+```
+
 ### Check for links with no stats
 
 ```{r}
@@ -633,7 +633,7 @@ for (link in unique(links_no_stats$linkid)) {
 map_links_with_stats
 ```
 
-## Generate stats for missing links
+### Generate stats for missing links
 
 This will be done by taking the average time/distance between the prior and post links per aggregate time, then multiplying by the distance of the missing links to get the estimated time on that link
 
@@ -651,20 +651,24 @@ for(i in 1:nrow(links_disabled)) {
             direction = unique(direction)) %>% 
   ungroup() %>% 
   mutate(linkid = links_disabled$linkid[i],
-         tt = round(avg_time_len * link_1606_len),
+         tt = round(avg_time_len * link_length),
          length = link_length) %>% 
   select(-avg_time_len)
   
   link_stats <- link_stats %>% 
   full_join(link_estimates, by = names(link_estimates))
 }
+
+links_both <- c(linkids_to_city, linkids_from_city)
+
+# Remove estimator links
+link_stats <- link_stats %>% 
+  filter(linkid %in% links_both)
 ```
 
 Check
 
 ```{r}
-links_both <- c(linkids_to_city, linkids_from_city)
-
 sort(setdiff(links_both, link_stats$linkid))
 
 links_with_stats <- links_segment %>% 
@@ -1191,8 +1195,24 @@ compare_trips_links <- function(timeframe = "15 minutes", plot = "line", measure
 ```
 
 
+# Analysis 3
 
+## Compare bus travel times to links travel times to validate each other
 
+### Aggregate buses to 5 minutes
+
+```{r}
+# Ceiling date by aggregate duration. Get time
+trip_times_5min <- trip_times %>% 
+  mutate(arrival_time = ceiling_date(arrival_time, "5 mins")) %>% 
+  mutate(time = hms::as_hms(arrival_time), .after = arrival_time)
+
+# Average trip time every 5 minutes
+trip_times_5min_agg <- trip_times_5min %>% 
+  group_by(arrival_time, direction) %>% 
+  summarise(avg_trip_time = mean(trip_time)) %>% 
+  ungroup()
+```
 
 
 
