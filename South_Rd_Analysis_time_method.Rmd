@@ -361,7 +361,7 @@ link_stats <- link_stats_raw %>%
 
 # Join link_stats with links_segment to get direction
 link_stats <- link_stats %>% 
-  left_join(select(links_segment, linkid, direction))
+  left_join(select(links_segment_unq, linkid, direction, length))
 
 rm(link_stats_raw)
 
@@ -678,6 +678,34 @@ for (link in unique(links_no_stats$linkid)) {
 
 map_links_with_stats
 ```
+
+## Generate stats for missing links
+
+This will be done by taking the average time/distance between the prior and post links per aggregate time, then multiplying by the distance of the missing links to get the estimated time on that link
+
+```{r}
+for(i in 1:nrow(links_disabled)) {
+  link_length <- links %>% 
+    filter(id == links_disabled$linkid[i]) %>% 
+    pull(length)
+  
+  link_estimates <- link_stats %>% 
+  filter(linkid %in% c(links_disabled$prior_linkid[i], links_disabled$post_linkid[i])) %>% 
+  mutate(time_len = tt/length) %>% 
+  group_by(logtime) %>% 
+  summarise(avg_time_len = mean(time_len),
+            direction = unique(direction)) %>% 
+  ungroup() %>% 
+  mutate(linkid = links_disabled$linkid[i],
+         tt = round(avg_time_len * link_1606_len),
+         length = link_length) %>% 
+  select(-avg_time_len)
+  
+  link_stats <- link_stats %>% 
+  full_join(link_estimates, by = names(link_estimates))
+}
+```
+
 
 # Analysis
 
