@@ -556,7 +556,7 @@ links_both <- c(linkids_to_city, linkids_from_city, links_disabled$prior_linkid,
 ```{r}
 link_stats <- link_stats_raw %>% 
   select(logtime:avgdensity) %>%
-  mutate(logtime = as_datetime(str_remove(logtime, " \\+10:30"))) %>%
+  mutate(logtime = ymd_hms(str_remove(logtime, " \\+10:30"), tz = "Australia/Adelaide")) %>%
   filter(!as_date(logtime) %in% holidays,
          !wday(logtime, label = TRUE) %in% c("Sat", "Sun")) %>% 
   distinct()
@@ -1199,23 +1199,76 @@ compare_trips_links <- function(timeframe = "15 minutes", plot = "line", measure
 
 ## Compare bus travel times to links travel times to validate each other
 
-### Aggregate buses to 5 minutes
-
 ```{r}
-# Ceiling date by aggregate duration. Get time
+# Aggregate buses to 5 minutes
+## Ceiling date to 5 minute intervals. Get time
 trip_times_5min <- trip_times %>% 
-  mutate(arrival_time = ceiling_date(arrival_time, "5 mins")) %>% 
-  mutate(time = hms::as_hms(arrival_time), .after = arrival_time)
+  mutate(arrival_time = ceiling_date(arrival_time, "5 mins"),time = hms::as_hms(arrival_time),
+         rush = case_when(
+           between(as_hms(arrival_time), as_hms("06:00:00"), as_hms("10:00:00")) ~ "morning",
+           between(as_hms(arrival_time), as_hms("15:00:00"), as_hms("19:00:00")) ~ "evening",
+           TRUE ~ "neither"),
+         rush = factor(rush, levels = c("morning", "evening", "neither")))
 
-# Average trip time every 5 minutes
+## Average trip time every 5 minutes
 trip_times_5min_agg <- trip_times_5min %>% 
-  group_by(arrival_time, direction) %>% 
-  summarise(avg_trip_time = mean(trip_time)) %>% 
+  group_by(arrival_time, rush, direction) %>% 
+  summarise(number_buses = n(),
+            bus_time = round(mean(trip_time))) %>% 
   ungroup()
+
+# Calculate travel time across all links per time aggregate
+all_links_time <- link_stats %>% 
+  group_by(logtime, direction) %>% 
+  summarise(links_time = sum(tt)) %>% 
+  ungroup()
+
+# Combine
+travel_times <- trip_times_5min_agg %>%
+  inner_join(all_links_time, by = c("arrival_time" = "logtime", "direction")) %>% 
+  rename(datetime = arrival_time) %>% 
+  mutate(day = date(datetime),
+         time = as_hms(datetime),
+         travel_diff = bus_time - links_time) %>% 
+  relocate(day, time, .after = datetime)
+
+travel_times_piv <- travel_times %>% 
+  pivot_longer(cols = bus_time:links_time, names_to = "type", values_to = "travel_time")
 ```
 
+### Plots
 
+```{r}
+# To City
+travel_times_to_city <- travel_times %>% 
+  filter(direction == "to_city")
 
+travel_times_piv_to_city <- travel_times_piv %>% 
+  filter(direction == "to_city")
+
+travel_times_piv_to_city %>%
+  ggplot(aes(x = time, y = travel_time, color = type)) +
+  geom_line() +
+  facet_wrap(vars(day)) +
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid = element_blank(),
+        legend.title = element_blank(),
+        legend.justification = "bottom",
+        legend.position = c(0.5, 0))
+
+travel_times_to_city %>%
+  ggplot(aes(time, travel_diff)) +
+  geom_line() +
+  facet_wrap(vars(day)) +
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid = element_blank())
+```
 
 
 
