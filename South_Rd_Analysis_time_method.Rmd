@@ -65,7 +65,8 @@ links_segment <- links_segment_raw %>%
   mutate(start_lat = first(latitude, order_by = ordernumber),
          end_lat = last(latitude, order_by = ordernumber)) %>% 
   ungroup() %>% 
-  mutate(direction = if_else(start_lat < end_lat, "to_city", "from_city")) %>%
+  mutate(direction = if_else(start_lat < end_lat, "to_city", "from_city"),
+         direction = factor(direction, levels = c("to_city", "from_city"))) %>%
   # Length is not correct, join with links to get correct lengths
   select(-length) %>% 
   left_join(links, c("linkid" = "id"))
@@ -88,7 +89,8 @@ stops_segment <- full_stops_raw %>%
   select(stop_id, stop_name, stop_desc, stop_lat, stop_lon) %>% 
   distinct(stop_id, .keep_all = TRUE) %>% 
   # If stop is on East side, that means trip going down, and vice versa
-  mutate(direction = if_else(str_detect(stop_name, "East"), "from_city", "to_city"))
+  mutate(direction = if_else(str_detect(stop_name, "East"), "from_city", "to_city"),
+         direction = factor(direction, levels = c("to_city", "from_city")))
 
 rm(full_stops_raw)
 ```
@@ -664,6 +666,12 @@ links_both <- c(linkids_to_city, linkids_from_city)
 # Remove estimator links
 link_stats <- link_stats %>% 
   filter(linkid %in% links_both)
+
+# Calculate total travel time per logtime and direction
+links_times <- link_stats %>% 
+    group_by(logtime, direction) %>% 
+    summarise(links_time = sum(tt)) %>% 
+    ungroup()
 ```
 
 Check
@@ -1200,45 +1208,82 @@ compare_trips_links <- function(timeframe = "15 minutes", plot = "line", measure
 ## Compare bus travel times to links travel times to validate each other
 
 ```{r}
-# Aggregate buses to 5 minutes
-## Ceiling date to 5 minute intervals. Get time
-trip_times_5min <- trip_times %>% 
-  mutate(arrival_time = ceiling_date(arrival_time, "5 mins"),time = hms::as_hms(arrival_time),
-         rush = case_when(
-           between(as_hms(arrival_time), as_hms("06:00:00"), as_hms("10:00:00")) ~ "morning",
-           between(as_hms(arrival_time), as_hms("15:00:00"), as_hms("19:00:00")) ~ "evening",
-           TRUE ~ "neither"),
-         rush = factor(rush, levels = c("morning", "evening", "neither")))
+aggregator <- function(agg_basis = "5 minutes") {
+  # Aggregate buses
+  ## Ceiling date to aggregate intervals
+  trip_times_ceil <- trip_times %>% 
+    mutate(arrival_time = ceiling_date(arrival_time, agg_basis))
+  
+  ## Average trip time per interval
+  trip_times_agg <- trip_times_ceil %>% 
+    group_by(arrival_time, direction) %>% 
+    summarise(number_buses = n(),
+              bus_time = round(mean(trip_time))) %>% 
+    ungroup()
+  
+  # Calculate travel time across all links per time aggregate
+  links_times_ceil <- links_times %>% 
+    mutate(logtime = ceiling_date(logtime, agg_basis))
+  
+  links_times_agg <- links_times_ceil %>% 
+    group_by(logtime, direction) %>% 
+    summarise(links_time = round(mean(links_time))) %>% 
+    ungroup()
+  
+  # Combine
+  travel_times <<- trip_times_agg %>%
+    inner_join(links_times_agg, by = c("arrival_time" = "logtime", "direction")) %>% 
+    rename(datetime = arrival_time) %>% 
+    mutate(day = date(datetime),
+           time = as_hms(datetime),
+           rush = case_when(
+             between(time, as_hms("06:00:00"), as_hms("10:00:00")) ~ "morning",
+             between(time, as_hms("15:00:00"), as_hms("19:00:00")) ~ "evening",
+             TRUE ~ "neither"),
+           rush = factor(rush, levels = c("morning", "evening", "neither")),
+           travel_diff = bus_time - links_time) %>% 
+    relocate(day:rush, .after = datetime)
+  
+  travel_times_piv <<- travel_times %>% 
+    pivot_longer(cols = bus_time:links_time, names_to = "type", values_to = "travel_time")
+}
 
-## Average trip time every 5 minutes
-trip_times_5min_agg <- trip_times_5min %>% 
-  group_by(arrival_time, rush, direction) %>% 
-  summarise(number_buses = n(),
-            bus_time = round(mean(trip_time))) %>% 
-  ungroup()
-
-# Calculate travel time across all links per time aggregate
-all_links_time <- link_stats %>% 
-  group_by(logtime, direction) %>% 
-  summarise(links_time = sum(tt)) %>% 
-  ungroup()
-
-# Combine
-travel_times <- trip_times_5min_agg %>%
-  inner_join(all_links_time, by = c("arrival_time" = "logtime", "direction")) %>% 
-  rename(datetime = arrival_time) %>% 
-  mutate(day = date(datetime),
-         time = as_hms(datetime),
-         travel_diff = bus_time - links_time) %>% 
-  relocate(day, time, .after = datetime)
-
-travel_times_piv <- travel_times %>% 
-  pivot_longer(cols = bus_time:links_time, names_to = "type", values_to = "travel_time")
+aggregator()
 ```
 
 ### Plots
 
 ```{r}
+# Travel time distributions
+travel_times_piv %>% 
+  ggplot(aes(x = travel_time, fill = type)) +
+  geom_density(alpha = 0.5) +
+  theme_bw() +
+  theme(axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        axis.ticks.y = element_blank())
+
+travel_times_piv %>% 
+  ggplot(aes(x = travel_time, fill = type)) +
+  geom_density(alpha = 0.5) +
+  facet_wrap(vars(direction)) +
+  theme_bw() +
+  theme(axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        axis.ticks.y = element_blank())
+
+#  Travel difference distributions
+travel_times %>% 
+  ggplot(aes(travel_diff)) +
+  geom_histogram() +
+  theme_bw()
+
+travel_times %>% 
+  ggplot(aes(travel_diff)) +
+  geom_histogram() +
+  facet_wrap(vars(direction)) +
+  theme_bw()
+
 # To City
 travel_times_to_city <- travel_times %>% 
   filter(direction == "to_city")
@@ -1250,6 +1295,7 @@ travel_times_piv_to_city %>%
   ggplot(aes(x = time, y = travel_time, color = type)) +
   geom_line() +
   facet_wrap(vars(day)) +
+  ggtitle("To City") +
   theme_bw() +
   theme(axis.text.x = element_blank(),
         axis.title.x = element_blank(),
@@ -1263,6 +1309,39 @@ travel_times_to_city %>%
   ggplot(aes(time, travel_diff)) +
   geom_line() +
   facet_wrap(vars(day)) +
+  ggtitle("To City") +
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid = element_blank())
+
+# From City
+travel_times_from_city <- travel_times %>% 
+  filter(direction == "from_city")
+
+travel_times_piv_from_city <- travel_times_piv %>% 
+  filter(direction == "from_city")
+
+travel_times_piv_from_city %>%
+  ggplot(aes(x = time, y = travel_time, color = type)) +
+  geom_line() +
+  facet_wrap(vars(day)) +
+  ggtitle("From City") +
+  theme_bw() +
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid = element_blank(),
+        legend.title = element_blank(),
+        legend.justification = "bottom",
+        legend.position = c(0.5, 0))
+
+travel_times_from_city %>%
+  ggplot(aes(time, travel_diff)) +
+  geom_line() +
+  facet_wrap(vars(day)) +
+  ggtitle("From City") +
   theme_bw() +
   theme(axis.text.x = element_blank(),
         axis.title.x = element_blank(),
@@ -1270,26 +1349,204 @@ travel_times_to_city %>%
         panel.grid = element_blank())
 ```
 
+## Correlations
 
+Standardized based on aggregated time period
 
+```{r}
+std_aggregator <- function(agg_basis = "5 minutes") {
+  trip_times_ceil <- trip_times %>% 
+    mutate(arrival_time = ceiling_date(arrival_time, agg_basis),
+           time = as_hms(arrival_time))
+  
+  ## Trip time standardized per aggregated TIME
+  trip_times_std <- trip_times_ceil %>% 
+    group_by(time, direction) %>% 
+    mutate(bus_time_std = as.vector(scale(trip_time))) %>% 
+    ungroup() %>% 
+    select(start_date, time, direction, bus_time_std) %>% 
+    mutate(bus_time_std = if_else(is.nan(bus_time_std), 0, bus_time_std))
+    
+  # Calculate travel time across all links per time aggregate standardized per TIME
+  links_times_ceil <- links_times %>% 
+    mutate(logtime = ceiling_date(logtime, agg_basis),
+           day = date(logtime),
+           time = as_hms(logtime)) %>% 
+    relocate(day, time, .after = logtime)
+  
+  links_times_std <- links_times_ceil %>% 
+    group_by(time, direction) %>% 
+    mutate(links_time_std = as.vector(scale(links_time))) %>% 
+    ungroup() %>% 
+    select(-links_time, -logtime)
+  
+  # Combine
+  travel_times_std <<- trip_times_std %>%
+    inner_join(links_times_std, by = c("start_date" = "day", "time", "direction")) %>% 
+    rename(day = start_date) %>% 
+    mutate(rush = case_when(
+             between(time, as_hms("06:00:00"), as_hms("10:00:00")) ~ "morning",
+             between(time, as_hms("15:00:00"), as_hms("19:00:00")) ~ "evening",
+             TRUE ~ "neither"),
+           rush = factor(rush, levels = c("morning", "evening", "neither")),
+           std_diff = bus_time_std - links_time_std) %>% 
+    relocate(rush, .after = time)
+  
+  travel_times_std_piv <<- travel_times_std %>% 
+    pivot_longer(cols = bus_time_std:links_time_std, names_to = "type", values_to = "travel_time")
+}
 
+std_aggregator()
+```
 
+```{r}
+travel_times_std %>% 
+  ggplot(aes(links_time_std, bus_time_std)) +
+  geom_point(alpha = 0.2) +
+  geom_smooth(se = FALSE) +
+  annotate("rect", xmin = 0, xmax = Inf, ymin = 0, ymax = Inf,fill = "red", alpha = .1) +
+  ggtitle("All Times") +
+  theme_bw()
 
+travel_times_std %>% 
+  filter(rush != "neither") %>% 
+  ggplot(aes(links_time_std, bus_time_std)) +
+  geom_point(alpha = 0.2) +
+  annotate("rect", xmin = 0, xmax = Inf, ymin = 0, ymax = Inf, fill = "red", alpha = .1) +
+  geom_smooth(se = FALSE) +
+  ggtitle("Peak Times") +
+  theme_bw()
 
+travel_times_std %>% 
+  filter(rush != "neither") %>% 
+  ggplot(aes(links_time_std, bus_time_std)) +
+  geom_point(alpha = 0.2) +
+  geom_smooth(se = FALSE) +
+  facet_grid(vars(rush), vars(direction), scales = "free") +
+  annotate("rect", xmin = 0, xmax = Inf, ymin = 0, ymax = Inf, fill = "red", alpha = .1) +
+  theme_bw()
+```
 
+```{r}
+# All times correlation
+with(travel_times_std, cor(bus_time_std, links_time_std))
 
+# Peak times correlation
+with(filter(travel_times_std, rush != "neither"), cor(bus_time_std, links_time_std))
 
+travel_times_std %>% 
+  filter(rush != "neither") %>% 
+  group_by(rush, direction) %>% 
+  summarise(correlation = cor(bus_time_std, links_time_std)) %>% 
+  ungroup()
 
+travel_times_std_cor <- travel_times_std %>%
+  filter(rush != "neither") %>%
+  group_by(time, rush, direction) %>% 
+  summarise(correlation = cor(bus_time_std, links_time_std)) %>% 
+  ungroup() %>% 
+  na.omit()
 
+travel_times_std_cor %>% 
+  ggplot(aes(time, correlation)) +
+  geom_line() +
+  facet_grid(vars(direction), vars(rush), scales = "free") +
+  theme_bw()
+```
 
+Standardize based on peak time trip times
 
+```{r}
+std_aggregator_peaks <- function(agg_basis = "5 minutes") {
+  trip_times_peak_ceil <- trip_times %>% 
+    mutate(arrival_time = ceiling_date(arrival_time, agg_basis),
+           time = as_hms(arrival_time)) %>% 
+  filter(between(time, as_hms("06:00:00"), as_hms("10:00:00")) | 
+           between(time, as_hms("15:00:00"), as_hms("19:00:00"))) %>% 
+  mutate(rush = if_else(between(time, as_hms("06:00:00"), as_hms("10:00:00")),
+           "morning",
+           "evening"),
+         rush = factor(rush, levels = c("morning", "evening")))
+  
+  ## Trip time standardized per peak time
+  trip_times_peak_std <- trip_times_peak_ceil %>% 
+    group_by(rush, direction) %>% 
+    mutate(bus_time_std = as.vector(scale(trip_time))) %>% 
+    ungroup() %>% 
+    select(start_date, time, rush, direction, bus_time_std) %>% 
+    mutate(bus_time_std = if_else(is.nan(bus_time_std), 0, bus_time_std))
+    
+  # Calculate travel time across all links per time aggregate standardized per peak
+  links_times_peak_ceil <- links_times %>% 
+    mutate(logtime = ceiling_date(logtime, agg_basis),
+           day = date(logtime),
+           time = as_hms(logtime)) %>% 
+    filter(between(time, as_hms("06:00:00"), as_hms("10:00:00")) | 
+             between(time, as_hms("15:00:00"), as_hms("19:00:00"))) %>% 
+    mutate(rush = if_else(between(time, as_hms("06:00:00"), as_hms("10:00:00")),
+             "morning",
+             "evening"),
+           rush = factor(rush, levels = c("morning", "evening"))) %>% 
+    relocate(day:rush, .after = logtime)
+  
+  links_times_peak_std <- links_times_peak_ceil %>% 
+    group_by(rush, direction) %>% 
+    mutate(links_time_std = as.vector(scale(links_time))) %>% 
+    ungroup() %>% 
+    select(-links_time, -logtime)
+  
+  # Combine
+  travel_times_peak_std <<- trip_times_peak_std %>%
+    inner_join(links_times_peak_std, by = c("start_date" = "day",
+                                            "time", "rush", "direction")) %>% 
+    rename(day = start_date) %>% 
+    mutate(std_diff = bus_time_std - links_time_std)
+  
+  travel_times_peak_std_piv <<- travel_times_peak_std %>% 
+    pivot_longer(cols = bus_time_std:links_time_std, names_to = "type", values_to = "travel_time")
+}
 
+std_aggregator_peaks()
+```
 
+```{r}
+travel_times_peak_std %>% 
+  ggplot(aes(links_time_std, bus_time_std)) +
+  geom_point(alpha = 0.2) +
+  geom_smooth(se = FALSE) +
+  annotate("rect", xmin = 0, xmax = Inf, ymin = 0, ymax = Inf,fill = "red", alpha = .1) +
+  ggtitle("All Times") +
+  theme_bw()
 
+travel_times_peak_std %>% 
+  ggplot(aes(links_time_std, bus_time_std)) +
+  geom_point(alpha = 0.2) +
+  geom_smooth(se = FALSE) +
+  facet_grid(vars(rush), vars(direction), scales = "free") +
+  annotate("rect", xmin = 0, xmax = Inf, ymin = 0, ymax = Inf, fill = "red", alpha = .1) +
+  theme_bw()
+```
 
+```{r}
+with(travel_times_peak_std, cor(bus_time_std, links_time_std))
 
+travel_times_peak_std %>% 
+  group_by(rush, direction) %>% 
+  summarise(correlation = cor(bus_time_std, links_time_std)) %>% 
+  ungroup()
 
+travel_times_peak_std_cor <- travel_times_peak_std %>%
+  group_by(time, rush, direction) %>% 
+  summarise(correlation = cor(bus_time_std, links_time_std)) %>% 
+  ungroup() %>%
+  na.omit()
 
+travel_times_peak_std_cor %>% 
+  ggplot(aes(time, correlation)) +
+  geom_line() +
+  facet_grid(vars(direction), vars(rush), scales = "free") +
+  theme_bw()
+```
 
 
 
