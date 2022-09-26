@@ -115,24 +115,14 @@ updates <- updates_raw %>%
          last_stop = last(stop_id, order_by = stop_sequence)) %>%
   ungroup()
 
-# Take top occurring stops pair for each direction according to cumsum plot
-top_first_last_stops <- updates %>% 
-  distinct(start_date, trip_id, direction, first_stop, last_stop) %>%
-  group_by(direction) %>% 
-  count(first_stop, last_stop, sort = TRUE) %>% 
-  slice_max(order_by = n) %>% 
-  ungroup()
-
 updates_stop_times <- updates %>% 
-  # Keep updates for trips that have first and last stop from pairs identified
-  semi_join(top_first_last_stops, by = c("direction", "first_stop", "last_stop")) %>%
   group_by(start_date, trip_id) %>%
   arrange(stop_sequence, .by_group = TRUE) %>%
-  # Remove trips where all the stops have a delay over 4000, ie entire trip is delayed.
+  # Remove trips where all the stops have a delay over 2500, ie entire trip is delayed.
   # Most likely error due to entering the information later. This is done to prevent
   # incorrectly influencing time aggregated figures since they're going to be in
   # the wrong time aggregate
-  filter(!(all(delay > 4000))) %>%
+  filter(!(all(delay > 2500))) %>%
   # Remove one-off large jumps in between two observations
   filter(!(delay - lag(delay, order_by = stop_sequence, default = 0) > 1000 &
              delay - lead(delay, order_by = stop_sequence, default = 0) > 1000)) %>%
@@ -180,6 +170,16 @@ updates_stop_times <- updates %>%
   mutate(to_stop_time = replace_na(to_stop_time, 0))
          #prior_stop_time = replace_na(prior_stop_time, 0))
          #post_stop_time = replace_na(post_stop_time, 0)) %>%
+
+paste0("Percentage of errors: ", round((nrow(updates) - nrow(updates_stop_times))/nrow(updates) * 100, 2), "%")
+
+# Take top occurring stops pair for each direction according to cumsum plot
+top_first_last_stops <- updates %>% 
+  distinct(start_date, trip_id, direction, first_stop, last_stop) %>%
+  group_by(direction) %>% 
+  count(first_stop, last_stop, sort = TRUE) %>% 
+  slice_max(order_by = n) %>% 
+  ungroup()
 
 # Rejoin to only stops pairs identified again due to possible removal in filtering above
 updates_stop_times <- updates_stop_times %>% 
@@ -240,6 +240,7 @@ stops_segment <- stops_segment %>%
 
 rm(updates_raw)
 ```
+
 
 ## Data Validation
 
