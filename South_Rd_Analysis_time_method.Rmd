@@ -17,7 +17,7 @@ library(lubridate)
 library(leaflet)
 library(hms)
 library(janitor)
-library(geosphere)
+library(broom)
 ```
 
 ```{r data}
@@ -1081,7 +1081,7 @@ standardiser_avg <- function(basis = time) {
     pivot_longer(cols = bus_time_std:links_time_std, names_to = "type", values_to = "std_travel_time")
 }
 
-standardiser_avg(rush)
+standardiser_avg(hour)
 ```
 
 #### Visualise bus time and links time
@@ -1129,7 +1129,7 @@ travel_times_avg_std %>%
 ```
 
 ```{r}
-# To City
+# Morning to City
 travel_times_avg_std_to_morn <- travel_times_avg_std %>% 
   filter(direction == "to_city",
          rush == "morning")
@@ -1155,7 +1155,7 @@ travel_times_avg_std_to_morn %>%
   ggtitle("To City") +
   theme_bw()
 
-# From City
+# Evening from City
 travel_times_avg_std_from_eve <- travel_times_avg_std %>% 
   filter(direction == "from_city",
          rush == "evening")
@@ -1259,8 +1259,66 @@ travel_times_avg_std_hr_cor %>%
   theme_bw()
 ```
 
+#### Linear Regression
 
+##### All times
 
+```{r}
+# Try all variables
+all_lm <- lm(bus_time_std ~ links_time_std + rush*direction, travel_times_avg_std)
+summary(all_lm)
+drop1(all_lm)
+step(all_lm, trace = FALSE)
+
+# Only links_time_std is needed
+all_lm <- lm(bus_time_std ~ links_time_std, travel_times_avg_std)
+summary(all_lm)
+
+# Residual diagnostics
+augment(all_lm) %>% 
+  ggplot(aes(.fitted, .resid)) +
+  geom_point() +
+  geom_smooth(se = FALSE)
+
+all_lm %>%
+  ggplot(aes(sample=.resid)) +
+  geom_qq() + 
+  geom_qq_line()
+```
+
+##### Peak Times
+
+```{r}
+# Morning to City
+mor_to_lm <- lm(bus_time_std ~ links_time_std, travel_times_avg_std_to_morn)
+summary(mor_to_lm)
+
+# Residual diagnostics
+augment(mor_to_lm) %>% 
+  ggplot(aes(.fitted, .resid)) +
+  geom_point() +
+  geom_smooth(se = FALSE)
+
+mor_to_lm %>%
+  ggplot(aes(sample=.resid)) +
+  geom_qq() + 
+  geom_qq_line()
+
+# Evening from City
+eve_from_lm <- lm(bus_time_std ~ links_time_std, travel_times_avg_std_from_eve)
+summary(eve_from_lm)
+
+# Residual diagnostics
+augment(eve_from_lm) %>% 
+  ggplot(aes(.fitted, .resid)) +
+  geom_point() +
+  geom_smooth(se = FALSE)
+
+eve_from_lm %>%
+  ggplot(aes(sample=.resid)) +
+  geom_qq() + 
+  geom_qq_line()
+```
 
 
 
