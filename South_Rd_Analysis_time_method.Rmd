@@ -50,7 +50,7 @@ links <- links_raw %>%
   group_by(id) %>% 
   filter(dms_update_ts == max(dms_update_ts)) %>% 
   ungroup() %>% 
-  select(id, originid:isfreeway) %>% 
+  select(id, originid:direction) %>% 
   distinct()
 
 links_segment <- links_segment_raw %>% 
@@ -60,16 +60,15 @@ links_segment <- links_segment_raw %>%
          # Extract name of location where link starts and ends
          start_loc = str_extract(name, "(?<=- ).*(?= to)"),
          end_loc = str_extract(name, "(?<=to ).*")) %>%
-  # Add start and end longitudes for each link and whether link going to or from city
+  # Add start and end longitudes for each link and whether link going to or Southbound
   group_by(linkid) %>%
   mutate(start_lat = first(latitude, order_by = ordernumber),
          end_lat = last(latitude, order_by = ordernumber)) %>% 
   ungroup() %>% 
-  mutate(direction = if_else(start_lat < end_lat, "to_city", "from_city"),
-         direction = factor(direction, levels = c("to_city", "from_city"))) %>%
   # Length is not correct, join with links to get correct lengths
   select(-length) %>% 
-  left_join(links, c("linkid" = "id"))
+  left_join(links, c("linkid" = "id")) %>% 
+  mutate(direction = factor(direction, levels = c("NB", "SB")))
 
 links_segment_unq <- links_segment %>% 
   arrange(linkid, ordernumber) %>% 
@@ -89,8 +88,8 @@ stops_segment <- full_stops_raw %>%
   select(stop_id, stop_name, stop_desc, stop_lat, stop_lon) %>% 
   distinct(stop_id, .keep_all = TRUE) %>% 
   # If stop is on East side, that means trip going down, and vice versa
-  mutate(direction = if_else(str_detect(stop_name, "East"), "from_city", "to_city"),
-         direction = factor(direction, levels = c("to_city", "from_city")))
+  mutate(direction = if_else(str_detect(stop_name, "East"), "SB", "NB"),
+         direction = factor(direction, levels = c("NB", "SB")))
 
 rm(full_stops_raw)
 ```
@@ -352,20 +351,20 @@ stops_segment %>%
 
 ## Identify Links
 
-### To city
+### Northbound
 
 ```{r}
-# The going back and forth between links_to_city process is for the purpose of
+# The going back and forth between links_NB process is for the purpose of
 # producing links_disabled 
 
-linkids_to_city <- links_segment_unq %>%
-  filter(direction == "to_city") %>% 
+linkids_NB <- links_segment_unq %>%
+  filter(direction == "NB") %>% 
   # Build map from lower end of map to upper
   arrange(start_lat)
 
 # Start and end at same locations as bus stops, in this case Walsh Ave and Anzac Hwy
-linkids_to_city <- linkids_to_city[which(tolower(linkids_to_city$start_loc) == "walsh ave"):
-                                       which(tolower(linkids_to_city$end_loc) == "anzac hwy"),] %>% 
+linkids_NB <- linkids_NB[which(tolower(linkids_NB$start_loc) == "walsh ave"):
+                                       which(tolower(linkids_NB$end_loc) == "anzac hwy"),] %>% 
   # Remove links where end_loc does not have a matching start_loc in another link
   filter(end_loc %in% c(start_loc, end_loc[length(end_loc)])) %>%
   # If more than one link has the same start_loc, pick the shorter one
@@ -374,60 +373,60 @@ linkids_to_city <- linkids_to_city[which(tolower(linkids_to_city$start_loc) == "
   ungroup() %>% 
   pull(linkid)
   
-links_to_city <- links_segment_unq %>%
-  filter(direction == "to_city") %>% 
+links_NB <- links_segment_unq %>%
+  filter(direction == "NB") %>% 
   arrange(start_lat) %>%
-  mutate(in_route = linkid %in% linkids_to_city)
+  mutate(in_route = linkid %in% linkids_NB)
 
 links_disabled <- tibble(linkid = numeric(),
                          prior_linkid = numeric(),
                          post_linkid = numeric(),
                          direction = character())
 
-for (i in 1:nrow(links_to_city)) {
-  if(links_to_city$in_route[i] == TRUE && links_to_city$enabled[i] == FALSE) {
+for (i in 1:nrow(links_NB)) {
+  if(links_NB$in_route[i] == TRUE && links_NB$enabled[i] == FALSE) {
     
     # Retrive last prior link that is enabled
-    prior_linkid <- links_to_city[1:i-1,] %>% 
+    prior_linkid <- links_NB[1:i-1,] %>% 
       filter(enabled) %>% 
       slice_tail() %>% 
       pull(linkid)
     
     # Retrive first proceeding link that is enabled
-    post_linkid <- links_to_city[i+1:nrow(links_to_city),] %>% 
+    post_linkid <- links_NB[i+1:nrow(links_NB),] %>% 
       filter(enabled) %>% 
       slice_head() %>% 
       pull(linkid)
     
     links_disabled <- links_disabled %>%
-      add_row(linkid = links_to_city$linkid[i],
+      add_row(linkid = links_NB$linkid[i],
               prior_linkid = prior_linkid,
               post_linkid = post_linkid,
-              direction = "to_city")
+              direction = "NB")
   }
 }
 
-links_to_city <- links_to_city %>% 
+links_NB <- links_NB %>% 
   filter(in_route)
 
 # Obtain shape for each link
-links_to_city_map <- links_segment %>% 
-  filter(linkid %in% linkids_to_city) %>% 
+links_NB_map <- links_segment %>% 
+  filter(linkid %in% linkids_NB) %>% 
   arrange(start_lat, ordernumber)
 
 links_colors <- c("green","yellow")
 
 n <- 1
 
-map_to_city <- leaflet() %>% 
+map_NB <- leaflet() %>% 
   addTiles()
 
 # Iterate over links to add polyline of each link to the map
-for (link in linkids_to_city) {
-  map_df <- links_to_city_map %>% 
+for (link in linkids_NB) {
+  map_df <- links_NB_map %>% 
     filter(linkid == link)
   
-  map_to_city <- map_to_city %>% 
+  map_NB <- map_NB %>% 
     addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = links_colors[n],
                  label = ~linkid, opacity = 0.3)
   
@@ -439,69 +438,69 @@ for (link in linkids_to_city) {
   }
 }
 
-map_to_city
+map_NB
 ```
 
-### From city
+### Southbound
 
 ```{r}
-linkids_from_city <- links_segment_unq %>%
-  filter(direction == "from_city") %>% 
+linkids_SB <- links_segment_unq %>%
+  filter(direction == "SB") %>% 
   arrange(-start_lat)
 
-linkids_from_city <- linkids_from_city[which(tolower(linkids_from_city$start_loc) == "anzac hwy"):
-                                         which(tolower(linkids_from_city$end_loc) == "walsh ave"),] %>%
+linkids_SB <- linkids_SB[which(tolower(linkids_SB$start_loc) == "anzac hwy"):
+                                         which(tolower(linkids_SB$end_loc) == "walsh ave"),] %>%
   filter(end_loc %in% c(start_loc, end_loc[length(end_loc)])) %>%
   group_by(start_loc) %>% 
   filter(length == min(length)) %>% 
   ungroup() %>% 
   pull(linkid)
   
-links_from_city <- links_segment_unq %>%
-  filter(direction == "from_city") %>% 
+links_SB <- links_segment_unq %>%
+  filter(direction == "SB") %>% 
   arrange(-start_lat) %>%
-  mutate(in_route = linkid %in% linkids_from_city)
+  mutate(in_route = linkid %in% linkids_SB)
 
-for (i in 1:nrow(links_from_city)) {
-  if(links_from_city$in_route[i] == TRUE && links_from_city$enabled[i] == FALSE) {
+for (i in 1:nrow(links_SB)) {
+  if(links_SB$in_route[i] == TRUE && links_SB$enabled[i] == FALSE) {
     
-    prior_linkid <- links_from_city[1:i-1,] %>% 
+    prior_linkid <- links_SB[1:i-1,] %>% 
       filter(enabled) %>% 
       slice_tail() %>% 
       pull(linkid)
     
-    post_linkid <- links_from_city[i+1:nrow(links_from_city),] %>% 
+    post_linkid <- links_SB[i+1:nrow(links_SB),] %>% 
       filter(enabled) %>% 
       slice_head() %>% 
       pull(linkid)
     
     links_disabled <- links_disabled %>%
-      add_row(linkid = links_from_city$linkid[i],
+      add_row(linkid = links_SB$linkid[i],
               prior_linkid = prior_linkid,
               post_linkid = post_linkid,
-              direction = "from_city")
+              direction = "SB")
   }
 }
 
-links_from_city <- links_from_city %>% 
+links_SB <- links_SB %>% 
   filter(in_route)
 
-links_from_city_map <- links_segment %>% 
-  filter(linkid %in% linkids_from_city) %>% 
+links_SB_map <- links_segment %>% 
+  filter(linkid %in% linkids_SB) %>% 
   arrange(-start_lat, ordernumber)
 
 links_colors <- c("green","yellow")
 
 n <- 1
 
-map_from_city <- leaflet() %>% 
+map_SB <- leaflet() %>% 
   addTiles()
 
-for (link in linkids_from_city) {
-  map_df <- links_from_city_map %>% 
+for (link in linkids_SB) {
+  map_df <- links_SB_map %>% 
     filter(linkid == link)
   
-  map_from_city <- map_from_city %>% 
+  map_SB <- map_SB %>% 
     addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = links_colors[n],
                  label = ~linkid, opacity = 0.3)
   
@@ -512,7 +511,7 @@ for (link in linkids_from_city) {
   }
 }
 
-map_from_city
+map_SB
 ```
 
 ### Both directions together
@@ -523,8 +522,8 @@ map_both <- leaflet() %>%
   addTiles()
 
 # Add links up map
-for (link in unique(links_to_city_map$linkid)) {
-  map_df <- links_to_city_map %>% 
+for (link in unique(links_NB_map$linkid)) {
+  map_df <- links_NB_map %>% 
     filter(linkid == link)
   
   map_both <- map_both %>% 
@@ -532,8 +531,8 @@ for (link in unique(links_to_city_map$linkid)) {
 }
 
 # Add links down map
-for (link in unique(links_from_city_map$linkid)) {
-  map_df <- links_from_city_map %>% 
+for (link in unique(links_SB_map$linkid)) {
+  map_df <- links_SB_map %>% 
     filter(linkid == link)
   
   map_both <- map_both %>% 
@@ -543,7 +542,7 @@ for (link in unique(links_from_city_map$linkid)) {
 map_both
 
 # Save linkid's for both directions and extra links needed to impute missing links
-links_both <- c(linkids_to_city, linkids_from_city, links_disabled$prior_linkid, links_disabled$post_linkid)
+links_both <- c(linkids_NB, linkids_SB, links_disabled$prior_linkid, links_disabled$post_linkid)
 ```
 
 ### Link Stats
@@ -654,7 +653,7 @@ for(i in 1:nrow(links_disabled)) {
   full_join(link_estimates, by = names(link_estimates))
 }
 
-links_both <- c(linkids_to_city, linkids_from_city)
+links_both <- c(linkids_NB, linkids_SB)
 
 # Remove estimator links
 link_stats <- link_stats %>% 
@@ -789,18 +788,18 @@ travel_times %>%
   facet_wrap(vars(direction)) +
   theme_bw()
 
-# To City
-travel_times_to_city <- travel_times %>% 
-  filter(direction == "to_city")
+# Northbound
+travel_times_NB <- travel_times %>% 
+  filter(direction == "NB")
 
-travel_times_piv_to_city <- travel_times_piv %>% 
-  filter(direction == "to_city")
+travel_times_piv_NB <- travel_times_piv %>% 
+  filter(direction == "NB")
 
-travel_times_piv_to_city %>%
+travel_times_piv_NB %>%
   ggplot(aes(x = time, y = travel_time, color = type)) +
   geom_line() +
   facet_wrap(vars(day)) +
-  ggtitle("To City") +
+  ggtitle("Northbound") +
   theme_bw() +
   theme(axis.text.x = element_blank(),
         axis.title.x = element_blank(),
@@ -810,29 +809,29 @@ travel_times_piv_to_city %>%
         legend.justification = "bottom",
         legend.position = c(0.5, 0))
 
-travel_times_to_city %>%
+travel_times_NB %>%
   ggplot(aes(time, travel_diff)) +
   geom_line() +
   facet_wrap(vars(day)) +
-  ggtitle("To City") +
+  ggtitle("Northbound") +
   theme_bw() +
   theme(axis.text.x = element_blank(),
         axis.title.x = element_blank(),
         axis.ticks = element_blank(),
         panel.grid = element_blank())
 
-# From City
-travel_times_from_city <- travel_times %>% 
-  filter(direction == "from_city")
+# Southbound
+travel_times_SB <- travel_times %>% 
+  filter(direction == "SB")
 
-travel_times_piv_from_city <- travel_times_piv %>% 
-  filter(direction == "from_city")
+travel_times_piv_SB <- travel_times_piv %>% 
+  filter(direction == "SB")
 
-travel_times_piv_from_city %>%
+travel_times_piv_SB %>%
   ggplot(aes(x = time, y = travel_time, color = type)) +
   geom_line() +
   facet_wrap(vars(day)) +
-  ggtitle("From City") +
+  ggtitle("Southbound") +
   theme_bw() +
   theme(axis.text.x = element_blank(),
         axis.title.x = element_blank(),
@@ -842,11 +841,11 @@ travel_times_piv_from_city %>%
         legend.justification = "bottom",
         legend.position = c(0.5, 0))
 
-travel_times_from_city %>%
+travel_times_SB %>%
   ggplot(aes(time, travel_diff)) +
   geom_line() +
   facet_wrap(vars(day)) +
-  ggtitle("From City") +
+  ggtitle("Southbound") +
   theme_bw() +
   theme(axis.text.x = element_blank(),
         axis.title.x = element_blank(),
@@ -1130,20 +1129,20 @@ travel_times_avg_std %>%
 ```
 
 ```{r}
-# Morning to City
+# Morning Northbound
 travel_times_avg_std_to_morn <- travel_times_avg_std %>% 
-  filter(direction == "to_city",
+  filter(direction == "NB",
          rush == "morning")
 
 travel_times_avg_std_piv_to_morn <- travel_times_avg_std_piv %>% 
-  filter(direction == "to_city",
+  filter(direction == "NB",
          rush == "morning")
 
 travel_times_avg_std_piv_to_morn %>%
   ggplot(aes(x = time, y = std_travel_time, color = type)) +
   geom_line() +
   facet_wrap(vars(day)) +
-  ggtitle("To City") +
+  ggtitle("Northbound") +
   theme_bw() +
   theme(legend.title = element_blank(),
         legend.justification = "bottom",
@@ -1153,23 +1152,23 @@ travel_times_avg_std_to_morn %>%
   ggplot(aes(time, std_travel_diff)) +
   geom_line() +
   facet_wrap(vars(day)) +
-  ggtitle("To City") +
+  ggtitle("Northbound") +
   theme_bw()
 
-# Evening from City
+# Evening Southbound
 travel_times_avg_std_from_eve <- travel_times_avg_std %>% 
-  filter(direction == "from_city",
+  filter(direction == "SB",
          rush == "evening")
 
 travel_times_avg_std_piv_from_eve <- travel_times_avg_std_piv %>% 
-  filter(direction == "from_city",
+  filter(direction == "SB",
          rush == "evening")
 
 travel_times_avg_std_piv_from_eve %>%
   ggplot(aes(x = time, y = std_travel_time, color = type)) +
   geom_line() +
   facet_wrap(vars(day)) +
-  ggtitle("From City") +
+  ggtitle("Southbound") +
   theme_bw() +
   theme(legend.title = element_blank(),
         legend.justification = "bottom",
@@ -1179,7 +1178,7 @@ travel_times_avg_std_from_eve %>%
   ggplot(aes(time, std_travel_diff)) +
   geom_line() +
   facet_wrap(vars(day)) +
-  ggtitle("From City") +
+  ggtitle("Southbound") +
   theme_bw()
 ```
 
@@ -1290,7 +1289,7 @@ all_lm %>%
 ##### Peak Times
 
 ```{r}
-# Morning to City
+# Morning Northbound
 mor_to_lm <- lm(bus_time_std ~ links_time_std, travel_times_avg_std_to_morn)
 summary(mor_to_lm)
 
@@ -1305,7 +1304,7 @@ mor_to_lm %>%
   geom_qq() + 
   geom_qq_line()
 
-# Evening from City
+# Evening Southbound
 eve_from_lm <- lm(bus_time_std ~ links_time_std, travel_times_avg_std_from_eve)
 summary(eve_from_lm)
 
