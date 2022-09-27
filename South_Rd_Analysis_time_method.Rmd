@@ -1082,7 +1082,7 @@ standardiser_avg <- function(basis = time) {
     pivot_longer(cols = bus_time_std:links_time_std, names_to = "type", values_to = "std_travel_time")
 }
 
-standardiser_avg(rush)
+standardiser_avg(hour)
 ```
 
 #### Visualise bus time and links time
@@ -1131,17 +1131,19 @@ travel_times_avg_std %>%
 
 ```{r}
 # Morning Northbound
-travel_times_avg_std_to_morn <- travel_times_avg_std %>% 
+travel_times_avg_std_NB_morn <- travel_times_avg_std %>% 
   filter(direction == "NB",
          rush == "morning")
 
-travel_times_avg_std_piv_to_morn <- travel_times_avg_std_piv %>% 
+travel_times_avg_std_piv_NB_morn <- travel_times_avg_std_piv %>% 
   filter(direction == "NB",
          rush == "morning")
 
-travel_times_avg_std_piv_to_morn %>%
+travel_times_avg_std_piv_NB_morn %>%
   ggplot(aes(x = time, y = std_travel_time, color = type)) +
   geom_line() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  ylim(c(-3,3)) +
   facet_wrap(vars(day)) +
   ggtitle("Northbound") +
   theme_bw() +
@@ -1149,7 +1151,7 @@ travel_times_avg_std_piv_to_morn %>%
         legend.justification = "bottom",
         legend.position = c(0.5, 0))
 
-travel_times_avg_std_to_morn %>%
+travel_times_avg_std_NB_morn %>%
   ggplot(aes(time, std_travel_diff)) +
   geom_line() +
   facet_wrap(vars(day)) +
@@ -1157,17 +1159,19 @@ travel_times_avg_std_to_morn %>%
   theme_bw()
 
 # Evening Southbound
-travel_times_avg_std_from_eve <- travel_times_avg_std %>% 
+travel_times_avg_std_SB_eve <- travel_times_avg_std %>% 
   filter(direction == "SB",
          rush == "evening")
 
-travel_times_avg_std_piv_from_eve <- travel_times_avg_std_piv %>% 
+travel_times_avg_std_piv_SB_eve <- travel_times_avg_std_piv %>% 
   filter(direction == "SB",
          rush == "evening")
 
-travel_times_avg_std_piv_from_eve %>%
+travel_times_avg_std_piv_SB_eve %>%
   ggplot(aes(x = time, y = std_travel_time, color = type)) +
   geom_line() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  ylim(c(-3,3)) +
   facet_wrap(vars(day)) +
   ggtitle("Southbound") +
   theme_bw() +
@@ -1175,7 +1179,7 @@ travel_times_avg_std_piv_from_eve %>%
         legend.justification = "bottom",
         legend.position = c(0.5, 0))
 
-travel_times_avg_std_from_eve %>%
+travel_times_avg_std_SB_eve %>%
   ggplot(aes(time, std_travel_diff)) +
   geom_line() +
   facet_wrap(vars(day)) +
@@ -1275,12 +1279,18 @@ step(all_lm, trace = FALSE)
 # Only links_time_std is needed
 all_lm <- lm(bus_time_std ~ links_time_std, travel_times_avg_std)
 summary(all_lm)
+tidy(all_lm)
+glance(all_lm)
 
 # Residual diagnostics
 augment(all_lm) %>% 
   ggplot(aes(.fitted, .resid)) +
   geom_point() +
   geom_smooth(se = FALSE)
+
+augment(all_lm) %>% 
+  ggplot(aes(.resid)) +
+  geom_histogram()
 
 all_lm %>%
   ggplot(aes(sample=.resid)) +
@@ -1292,31 +1302,43 @@ all_lm %>%
 
 ```{r}
 # Morning Northbound
-mor_to_lm <- lm(bus_time_std ~ links_time_std, travel_times_avg_std_to_morn)
-summary(mor_to_lm)
+mor_NB_lm <- lm(bus_time_std ~ links_time_std, travel_times_avg_std_NB_morn)
+summary(mor_NB_lm)
+tidy(mor_NB_lm)
+glance(mor_NB_lm)
 
 # Residual diagnostics
-augment(mor_to_lm) %>% 
+augment(mor_NB_lm) %>% 
   ggplot(aes(.fitted, .resid)) +
   geom_point() +
   geom_smooth(se = FALSE)
 
-mor_to_lm %>%
+augment(mor_NB_lm) %>% 
+  ggplot(aes(.resid)) +
+  geom_histogram()
+
+mor_NB_lm %>%
   ggplot(aes(sample=.resid)) +
   geom_qq() + 
   geom_qq_line()
 
 # Evening Southbound
-eve_from_lm <- lm(bus_time_std ~ links_time_std, travel_times_avg_std_from_eve)
-summary(eve_from_lm)
+eve_SB_lm <- lm(bus_time_std ~ links_time_std, travel_times_avg_std_SB_eve)
+summary(eve_SB_lm)
+tidy(eve_SB_lm)
+glance(eve_SB_lm)
 
 # Residual diagnostics
-augment(eve_from_lm) %>% 
+augment(eve_SB_lm) %>% 
   ggplot(aes(.fitted, .resid)) +
   geom_point() +
   geom_smooth(se = FALSE)
 
-eve_from_lm %>%
+augment(eve_SB_lm) %>% 
+  ggplot(aes(.resid)) +
+  geom_histogram()
+
+eve_SB_lm %>%
   ggplot(aes(sample=.resid)) +
   geom_qq() + 
   geom_qq_line()
