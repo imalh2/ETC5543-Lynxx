@@ -132,7 +132,8 @@ updates_stop_times <- updates %>%
   # Remove trips where all the stops have a delay over 2400 (40 minutes), ie entire trip is delayed.
   # Most likely error due to entering the information later. This is done to prevent
   # incorrect analysis since they will be in the wrong time period
-  filter(!(all(delay > 2400))) %>%
+  filter(!(all(delay > 2400) |
+           all(delay < -900))) %>%
   # Remove one-off large jumps in between two observations
   filter(!(delay - lag(delay, order_by = stop_sequence, default = 0) > 1000 &
              delay - lead(delay, order_by = stop_sequence, default = 0) > 1000)) %>%
@@ -365,25 +366,25 @@ stops_segment %>%
 # producing links_disabled 
 
 linkids_dir1 <- links_segment_unq %>%
-  filter(direction == directions[1]) %>% 
+  filter(direction == directions[1],
+         enabled) %>% 
   # Build map from south to north
   arrange(start_lat)
 
-# Start and end at same locations as bus stops by referencing map above,
-# in this case Walsh Ave and Anzac Hwy
-dir1_start_loc <- "walsh ave"
-dir1_end_loc <- "anzac hwy"
+# Start and end at same locations as bus stops by referencing map above
+dir1_start_loc <- "tonsley"
+dir1_end_loc <- "anzac"
 
 # Retrieve sequence of links composing segment
-linkids_dir1 <- linkids_dir1[which(tolower(linkids_dir1$start_loc) == tolower(dir1_start_loc)):
-                               which(tolower(linkids_dir1$end_loc) == tolower(dir1_end_loc)), ] %>%
-  # Remove links where end_loc does not have a matching start_loc in another link
-  filter(end_loc %in% c(start_loc, end_loc[length(end_loc)])) %>%
-  # If more than one link has the same start_loc, pick the shorter one
+linkids_dir1 <- linkids_dir1[min(which(str_starts(tolower(linkids_dir1$start_loc), tolower(dir1_start_loc)))):
+                               max(which(str_starts(tolower(linkids_dir1$end_loc), tolower(dir1_end_loc)))),] %>% 
   group_by(start_loc) %>%
   filter(length == min(length)) %>%
-  ungroup() %>%
+  ungroup() %>% 
   pull(linkid)
+
+
+
 
 links_dir1 <- links_segment_unq %>%
   filter(direction == directions[1]) %>% 
@@ -466,15 +467,42 @@ linkids_dir2 <- links_segment_unq %>%
   filter(direction == directions[2]) %>% 
   arrange(-start_lat)
 
-dir2_start_loc <- "anzac hwy"
-dir2_end_loc <- "walsh ave"
+dir2_start_loc <- "anzac"
+dir2_end_loc <- "walsh"
 
-linkids_dir2 <- linkids_dir2[which(tolower(linkids_dir2$start_loc) == tolower(dir2_start_loc)):
-                               which(tolower(linkids_dir2$end_loc) == tolower(dir2_end_loc)),] %>%
-  filter(end_loc %in% c(start_loc, end_loc[length(end_loc)])) %>%
-  group_by(start_loc) %>% 
-  filter(length == min(length)) %>% 
+first_word_pattern <- "(?:^|(?:[.!?]\\s))(\\w+)"
+
+linkids_dir2 <- linkids_dir2[which(str_starts(tolower(linkids_dir2$start_loc), tolower(dir2_start_loc))):
+                               which(str_starts(tolower(linkids_dir2$end_loc), tolower(dir2_end_loc))),] %>% 
+  # Remove links where end_loc does not have a matching start_loc in another link
+  filter(str_extract(end_loc, first_word_pattern) %in% c(str_extract(start_loc, 
+                                                                     first_word_pattern),
+                                                         str_extract(end_loc[length(end_loc)], 
+                                                                     first_word_pattern))) %>% 
+  filter(str_extract(end_loc, first_word_pattern) %in% c(str_extract(start_loc, 
+                                                                     first_word_pattern),
+                                                         str_extract(end_loc[length(end_loc)], 
+                                                                     first_word_pattern))) %>% 
+  # If more than one link has the same start_loc, pick the shorter one
+  group_by(start_loc) %>%
+  filter(length == min(length)) %>%
   ungroup() %>% 
+  filter(str_extract(start_loc, first_word_pattern) %in% c(str_extract(start_loc[1], 
+                                                                       first_word_pattern), 
+                                                           str_extract(end_loc, 
+                                                                       first_word_pattern))) %>% 
+  filter(str_extract(start_loc, first_word_pattern) %in% c(str_extract(start_loc[1], 
+                                                                       first_word_pattern), 
+                                                           str_extract(end_loc, 
+                                                                       first_word_pattern))) %>% 
+  filter(str_extract(start_loc, first_word_pattern) %in% c(str_extract(start_loc[1], 
+                                                                       first_word_pattern), 
+                                                           str_extract(end_loc, 
+                                                                       first_word_pattern))) %>% 
+  filter(str_extract(start_loc, first_word_pattern) %in% c(str_extract(start_loc[1], 
+                                                                       first_word_pattern),
+                                                           str_extract(end_loc, 
+                                                                       first_word_pattern))) %>% 
   pull(linkid)
   
 links_dir2 <- links_segment_unq %>%
