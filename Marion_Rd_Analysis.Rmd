@@ -19,16 +19,16 @@ holidays_raw <- read_csv(here("data/addinsight/addinsight_prod.btspecialdays.csv
 links_raw <- read_csv(here("data/addinsight/addinsight_prod.btlinks.csv.csv"))
 
 ## List of links on segment and their geometries
-links_segment_raw <- read_csv(here("data/South-Rd/BT Links - South Rd.csv"))
+links_segment_raw <- read_csv(here("data/Mariod-Rd/Marion Rd Links.csv"))
 
 ## Stops information
 full_stops_raw <- read_csv(here("data/GTFS_feed_version_1157/large/gtfs_history_prod.stops.csv"))
 
 ## Routes, trips, and stops on segment
-segment_route_stops_raw <- read_csv(here("data/South-Rd/South Rd Routes and Trips gtfs 1157.csv"))
+segment_routes_stops_raw <- read_csv(here("data/Mariod-Rd/Marion Rd Routes Stops.csv"))
 
 ## GTFS-R Trip Updates
-updates_raw <- read_csv(here("data/South-Rd/trip_updates_SouthRd_Mar.csv"))
+updates_raw <- read_csv(here("data/Mariod-Rd/trip_updates_MarionRd_Mar.csv"))
 
 ## Link 5 minute statistics
 link_stats_raw <- read_csv(here("data/South-Rd/link_5minstats_Mar.csv"))
@@ -69,8 +69,10 @@ links_segment <- links_segment_raw %>%
     end_lat = last(latitude, order_by = ordernumber)) %>%
   ungroup() %>%
   # Length in links_segment_raw is not correct, join with links to get correct lengths and direction
-  select(-length) %>%
-  left_join(links, by = c("linkid" = "id"))
+  select(-id, -length) %>% 
+  left_join(links, by = c("linkid" = "id")) %>% 
+  # Rename SWB direction to SB
+  mutate(direction = recode(direction, SWB = "SB"))
 
 # Get only first entry per link
 links_segment_unq <- links_segment %>%
@@ -86,25 +88,27 @@ rm(links_segment_raw)
 ## Full Stops and Route-Trips-Stops
 
 ```{r}
-segment_route_stops <- clean_names(segment_route_stops_raw)
+segment_routes_stops <- clean_names(segment_routes_stops_raw)
   
-segment_routes <- segment_route_stops %>% 
+segment_routes <- segment_routes_stops %>% 
   pull(route_id) %>% 
   unique()
 
-segment_stops <- segment_route_stops %>% 
-  pull(stop_id_gtfs_history_prod_stops_csv) %>% 
+segment_stops <- segment_routes_stops %>% 
+  pull(stop_id_gtfs_history_prod_stops_csv_2) %>% 
   unique()
 
 # Join stops information to stops on the segment
 stops_segment <- full_stops_raw %>%
   filter(stop_id %in% segment_stops) %>%
   select(stop_id, stop_name, stop_desc, stop_lat, stop_lon) %>%
-  distinct(stop_id, .keep_all = TRUE) %>%
+  distinct(stop_id, .keep_all = TRUE) %>% 
+  # Remove non-bus stops
+  filter(str_detect(stop_name, "West|East")) %>% 
   # If stop is on East side, that means trip SB, and vice versa
   mutate(direction = if_else(str_detect(stop_name, "East"), "SB", "NB"))
 
-rm(segment_route_stops_raw)
+rm(segment_routes_stops_raw)
 rm(full_stops_raw)
 ```
 
@@ -129,10 +133,12 @@ updates <- updates_raw %>%
 updates_stop_times <- updates %>% 
   group_by(start_date, trip_id) %>%
   arrange(stop_sequence, .by_group = TRUE) %>%
-  # Remove trips where all the stops have a delay over 2400 (40 minutes), ie entire trip is delayed.
-  # Most likely error due to entering the information later. This is done to prevent
+  # Remove trips where all the stops have a delay over 2400 (40 minutes), 
+  # or all the stops are over 900 (15 minutes) early. Most likely error due to
+  # entering the information later. This is done to prevent
   # incorrect analysis since they will be in the wrong time period
-  filter(!(all(delay > 2400))) %>%
+  filter(!(all(delay > 2400) |
+           all(delay < -900))) %>%
   # Remove one-off large jumps in between two observations
   filter(!(delay - lag(delay, order_by = stop_sequence, default = 0) > 1000 &
              delay - lead(delay, order_by = stop_sequence, default = 0) > 1000)) %>%
