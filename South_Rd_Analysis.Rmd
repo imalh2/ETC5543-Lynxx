@@ -365,73 +365,35 @@ stops_segment %>%
 # The going back and forth between links_dir process is for the purpose of
 # producing links_disabled 
 
-linkids_dir1 <- links_segment_unq %>%
-  filter(direction == directions[1],
-         enabled) %>% 
+links_dir1 <- links_segment_unq %>%
   # Build map from south to north
+  filter(direction == directions[1]) %>% 
   arrange(start_lat)
 
+links_dir1_enabled <- links_dir1 %>%
+  filter(enabled)
+
 # Start and end at same locations as bus stops by referencing map above
-dir1_start_loc <- "tonsley"
+dir1_start_loc <- "celtic"
 dir1_end_loc <- "anzac"
 
 # Retrieve sequence of links composing segment
-linkids_dir1 <- linkids_dir1[min(which(str_starts(tolower(linkids_dir1$start_loc), tolower(dir1_start_loc)))):
-                               max(which(str_starts(tolower(linkids_dir1$end_loc), tolower(dir1_end_loc)))),] %>% 
+links_dir1_enabled <- links_dir1_enabled[min(which(str_starts(tolower(links_dir1_enabled$start_loc),
+                                                                  tolower(dir1_start_loc)))):
+                                               max(which(str_starts(tolower(links_dir1_enabled$end_loc),
+                                                                    tolower(dir1_end_loc)))),] %>% 
   group_by(start_loc) %>%
   filter(length == min(length)) %>%
-  ungroup() %>% 
-  pull(linkid)
-
-
-
-
-links_dir1 <- links_segment_unq %>%
-  filter(direction == directions[1]) %>% 
-  arrange(start_lat) %>%
-  mutate(in_route = linkid %in% linkids_dir1)
-
-# Identify disabled links (no stats) and closest previous and proceeding links for imputation later
-links_disabled <- tibble(linkid = numeric(),
-                         prior_linkid = numeric(),
-                         post_linkid = numeric(),
-                         direction = character())
-
-for (i in 1:nrow(links_dir1)) {
-  if(links_dir1$in_route[i] == TRUE && links_dir1$enabled[i] == FALSE) {
-    
-    # Retrieve last prior link that is enabled
-    prior_linkid <- links_dir1[1:i-1,] %>% 
-      filter(enabled) %>% 
-      slice_tail() %>% 
-      pull(linkid)
-    
-    # Retrieve first proceeding link that is enabled
-    post_linkid <- links_dir1[i+1:nrow(links_dir1),] %>% 
-      filter(enabled) %>% 
-      slice_head() %>% 
-      pull(linkid)
-    
-    links_disabled <- links_disabled %>%
-      add_row(linkid = links_dir1$linkid[i],
-              prior_linkid = prior_linkid,
-              post_linkid = post_linkid,
-              direction = directions[1])
-  }
-}
-
-# Once missing links and links needed for imputation are identified, keep links on segment only
-links_dir1 <- links_dir1 %>% 
-  filter(in_route)
+  ungroup()
 
 # Obtain shape for each link
 links_dir1_map <- links_segment %>% 
-  filter(linkid %in% linkids_dir1) %>% 
+  semi_join(links_dir1_enabled, by = "linkid") %>% 
   arrange(start_lat, ordernumber)
 
 # Create map
 
-links_colors <- c("green","yellow")
+links_colors <- c("green","red")
 
 n <- 1
 
@@ -439,7 +401,7 @@ map_dir1 <- leaflet() %>%
   addTiles()
 
 # Iterate over links to add polyline of each link to the map
-for (link in linkids_dir1) {
+for (link in unique(links_dir1_map$linkid)) {
   map_df <- links_dir1_map %>% 
     filter(linkid == link)
   
@@ -463,96 +425,43 @@ map_dir1
 ```{r}
 # Same process as direction 1
 
-linkids_dir2 <- links_segment_unq %>%
+links_dir2 <- links_segment_unq %>%
   filter(direction == directions[2]) %>% 
   arrange(-start_lat)
 
+links_dir2_enabled <- links_dir2 %>%
+  filter(enabled)
+
 dir2_start_loc <- "anzac"
-dir2_end_loc <- "walsh"
+dir2_end_loc <- "celtic"
 
-first_word_pattern <- "(?:^|(?:[.!?]\\s))(\\w+)"
-
-linkids_dir2 <- linkids_dir2[which(str_starts(tolower(linkids_dir2$start_loc), tolower(dir2_start_loc))):
-                               which(str_starts(tolower(linkids_dir2$end_loc), tolower(dir2_end_loc))),] %>% 
-  # Remove links where end_loc does not have a matching start_loc in another link
-  filter(str_extract(end_loc, first_word_pattern) %in% c(str_extract(start_loc, 
-                                                                     first_word_pattern),
-                                                         str_extract(end_loc[length(end_loc)], 
-                                                                     first_word_pattern))) %>% 
-  filter(str_extract(end_loc, first_word_pattern) %in% c(str_extract(start_loc, 
-                                                                     first_word_pattern),
-                                                         str_extract(end_loc[length(end_loc)], 
-                                                                     first_word_pattern))) %>% 
-  # If more than one link has the same start_loc, pick the shorter one
+links_dir2_enabled <- links_dir2_enabled[min(which(str_starts(tolower(links_dir2_enabled$start_loc),
+                                                                  tolower(dir2_start_loc)))):
+                                               max(which(str_starts(tolower(links_dir2_enabled$end_loc),
+                                                                    tolower(dir2_end_loc)))),] %>% 
   group_by(start_loc) %>%
   filter(length == min(length)) %>%
-  ungroup() %>% 
-  filter(str_extract(start_loc, first_word_pattern) %in% c(str_extract(start_loc[1], 
-                                                                       first_word_pattern), 
-                                                           str_extract(end_loc, 
-                                                                       first_word_pattern))) %>% 
-  filter(str_extract(start_loc, first_word_pattern) %in% c(str_extract(start_loc[1], 
-                                                                       first_word_pattern), 
-                                                           str_extract(end_loc, 
-                                                                       first_word_pattern))) %>% 
-  filter(str_extract(start_loc, first_word_pattern) %in% c(str_extract(start_loc[1], 
-                                                                       first_word_pattern), 
-                                                           str_extract(end_loc, 
-                                                                       first_word_pattern))) %>% 
-  filter(str_extract(start_loc, first_word_pattern) %in% c(str_extract(start_loc[1], 
-                                                                       first_word_pattern),
-                                                           str_extract(end_loc, 
-                                                                       first_word_pattern))) %>% 
-  pull(linkid)
-  
-links_dir2 <- links_segment_unq %>%
-  filter(direction == directions[2]) %>% 
-  arrange(-start_lat) %>%
-  mutate(in_route = linkid %in% linkids_dir2)
-
-for (i in 1:nrow(links_dir2)) {
-  if(links_dir2$in_route[i] == TRUE && links_dir2$enabled[i] == FALSE) {
-    
-    prior_linkid <- links_dir2[1:i-1,] %>% 
-      filter(enabled) %>% 
-      slice_tail() %>% 
-      pull(linkid)
-    
-    post_linkid <- links_dir2[i+1:nrow(links_dir2),] %>% 
-      filter(enabled) %>% 
-      slice_head() %>% 
-      pull(linkid)
-    
-    links_disabled <- links_disabled %>%
-      add_row(linkid = links_dir2$linkid[i],
-              prior_linkid = prior_linkid,
-              post_linkid = post_linkid,
-              direction = directions[2])
-  }
-}
-
-links_dir2 <- links_dir2 %>% 
-  filter(in_route)
+  ungroup()
 
 links_dir2_map <- links_segment %>% 
-  filter(linkid %in% linkids_dir2) %>% 
+  semi_join(links_dir2_enabled, by = "linkid") %>% 
   arrange(-start_lat, ordernumber)
 
-links_colors <- c("green","yellow")
+links_colors <- c("green","red")
 
 n <- 1
 
 map_dir2 <- leaflet() %>% 
   addTiles()
 
-for (link in linkids_dir2) {
+for (link in unique(links_dir2_map$linkid)) {
   map_df <- links_dir2_map %>% 
     filter(linkid == link)
   
   map_dir2 <- map_dir2 %>% 
     addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = links_colors[n],
                  label = ~linkid, opacity = 0.3)
-  
+
   if (n == 1) {
     n <- 2
   } else {
@@ -561,6 +470,110 @@ for (link in linkids_dir2) {
 }
 
 map_dir2
+```
+
+### Missing Links
+
+```{r}
+# DF for missing links imputation
+missing_links_impute <- tibble(from = character(),
+                               to = character(),
+                               linkid = numeric(),
+                               prior_linkid = numeric(),
+                               post_linkid = numeric(),
+                               direction = character())
+```
+
+#### Direction 1 Missing Links
+
+```{r}
+# For the missing link, retrieve the link as well closest enabled previous and 
+# proceeding links for imputation later
+missing_links_dir1 <- tibble(from = character(),
+                        to = character())
+
+# Add start and end locations of missing links
+missing_links_dir1 <- missing_links_dir1 %>% 
+  add_row(from = "walsh",
+          to = "celtic")
+
+for (i in 1:nrow(missing_links_dir1)) {
+  
+  from <- tolower(missing_links_dir1$from[i])
+  to <- tolower(missing_links_dir1$to[i])
+  
+  for (a in 1:nrow(links_dir1)) {
+    # Get linkid for missing link
+    if (str_starts(tolower(links_dir1$start_loc[a]), from) && str_starts(tolower(links_dir1$end_loc[a]), to)) {
+      
+      linkid <- links_dir1$linkid[a]
+
+      # Retrieve last prior link that is enabled
+      prior_linkid <- links_dir1[1:a-1,] %>%
+        filter(enabled) %>%
+        slice_tail() %>%
+        pull(linkid)
+
+      # Retrieve first proceeding link that is enabled
+      post_linkid <- links_dir1[a+1:nrow(links_dir1),] %>%
+        filter(enabled) %>%
+        slice_head() %>%
+        pull(linkid)
+
+      missing_links_impute <- missing_links_impute %>%
+        add_row(from = from,
+                to = to,
+                linkid = linkid,
+                prior_linkid = prior_linkid,
+                post_linkid = post_linkid,
+                direction = directions[1])
+      break
+    }
+  }
+}
+```
+
+#### Direction 2 Missing Links
+
+```{r}
+missing_links_dir2 <- tibble(from = character(),
+                        to = character())
+
+missing_links_dir2 <- missing_links_dir2 %>% 
+  add_row(from = "celtic",
+          to = "walsh")
+
+for (i in 1:nrow(missing_links_dir2)) {
+  
+  from <- tolower(missing_links_dir2$from[i])
+  to <- tolower(missing_links_dir2$to[i])
+  
+  for (a in 1:nrow(links_dir2)) {
+    if (str_starts(tolower(links_dir2$start_loc[a]), from) && str_starts(tolower(links_dir2$end_loc[a]), to)) {
+      
+      linkid <- links_dir2$linkid[a]
+      
+      prior_linkid <- links_dir2[1:a-1,] %>%
+        filter(enabled) %>%
+        slice_tail() %>%
+        pull(linkid)
+
+      post_linkid <- links_dir2[a+1:nrow(links_dir1),] %>%
+        filter(enabled) %>%
+        slice_head() %>%
+        pull(linkid)
+
+      missing_links_impute <- missing_links_impute %>%
+        add_row(from = from,
+                to = to,
+                linkid = linkid,
+                prior_linkid = prior_linkid,
+                post_linkid = post_linkid,
+                direction = directions[2])
+      break
+    }
+  }
+}
 ```
 
 ### Both directions together
@@ -592,8 +605,10 @@ for (link in unique(links_dir2_map$linkid)) {
 
 map_both
 
-# Save linkid's for both directions and extra links needed to impute missing links
-links_both <- c(linkids_dir1, linkids_dir2, links_disabled$prior_linkid, links_disabled$post_linkid)
+# Save linkid's for both directions, the missing links, and extra links needed to impute missing links
+links_all <- unique(c(links_dir1_enabled$linkid, links_dir2_enabled$linkid,
+                missing_links_impute$linkid,missing_links_impute$prior_linkid, 
+                missing_links_impute$post_linkid))
 ```
 
 ### Link Stats
@@ -617,9 +632,9 @@ link_stats <- link_stats %>%
   # Remove speeds over 150 km/h as most likely errors
   filter(speed < 150)
 
-rm(link_stats_raw)
-
 summary(link_stats)
+
+rm(link_stats_raw)
 ```
 
 #### Data Validation
@@ -658,22 +673,24 @@ ggplot(link_stats, aes(factor(length), speed)) +
 
 ```{r}
 links_with_stats <- links_segment %>% 
+  filter(linkid %in% c(links_dir1_enabled$linkid, links_dir2_enabled$linkid,
+                       missing_links_impute$linkid)) %>% 
   semi_join(link_stats, by = "linkid")
 
 links_no_stats <- links_segment %>% 
-  filter(linkid %in% links_both) %>% 
+  filter(linkid %in% missing_links_impute$linkid) %>%  
   anti_join(link_stats, by = "linkid")
   
 map_links_with_stats <- leaflet() %>% 
   addTiles()
 
-# Draw links with stats in yellow
+# Draw links with stats in green
 for (link in unique(links_with_stats$linkid)) {
   map_df <- links_with_stats %>% 
     filter(linkid == link)
   
   map_links_with_stats <- map_links_with_stats %>% 
-    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = "yellow",
+    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = "green",
                  opacity = 1, label = ~linkid)
 }
 
@@ -695,13 +712,13 @@ map_links_with_stats
 This will be done by taking the average time/distance between the prior and post links per aggregate time, then multiplying by the distance of the missing links to get the estimated time on that link
 
 ```{r}
-for(i in 1:nrow(links_disabled)) {
+for(i in 1:nrow(missing_links_impute)) {
   link_length <- links %>% 
-    filter(id == links_disabled$linkid[i]) %>% 
+    filter(id == missing_links_impute$linkid[i]) %>% 
     pull(length)
   
   link_estimates <- link_stats %>% 
-  filter(linkid %in% c(links_disabled$prior_linkid[i], links_disabled$post_linkid[i])) %>% 
+  filter(linkid %in% c(missing_links_impute$prior_linkid[i], missing_links_impute$post_linkid[i])) %>% 
   mutate(time_len = tt / length) %>% 
   group_by(logtime) %>% 
   summarise(
@@ -709,7 +726,7 @@ for(i in 1:nrow(links_disabled)) {
     direction = unique(direction)) %>% 
   ungroup() %>% 
   mutate(
-    linkid = links_disabled$linkid[i],
+    linkid = missing_links_impute$linkid[i],
     tt = round(avg_time_len * link_length),
     length = link_length) %>% 
   select(-avg_time_len)
@@ -718,21 +735,22 @@ for(i in 1:nrow(links_disabled)) {
   full_join(link_estimates, by = names(link_estimates))
 }
 
-# Remove estimator links
-links_both <- c(linkids_dir1, linkids_dir2)
-
+# Remove estimator links not in segment
 link_stats <- link_stats %>% 
-  filter(linkid %in% links_both)
+  filter(linkid %in% c(links_dir1_enabled$linkid, links_dir2_enabled$linkid,
+                       missing_links_impute$linkid))
 ```
 
 Check
 
 ```{r}
 links_with_stats <- links_segment %>% 
+  filter(linkid %in% c(links_dir1_enabled$linkid, links_dir2_enabled$linkid,
+                       missing_links_impute$linkid)) %>% 
   semi_join(link_stats, by = "linkid")
 
 links_no_stats <- links_segment %>% 
-  filter(linkid %in% links_both) %>% 
+  filter(linkid %in% missing_links_impute$linkid) %>%  
   anti_join(link_stats, by = "linkid")
   
 map_links_with_stats <- leaflet() %>% 
@@ -743,7 +761,7 @@ for (link in unique(links_with_stats$linkid)) {
     filter(linkid == link)
   
   map_links_with_stats <- map_links_with_stats %>% 
-    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = "yellow",
+    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = "green",
                  opacity = 1, label = ~linkid)
 }
 
