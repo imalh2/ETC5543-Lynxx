@@ -641,7 +641,8 @@ links_times <- link_stats %>%
       between(hour, 15, 18) ~ "evening",
       TRUE ~ "neither"),
     rush = factor(rush, levels = c("morning", "evening", "neither"))) %>%
-  relocate(day:rush, .after = logtime)
+  relocate(day:rush, .after = logtime) %>% 
+  select(-logtime)
 ```
 
 ```{r}
@@ -656,3 +657,461 @@ ggplot(links_times, aes(links_time)) +
 
 # Analysis
 
+```{r}
+# Split trips into 5 minute intervals average the trips times per interval
+trip_times_agg <- trip_times %>% 
+  mutate(arrival_time = ceiling_date(arrival_time, "5 minutes")) %>% 
+  group_by(arrival_time, direction) %>% 
+  summarise(
+    number_buses = n(),
+    bus_time = round(mean(trip_time))) %>%
+  ungroup() %>% 
+  mutate(
+    day = date(arrival_time),
+    time = as_hms(arrival_time),
+    hour = hour(time),
+    rush = case_when(
+      between(hour, 6, 9) ~ "morning",
+      between(hour, 15, 18) ~ "evening",
+      TRUE ~ "neither"),
+    rush = factor(rush, levels = c("morning", "evening", "neither"))) %>% 
+  relocate(day:rush, .after = arrival_time) %>% 
+  select(-arrival_time)
+```
+
+## Compare bus travel times to links travel times to validate each other
+
+```{r}
+# Combine links times and bus trip times
+travel_times <- trip_times_agg %>%
+  inner_join(links_times) %>% 
+  mutate(travel_diff = bus_time - links_time)
+
+travel_times_piv <- travel_times %>% 
+  pivot_longer(cols = bus_time:links_time, names_to = "type", values_to = "travel_time")
+```
+
+```{r}
+# Travel time distributions
+travel_times_piv %>%
+  ggplot(aes(travel_time, fill = type)) +
+  geom_density(alpha = 0.5) +
+  theme_bw() +
+  theme(
+    axis.text.y = element_blank(),
+    axis.title.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    legend.title = element_blank())
+
+travel_times_piv %>% 
+  ggplot(aes(travel_time, fill = type)) +
+  geom_density(alpha = 0.5) +
+  facet_wrap(vars(direction)) +
+  theme_bw() +
+  theme(
+    axis.text.y = element_blank(),
+    axis.title.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    legend.title = element_blank())
+
+# Travel difference distributions
+travel_times %>% 
+  ggplot(aes(travel_diff)) +
+  geom_histogram() +
+  theme_bw()
+
+travel_times %>% 
+  ggplot(aes(travel_diff)) +
+  geom_histogram() +
+  facet_wrap(vars(direction)) +
+  theme_bw()
+
+# Direction 1
+travel_times_dir1 <- travel_times %>% 
+  filter(direction == directions[1])
+
+travel_times_piv_dir1 <- travel_times_piv %>% 
+  filter(direction == directions[1])
+
+travel_times_piv_dir1 %>%
+  ggplot(aes(time, travel_time, color = type)) +
+  geom_line() +
+  facet_wrap(vars(day)) +
+  ggtitle(directions[1]) +
+  theme_bw() +
+  theme(
+    legend.title = element_blank(),
+    legend.justification = "bottom",
+    legend.position = c(0.5, 0))
+
+travel_times_dir1 %>%
+  ggplot(aes(time, travel_diff)) +
+  geom_line() +
+  facet_wrap(vars(day)) +
+  ggtitle(directions[1]) +
+  theme_bw()
+
+# Direction 2
+travel_times_dir2 <- travel_times %>% 
+  filter(direction == directions[2])
+
+travel_times_piv_dir2 <- travel_times_piv %>% 
+  filter(direction == directions[2])
+
+travel_times_piv_dir2 %>%
+  ggplot(aes(time, travel_time, color = type)) +
+  geom_line() +
+  facet_wrap(vars(day)) +
+  ggtitle(directions[2]) +
+  theme_bw() +
+  theme(
+  legend.title = element_blank(),
+  legend.justification = "bottom",
+  legend.position = c(0.5, 0))
+
+travel_times_dir2 %>%
+  ggplot(aes(time, travel_diff)) +
+  geom_line() +
+  facet_wrap(vars(day)) +
+  ggtitle(directions[2]) +
+  theme_bw()
+
+# Scatter plots
+travel_times %>% 
+  ggplot(aes(bus_time, links_time)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(se = FALSE) +
+  theme_bw()
+
+travel_times %>% 
+  ggplot(aes(bus_time, links_time)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(se = FALSE) +
+  facet_wrap(vars(direction), scales = "free") +
+  theme_bw()
+```
+
+### Correlation between bus travel time and links travel time
+
+```{r}
+paste("Correlation:", round(with(travel_times, cor(bus_time, links_time)), 2))
+
+travel_times %>% 
+  group_by(direction) %>% 
+  summarise(correlation = round(cor(bus_time, links_time), 2))
+```
+
+## Correlations
+
+```{r}
+standardiser <- function(basis = hour) {
+  if (!deparse(substitute(basis)) %in% c("time", "hour", "rush")) {
+    stop("basis must be either time, hour, or rush")
+  }
+  
+  trip_times_std <- trip_times_agg %>%
+    group_by({{basis}}, direction) %>% 
+    mutate(
+      period_buses_no = n(),
+      bus_time_std = as.vector(scale(bus_time))) %>% 
+    ungroup() %>% 
+    mutate(bus_time_std = if_else(is.nan(bus_time_std), 0, bus_time_std)) %>%
+    filter(abs(bus_time_std) < 3) %>%
+    select(-bus_time)
+    
+  links_times_std <- links_times %>% 
+    group_by({{basis}}, direction) %>% 
+    mutate(links_time_std = as.vector(scale(links_time))) %>% 
+    ungroup() %>% 
+    filter(abs(links_time_std) < 3) %>%
+    select(-links_time)
+  
+  # Combine
+  travel_times_std <<- trip_times_std %>%
+    inner_join(links_times_std,) %>%
+    mutate(std_travel_diff = bus_time_std - links_time_std)
+  
+  travel_times_std_piv <<- travel_times_std %>% 
+    pivot_longer(cols = bus_time_std:links_time_std, names_to = "type", values_to = "std_travel_time")
+}
+
+standardiser()
+```
+
+#### Visualise bus time and links time
+
+```{r}
+travel_times_std %>% 
+  ggplot(aes(bus_time_std)) +
+  geom_histogram() +
+  theme_bw()
+
+travel_times_std %>% 
+  filter(rush != "neither") %>% 
+  ggplot(aes(bus_time_std)) +
+  geom_histogram() +
+  facet_grid(vars(rush), vars(direction), scales = "free_y") +
+  theme_bw()
+
+travel_times_std %>% 
+  ggplot(aes(bus_time_std)) +
+  geom_boxplot() +
+  theme_bw()
+
+travel_times_std %>% 
+  filter(rush != "neither") %>% 
+  ggplot(aes(bus_time_std)) +
+  geom_boxplot() +
+  facet_grid(vars(rush), vars(direction)) +
+  theme_bw()
+
+travel_times_std %>% 
+  ggplot(aes(links_time_std)) +
+  geom_histogram() +
+  theme_bw()
+
+travel_times_std %>% 
+  filter(rush != "neither") %>% 
+  ggplot(aes(links_time_std)) +
+  geom_histogram() +
+  facet_grid(vars(rush), vars(direction), scales = "free_y") +
+  theme_bw()
+
+travel_times_std %>% 
+  ggplot(aes(links_time_std)) +
+  geom_boxplot() +
+  theme_bw()
+
+travel_times_std %>% 
+  filter(rush != "neither") %>% 
+  ggplot(aes(links_time_std)) +
+  geom_boxplot() +
+  facet_grid(vars(rush), vars(direction)) +
+  theme_bw()
+```
+
+```{r}
+# Morning Northbound
+travel_times_std_NB_morn <- travel_times_std %>% 
+  filter(direction == "NB",
+         rush == "morning")
+
+travel_times_std_piv_NB_morn <- travel_times_std_piv %>% 
+  filter(direction == "NB",
+         rush == "morning")
+
+travel_times_std_piv_NB_morn %>%
+  ggplot(aes(time, std_travel_time, color = type)) +
+  geom_line() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  ylim(c(-3,3)) +
+  facet_wrap(vars(day)) +
+  ggtitle("Northbound") +
+  theme_bw() +
+  theme(
+    legend.title = element_blank(),
+    legend.justification = "bottom",
+    legend.position = c(0.5, 0))
+
+travel_times_std_NB_morn %>%
+  ggplot(aes(time, std_travel_diff)) +
+  geom_line() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(vars(day)) +
+  ggtitle("Northbound") +
+  theme_bw()
+
+# Evening Southbound
+travel_times_std_SB_eve <- travel_times_std %>% 
+  filter(direction == "SB",
+         rush == "evening")
+
+travel_times_std_piv_SB_eve <- travel_times_std_piv %>% 
+  filter(direction == "SB",
+         rush == "evening")
+
+travel_times_std_piv_SB_eve %>%
+  ggplot(aes(time, std_travel_time, color = type)) +
+  geom_line() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  ylim(c(-3,3)) +
+  facet_wrap(vars(day)) +
+  ggtitle("Southbound") +
+  theme_bw() +
+  theme(
+    legend.title = element_blank(),
+    legend.justification = "bottom",
+    legend.position = c(0.5, 0))
+
+travel_times_std_SB_eve %>%
+  ggplot(aes(time, std_travel_diff)) +
+  geom_line() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(vars(day)) +
+  ggtitle("Southbound") +
+  theme_bw()
+```
+
+#### Scatter plots
+
+```{r}
+travel_times_std %>% 
+  ggplot(aes(links_time_std, bus_time_std)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(se = FALSE) +
+  ggtitle("All Times") +
+  theme_bw()
+
+travel_times_std %>% 
+  filter(rush != "neither") %>% 
+  ggplot(aes(links_time_std, bus_time_std)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(se = FALSE) +
+  ggtitle("Peak Times") +
+  theme_bw()
+
+travel_times_std %>% 
+  filter(rush != "neither") %>% 
+  ggplot(aes(links_time_std, bus_time_std)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(se = FALSE) +
+  facet_grid(vars(rush), vars(direction)) +
+  theme_bw()
+```
+
+#### Correlation coefficients
+
+```{r}
+paste("All times correlation:", round(with(travel_times_std, cor(bus_time_std, links_time_std)), 2))
+
+paste("Peak times correlation:", round(with(filter(travel_times_std, rush != "neither"), 
+                                            cor(bus_time_std, links_time_std)), 2))
+
+# Peak times and direction correlation
+travel_times_std %>% 
+  filter(rush != "neither") %>% 
+  group_by(rush, direction) %>% 
+  summarise(correlation = round(cor(bus_time_std, links_time_std), 2)) %>% 
+  ungroup()
+
+# Time period correlation
+travel_times_std_cor <- travel_times_std %>%
+  filter(rush != "neither") %>%
+  group_by(time, rush, direction) %>% 
+  summarise(
+    correlation = cor(bus_time_std, links_time_std),
+    sample_size = n()) %>% 
+  ungroup() %>% 
+  na.omit()
+
+travel_times_std_cor %>% 
+  ggplot(aes(time, correlation)) +
+  geom_line() +
+  facet_grid(vars(direction), vars(rush), scales = "free_x") +
+  theme_bw()
+
+# Hourly correlation
+travel_times_std_hr_cor <- travel_times_std %>%
+  filter(rush != "neither") %>%
+  group_by(hour, rush, direction) %>% 
+  summarise(
+    correlation = cor(bus_time_std, links_time_std),
+    sample_size = n()) %>% 
+  ungroup() %>% 
+  na.omit()
+
+travel_times_std_hr_cor %>% 
+  ggplot(aes(hour, correlation, label = round(correlation, 2))) +
+  geom_line() +
+  geom_label() +
+  facet_grid(vars(direction), vars(rush), scales = "free_x") +
+  theme_bw()
+```
+
+#### Linear Regression
+
+##### All times
+
+```{r}
+# Try all variables
+all_lm <- lm(bus_time_std ~ links_time_std + rush*direction, travel_times_std)
+summary(all_lm)
+drop1(all_lm)
+step(all_lm, trace = FALSE)
+
+# Only links_time_std is needed
+all_lm <- lm(bus_time_std ~ links_time_std, travel_times_std)
+summary(all_lm)
+tidy(all_lm)
+glance(all_lm)
+
+# Residual diagnostics
+augment(all_lm) %>% 
+  ggplot(aes(.fitted, .resid)) +
+  geom_point() +
+  geom_smooth(se = FALSE) +
+  theme_bw()
+
+augment(all_lm) %>% 
+  ggplot(aes(.resid)) +
+  geom_histogram() +
+  theme_bw()
+
+all_lm %>%
+  ggplot(aes(sample=.resid)) +
+  geom_qq() + 
+  geom_qq_line() +
+  theme_bw()
+```
+
+##### Peak Times
+
+```{r}
+# Morning Northbound
+mor_NB_lm <- lm(bus_time_std ~ links_time_std, travel_times_std_NB_morn)
+summary(mor_NB_lm)
+tidy(mor_NB_lm)
+glance(mor_NB_lm)
+
+# Residual diagnostics
+augment(mor_NB_lm) %>% 
+  ggplot(aes(.fitted, .resid)) +
+  geom_point() +
+  geom_smooth(se = FALSE) +
+  theme_bw()
+
+augment(mor_NB_lm) %>% 
+  ggplot(aes(.resid)) +
+  geom_histogram() +
+  theme_bw()
+
+mor_NB_lm %>%
+  ggplot(aes(sample=.resid)) +
+  geom_qq() + 
+  geom_qq_line() +
+  theme_bw()
+
+# Evening Southbound
+eve_SB_lm <- lm(bus_time_std ~ links_time_std, travel_times_std_SB_eve)
+summary(eve_SB_lm)
+tidy(eve_SB_lm)
+glance(eve_SB_lm)
+
+# Residual diagnostics
+augment(eve_SB_lm) %>% 
+  ggplot(aes(.fitted, .resid)) +
+  geom_point() +
+  geom_smooth(se = FALSE) +
+  theme_bw()
+
+augment(eve_SB_lm) %>% 
+  ggplot(aes(.resid)) +
+  geom_histogram() +
+  theme_bw()
+
+eve_SB_lm %>%
+  ggplot(aes(sample=.resid)) +
+  geom_qq() + 
+  geom_qq_line() +
+  theme_bw()
+```
