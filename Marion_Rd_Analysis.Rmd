@@ -801,7 +801,7 @@ travel_times %>%
   summarise(correlation = round(cor(bus_time, links_time), 2))
 ```
 
-## Hourly pattern of links time and bus trips time
+## Average pattern of links time and bus trips time
 
 ```{r}
 # Average total links time in each 30 minute bin
@@ -883,7 +883,7 @@ standardiser <- function(basis = hour) {
   
   # Combine
   travel_times_std <<- trip_times_std %>%
-    inner_join(links_times_std,) %>%
+    inner_join(links_times_std) %>%
     mutate(std_travel_diff = bus_time_std - links_time_std)
   
   travel_times_std_piv <<- travel_times_std %>% 
