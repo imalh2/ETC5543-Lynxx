@@ -801,6 +801,61 @@ travel_times %>%
   summarise(correlation = round(cor(bus_time, links_time), 2))
 ```
 
+## Hourly pattern of links time and bus trips time
+
+```{r}
+# Average total links time in each 30 minute bin
+links_30min <- link_stats %>%
+  group_by(logtime, direction) %>%
+  summarise(links_time = sum(tt)) %>%
+  ungroup() %>% 
+  mutate(logtime = ceiling_date(logtime, "30 mins"),
+         time = as_hms(logtime)) %>% 
+  group_by(time, direction) %>% 
+  summarise(links_time = mean(links_time)) %>% 
+  ungroup() %>% 
+  mutate(rush = case_when(
+           between(time, as_hms("06:00:00"), as_hms("10:00:00")) ~ "morning",
+           between(time, as_hms("15:00:00"), as_hms("19:00:00")) ~ "evening",
+           TRUE ~ "neither"),
+         rush = factor(rush, levels = c("morning", "evening", "neither"))) %>% 
+  relocate(links_time, .after = everything())
+
+# Average bus trip times in each 30 minute bin
+trip_times_30min <- trip_times %>% 
+  mutate(arrival_time = ceiling_date(arrival_time, "30 minutes"),
+         time = as_hms(arrival_time)) %>% 
+  group_by(time, direction) %>% 
+  summarise(bus_time = round(mean(trip_time))) %>%
+  ungroup() %>% 
+  mutate(rush = case_when(
+           between(time, as_hms("06:00:00"), as_hms("10:00:00")) ~ "morning",
+           between(time, as_hms("15:00:00"), as_hms("19:00:00")) ~ "evening",
+           TRUE ~ "neither"),
+         rush = factor(rush, levels = c("morning", "evening", "neither"))) %>% 
+  relocate(bus_time, .after = everything())
+
+links_trips_30min <- links_30min %>% 
+  inner_join(trip_times_30min) %>% 
+  pivot_longer(cols = links_time:bus_time, names_to = "type", values_to = "value")
+
+ggplot(links_trips_30min, aes(time, value)) +
+  geom_line(alpha = 0.2) +
+  geom_line(data = filter(links_trips_30min, rush == "morning"), color = "blue", size = 0.5) +
+  geom_line(data = filter(links_trips_30min, rush == "evening"), color = "blue", size = 0.5) +
+  facet_grid(rows = vars(type), cols = vars(direction), scales = "free_y") +
+  annotate("rect", xmin = as_hms("06:00:00"), xmax = as_hms("10:00:00"), ymin = -Inf, ymax = Inf,
+           fill = "red", alpha = .1) +
+  annotate("rect", xmin = as_hms("15:00:00"), xmax = as_hms("19:00:00"), ymin = -Inf, ymax = Inf,
+           fill = "red", alpha = .1) +
+  scale_x_time(limits = as_hms(c("06:00:00", "23:59:59")),
+               breaks = as_hms(c("06:00:00", "08:00:00", "10:00:00",
+                                 "15:00:00", "17:00:00", "19:00:00")),
+               labels = c("6", "8", "10", "15", "17", "19")) +
+  labs(x = "Time", y = "") +
+  theme_bw()
+```
+
 ## Correlations
 
 ```{r}
