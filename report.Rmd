@@ -187,6 +187,23 @@ rm(links_raw)
 rm(southrd_links_raw)
 ```
 
+### Links Statistics
+
+These are the aggregated five minute statistics generated for each link.
+
+```{r link-stats-desc}
+southrd_link_stats_raw %>%
+  select(logtime:tt) %>% 
+  names() %>% 
+  as_tibble_col("Variable") %>% 
+  mutate(Description = c("Current interval timestamp",
+                         "Unique link identifier",
+                         "Travel time in seconds")) %>% 
+  kable(caption = "Links statistics data description") %>% 
+  kable_styling(full_width = FALSE)
+```
+
+The identification of the links on the segment and the data wrangling of the statistics will be discussed later in the report.
 
 
 
