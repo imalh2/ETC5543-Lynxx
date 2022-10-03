@@ -20,10 +20,73 @@ With this backdrop in mind, the client (the South Australia Department for Infra
 
 This data will be examined in conjunction with publicly available, historical real time bus trip updates collected by General Transit Feed Specification Realtime (GTFSr), which provides the arrival time for each stop on a bus's trip. The analysis aims to identify the relationship and robustness of bus travel times to road congestion on road segments of interest.
 
-
-The aim of the proposed analysis is to investigate the extent of the relationship between bus travel times and road congestion - as measured by motor vehicle travel times - on identified road segments, where a strong relationship indicates a road segment where the bus travel times are less robust to congestion. This will form the basis for future analysis into additional road segments of interest and generating a ranking of bus network robustness, analysing the factors that can effect bus travel times such as the use of bus lanes, and creating a model predicting bus travel times using identified features.
-
 # Objectives
+
+The aim of the proposed analysis is to investigate the extent of the relationship between bus travel times and road congestion - as measured by motor vehicle travel times - on identified road segments, where a strong relationship indicates a road segment where the bus travel times are less robust to congestion. 
+
+Initially, the bus performance metric to be used and applied was the average delay experienced by a bus trip on the segment of interest, as measured by a stop's predicted arrival time versus the scheduled arrival time. However, this was later revised to measuring the bus travel time between the first and last stops of a segment, removing the possibility that we are measuring how accurately the schedule predicts and/or buffers for congestion. The road congestion metric used is the average travel time of the vehicles across the segment.
+
+A proposal outlining the analysis, the objectives, and the methodology was created and sent to the client, this was followed by a discussion with the client to provide more information regarding the analysis and clarify any points raised by the client. Ultimately, an agreement was reached for the analysis to fulfill the following objectives:
+
+1. Detailed travel time or congestion analysis comparing public transport response to road traffic on selected sections of road
+
+2. Repeatable methodology, code, functions, and visuals that produce detailed analysis on other segments of interest
+
+In fulfilling the first objective, the segments of road analysed are South Road and Marion Road in Adelaide. This report uses the former to illustrate the methodology, while the latter is used for comparison.
+
+Regarding the second objective, the methodology and the code created aim to ensure the requirement of as little manual input and edits as possible  when applied to different road segments.
+
+The analysis undertaken in this report will form the basis of future analysis into:
+
+- additional road segments of interest to generate a ranking of bus network robustness which can help inform the allocation of resources
+
+- analysing the factors that can effect bus travel times such as the use of bus lanes, number of bus stops, traffic lights, etc.
+
+- creating a model predicting bus travel times using identified features.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # References
