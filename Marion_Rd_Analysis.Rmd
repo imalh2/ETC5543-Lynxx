@@ -52,7 +52,7 @@ links <- links_raw %>%
   group_by(id) %>%
   filter(dms_update_ts == max(dms_update_ts)) %>%
   ungroup() %>%
-  select(id, originid:direction) %>%
+  select(id, originid:length, direction) %>%
   distinct()
 
 links_segment <- links_segment_raw %>%
@@ -63,11 +63,6 @@ links_segment <- links_segment_raw %>%
     # Extract name of locations where link starts and ends
     start_loc = str_extract(name, "(?<=- ).*(?= to)"),
     end_loc = str_extract(name, "(?<=to ).*")) %>%
-  group_by(linkid) %>%
-  mutate(
-    start_lat = first(latitude, order_by = ordernumber),
-    end_lat = last(latitude, order_by = ordernumber)) %>%
-  ungroup() %>%
   # Length in links_segment_raw is not correct, join with links to get correct lengths and direction
   select(-id, -length) %>% 
   left_join(links, by = c("linkid" = "id")) %>% 

@@ -19,19 +19,19 @@ holidays_raw <- read_csv(here("data/addinsight/addinsight_prod.btspecialdays.csv
 links_raw <- read_csv(here("data/addinsight/addinsight_prod.btlinks.csv.csv"))
 
 ## List of links on segment and their geometries
-links_segment_raw <- read_csv(here("data/South-Rd/BT Links - South Rd.csv"))
+southrd_links_raw <- read_csv(here("data/South-Rd/BT Links - South Rd.csv"))
 
 ## Stops information
 full_stops_raw <- read_csv(here("data/GTFS_feed_version_1157/large/gtfs_history_prod.stops.csv"))
 
 ## Routes, trips, and stops on segment
-segment_route_stops_raw <- read_csv(here("data/South-Rd/South Rd Routes and Trips gtfs 1157.csv"))
+southrd_routes_stops_raw <- read_csv(here("data/South-Rd/South Rd Routes and Trips gtfs 1157.csv"))
 
 ## GTFS-R Trip Updates
-updates_raw <- read_csv(here("data/South-Rd/trip_updates_SouthRd_Mar.csv"))
+southrd_updates_raw <- read_csv(here("data/South-Rd/trip_updates_SouthRd_Mar.csv"))
 
 ## Link 5 minute statistics
-link_stats_raw <- read_csv(here("data/South-Rd/link_5minstats_Mar.csv"))
+southrd_link_stats_raw <- read_csv(here("data/South-Rd/link_5minstats_Mar.csv"))
 ```
 
 ## Data Wrangling and Exploration
@@ -53,10 +53,10 @@ links <- links_raw %>%
   group_by(id) %>%
   filter(dms_update_ts == max(dms_update_ts)) %>%
   ungroup() %>%
-  select(id, originid:direction) %>%
+  select(id, originid:length, direction) %>%
   distinct()
 
-links_segment <- links_segment_raw %>%
+links_segment <- southrd_links_raw %>%
   rename_with(tolower) %>%
   mutate(
     latitude = round(latitude, 5),
@@ -64,12 +64,7 @@ links_segment <- links_segment_raw %>%
     # Extract name of locations where link starts and ends
     start_loc = str_extract(name, "(?<=- ).*(?= to)"),
     end_loc = str_extract(name, "(?<=to ).*")) %>%
-  group_by(linkid) %>%
-  mutate(
-    start_lat = first(latitude, order_by = ordernumber),
-    end_lat = last(latitude, order_by = ordernumber)) %>%
-  ungroup() %>%
-  # Length in links_segment_raw is not correct, join with links to get correct lengths and direction
+  # Length in southrd_links_raw is not correct, join with links to get correct lengths and direction
   select(-length) %>%
   left_join(links, by = c("linkid" = "id"))
 
@@ -81,13 +76,13 @@ links_segment_unq <- links_segment %>%
 directions <- sort(unique(links_segment_unq$direction))
 
 rm(links_raw)
-rm(links_segment_raw)
+rm(southrd_links_raw)
 ```
 
 ### Full Stops and Route-Trips-Stops
 
 ```{r}
-segment_route_stops <- clean_names(segment_route_stops_raw)
+segment_route_stops <- clean_names(southrd_routes_stops_raw)
   
 segment_routes <- segment_route_stops %>% 
   pull(route_id) %>% 
@@ -105,14 +100,14 @@ stops_segment <- full_stops_raw %>%
   # If stop is on East side, that means trip SB, and vice versa
   mutate(direction = if_else(str_detect(stop_name, "East"), "SB", "NB"))
 
-rm(segment_route_stops_raw)
+rm(southrd_routes_stops_raw)
 ```
 
 ### Updates
 
 ```{r}
 # Keep only updates for stops on segment and remove weekends and public holidays
-updates <- updates_raw %>%
+updates <- southrd_updates_raw %>%
   rename(
     trip_id = id,
     vehicle_id = label) %>%
@@ -245,7 +240,7 @@ stop_times <- updates_stop_times %>%
 stops_segment <- stops_segment %>% 
   filter(stop_id %in% c(top_first_last_stops$first_stop, top_first_last_stops$last_stop))
 
-rm(updates_raw)
+rm(southrd_updates_raw)
 ```
 
 ### Data Validation
@@ -616,7 +611,7 @@ links_all <- unique(c(links_dir1_enabled$linkid, links_dir2_enabled$linkid,
 Links stats are retrieved from AWS Athena database using the links identified to construct the segments and the links needed to impute missing links stats
 
 ```{r}
-link_stats <- link_stats_raw %>% 
+link_stats <- southrd_link_stats_raw %>% 
   select(logtime:avgdensity) %>%
   mutate(logtime = ymd_hms(str_remove(logtime, " \\+10:30"), tz = "Australia/Adelaide")) %>%
   filter(
@@ -634,7 +629,7 @@ link_stats <- link_stats %>%
 
 summary(link_stats)
 
-rm(link_stats_raw)
+rm(southrd_link_stats_raw)
 ```
 
 ##### Data Validation
@@ -1326,16 +1321,16 @@ eve_SB_lm %>%
 
 ```{r data}
 ## List of links on segment and their geometries
-links_segment_raw <- read_csv(here("data/Mariod-Rd/Marion Rd Links.csv"))
+marionrd_links_raw <- read_csv(here("data/Mariod-Rd/Marion Rd Links.csv"))
 
 ## Routes, trips, and stops on segment
-segment_routes_stops_raw <- read_csv(here("data/Mariod-Rd/Marion Rd Routes Stops.csv"))
+marionrd_routes_stops_raw <- read_csv(here("data/Mariod-Rd/Marion Rd Routes Stops.csv"))
 
 ## GTFS-R Trip Updates
-updates_raw <- read_csv(here("data/Mariod-Rd/trip_updates_MarionRd_Mar.csv"))
+marionrd_updates_raw <- read_csv(here("data/Mariod-Rd/trip_updates_MarionRd_Mar.csv"))
 
 ## Link 5 minute statistics
-link_stats_raw <- read_csv(here("data/Mariod-Rd/link_5minstats_Mar.csv"))
+marionrd_link_stats_raw <- read_csv(here("data/Mariod-Rd/link_5minstats_Mar.csv"))
 ```
 
 ## Data Wrangling and Exploration
@@ -1343,18 +1338,13 @@ link_stats_raw <- read_csv(here("data/Mariod-Rd/link_5minstats_Mar.csv"))
 ### Links Segment
 
 ```{r}
-links_segment <- links_segment_raw %>%
+links_segment <- marionrd_links_raw %>%
   rename_with(tolower) %>%
   mutate(
     latitude = round(latitude, 5),
     longitude = round(longitude, 5),
     start_loc = str_extract(name, "(?<=- ).*(?= to)"),
     end_loc = str_extract(name, "(?<=to ).*")) %>%
-  group_by(linkid) %>%
-  mutate(
-    start_lat = first(latitude, order_by = ordernumber),
-    end_lat = last(latitude, order_by = ordernumber)) %>%
-  ungroup() %>%
   select(-id, -length) %>% 
   left_join(links, by = c("linkid" = "id")) %>% 
   mutate(direction = recode(direction, SWB = "SB"))
@@ -1365,13 +1355,13 @@ links_segment_unq <- links_segment %>%
 
 directions <- sort(unique(links_segment_unq$direction))
 
-rm(links_segment_raw)
+rm(marionrd_links_raw)
 ```
 
 ### Full Stops and Route-Trips-Stops
 
 ```{r}
-segment_routes_stops <- clean_names(segment_routes_stops_raw)
+segment_routes_stops <- clean_names(marionrd_routes_stops_raw)
   
 segment_routes <- segment_routes_stops %>% 
   pull(route_id) %>% 
@@ -1388,14 +1378,14 @@ stops_segment <- full_stops_raw %>%
   filter(str_detect(stop_name, "West|East")) %>% 
   mutate(direction = if_else(str_detect(stop_name, "East"), "SB", "NB"))
 
-rm(segment_routes_stops_raw)
+rm(marionrd_routes_stops_raw)
 rm(full_stops_raw)
 ```
 
 ### Updates
 
 ```{r}
-updates <- updates_raw %>%
+updates <- marionrd_updates_raw %>%
   rename(
     trip_id = id,
     vehicle_id = label) %>%
@@ -1499,7 +1489,7 @@ stop_times <- updates_stop_times %>%
 stops_segment <- stops_segment %>% 
   filter(stop_id %in% c(top_first_last_stops$first_stop, top_first_last_stops$last_stop))
 
-rm(updates_raw)
+rm(marionrd_updates_raw)
 ```
 
 ### Data Validation
@@ -1755,7 +1745,7 @@ links_all <- unique(c(links_dir1_enabled$linkid, links_dir2_enabled$linkid,
 Links stats are retrieved from AWS Athena database using the links identified to construct the segments and the links needed to impute missing links stats
 
 ```{r}
-link_stats <- link_stats_raw %>% 
+link_stats <- marionrd_link_stats_raw %>% 
   select(logtime:avgdensity) %>%
   mutate(logtime = ymd_hms(str_remove(logtime, " \\+10:30"), tz = "Australia/Adelaide")) %>%
   filter(
@@ -1770,7 +1760,7 @@ link_stats <- link_stats %>%
 
 summary(link_stats)
 
-rm(link_stats_raw)
+rm(marionrd_link_stats_raw)
 ```
 
 ##### Data Validation

@@ -10,6 +10,52 @@ output:
 knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 ```
 
+```{r libraries}
+library(tidyverse)
+library(here)
+library(lubridate)
+library(leaflet)
+library(hms)
+library(janitor)
+library(broom)
+library(kableExtra)
+```
+
+```{r data}
+# Holidays dates
+holidays_raw <- read_csv(here("data/addinsight/addinsight_prod.btspecialdays.csv.csv"))
+
+# Links information
+links_raw <- read_csv(here("data/AddInsight/addinsight_prod.btlinks.csv.csv"))
+
+# List of links on South Rd and their geometries
+southrd_links_raw <- read_csv(here("data/South-Rd/BT Links - South Rd.csv"))
+
+# List of links on Marion Rd and their geometries
+marionrd_links_raw <- read_csv(here("data/Marion-Rd/Marion Rd Links.csv"))
+
+# Stops information
+full_stops_raw <- read_csv(here("data/GTFS/stops.csv"))
+
+# Routes, trips, and stops on South Rd
+southrd_routes_stops_raw <- read_csv(here("data/South-Rd/South Rd Routes and Trips gtfs 1157.csv"))
+
+# Routes, trips, and stops on Marion Rd
+marionrd_routes_stops_raw <- read_csv(here("data/Marion-Rd/Marion Rd Routes Stops.csv"))
+
+# GTFS-R Trip Updates for South Rd
+southrd_updates_raw <- read_csv(here("data/South-Rd/trip_updates_SouthRd_Mar.csv"))
+
+# GTFS-R Trip Updates for Marion Rd
+marionrd_updates_raw <- read_csv(here("data/Marion-Rd/trip_updates_MarionRd_Mar.csv"))
+
+# South Rd link statistics
+southrd_link_stats_raw <- read_csv(here("data/South-Rd/link_stats_Mar.csv"))
+
+# Marion Rd link statistics
+marionrd_link_stats_raw <- read_csv(here("data/Marion-Rd/link_stats_Mar.csv"))
+```
+
 # Abstract
 
 # Background
@@ -28,11 +74,11 @@ Initially, the bus performance metric to be used and applied was the average del
 
 A proposal outlining the analysis, the objectives, and the methodology was created and sent to the client, this was followed by a discussion with the client to provide more information regarding the analysis and clarify any points raised by the client. Ultimately, an agreement was reached for the analysis to fulfill the following objectives:
 
-1. Detailed travel time or congestion analysis comparing public transport response to road traffic on selected sections of road
+1. Detailed travel time or congestion analysis comparing public transport response to road traffic on selected sections of road over a given period of time
 
 2. Repeatable methodology, code, functions, and visuals that produce detailed analysis on other segments of interest
 
-In fulfilling the first objective, the segments of road analysed are South Road and Marion Road in Adelaide. This report uses the former to illustrate the methodology, while the latter is used for comparison.
+In fulfilling the first objective, the segments of road analysed are South Road and Marion Road in Adelaide. This report uses the former to illustrate the methodology, while the latter is used for comparison. The period of time chosen is March 2022.
 
 Regarding the second objective, the methodology and the code created aim to ensure the requirement of as little manual input and edits as possible  when applied to different road segments.
 
@@ -44,9 +90,102 @@ The analysis undertaken in this report will form the basis of future analysis in
 
 - creating a model predicting bus travel times using identified features.
 
+# Data Sources, Description, and Wrangling
 
+Three main data sources are used. These data sources and their associated sub-sources will be outlined below. Additionally, the data cleaning and wrangling will be discussed as it was the part of the analysis that required the highest workload.
 
+## DIT Addinsight
 
+Traffic information collected by DIT. This is done through the use of Bluetooth devices that tag a Bluetooth-equipped vehicle when it comes into its range. The location of a Bluetooth device is called a site, and a link is a segment of road between two sites, an origin site and a destination site. This allows for the calculation of metrics such as the time taken to travel the link, among others.
+
+The DIT Addinsight database is very large and contains many tables, each recording its own set of information, with foreign keys connecting most tables. The data is stored in the cloud using Amazon Web Services (AWS) and is accessed through Athena which uses regular SQL syntax. This analysis uses only a subset of the tables in the database, presented below.
+
+### Holidays
+
+This dataset contains holidays dates, which is the only variable used.
+
+```{r}
+holidays <- unique(holidays_raw$date)
+
+rm(holidays_raw)
+```
+
+### Links
+
+#### All Links
+
+This dataset lists all the links present in the network, not just the segments of interest. A link is a one-way section of road between two adjacent sites. Addinsight will measure statistics for every link in real time. The variables present and used from this dataset are
+
+```{r links-desc}
+links_raw %>%
+  select(dms_update_ts:name, originid:length, direction) %>%
+  names() %>% 
+  as_tibble_col("Variable")  %>% 
+  mutate(Description = c("Database update datetime",
+                         "Unique link identifier",
+                         "Description of link",
+                         "The Bluetooth site ID that begins the link",
+                         "The Bluetooth site ID that ends the link", 
+                         "Boolean. Disabled links do not generate statistics",
+                         "The link length in metres",
+                         "Link direction of travel")) %>% 
+  kable(caption = "Links data description") %>% 
+  kable_styling(full_width = FALSE)
+```
+
+#### Segment Links
+
+These are the links that present on the road segment examined only. These links were identified by inserting all the links into an interactive map in Tableau, and then manually selecting the area of interest on the map, which produces a list of the links in the highlighted area, and the geometry for each link. It is important to note that the some links can overlap with other links on the segment.
+
+```{r segment-links-desc}
+southrd_links_raw %>% 
+  rename_with(tolower) %>% 
+  select(-length, -name) %>% 
+  names() %>% 
+  as_tibble_col("Variable") %>% 
+  mutate(Description = c("Unique link identifier",
+                         "Order of geometry coordinates",
+                         "Latitude",
+                         "Longitude")) %>% 
+  kable(caption = "Segment links data description") %>% 
+  kable_styling(full_width = FALSE)
+```
+
+The links data was limited to the end of the period examined, in this case the end of March 2022. The data was filtered to the most recent update per link. This is done to obtain the most recent enabled status of each link. The two links datasets were joined together to create a single dataset which contains the links on the segment and all their related information. Finally, the `name` variable was used to created two additional variables, `start_loc` and `end_loc` which give the name of the link start location and end location, respectively. These variables will be used to identify the sequence of non-overlapping links on the segment later.
+
+```{r}
+# Limit updates to end of period examined and get most recent update per link,
+# this is done to get the most recent enabled status for each link
+links <- links_raw %>%
+  filter(date(dms_update_ts) < "2022-04-01") %>%
+  group_by(id) %>%
+  filter(dms_update_ts == max(dms_update_ts)) %>%
+  ungroup() %>%
+  select(id, originid:length, direction) %>%
+  distinct()
+
+links_segment <- southrd_links_raw %>%
+  rename_with(tolower) %>%
+  mutate(
+    latitude = round(latitude, 5),
+    longitude = round(longitude, 5),
+    # Extract name of locations where link starts and ends
+    start_loc = str_extract(name, "(?<=- ).*(?= to)"),
+    end_loc = str_extract(name, "(?<=to ).*")) %>%
+  # Length in southrd_links_raw is not correct, join with links to get correct lengths and direction
+  select(-length) %>%
+  left_join(links, by = c("linkid" = "id"))
+
+# Get only first entry per link
+links_segment_unq <- links_segment %>%
+  arrange(linkid, ordernumber) %>%
+  distinct(linkid, .keep_all = TRUE)
+
+directions <- sort(unique(links_segment_unq$direction))
+
+rm(links_raw)
+rm(southrd_links_raw)
+```
 
 
 
