@@ -68,37 +68,45 @@ This data will be examined in conjunction with publicly available, historical re
 
 # Objectives
 
-The aim of the proposed analysis is to investigate the extent of the relationship between bus travel times and road congestion - as measured by motor vehicle travel times - on identified road segments, where a strong relationship indicates a road segment where the bus travel times are less robust to congestion. 
+The aim of the proposed analysis is to investigate the extent of the relationship between bus travel times and road congestion - as measured by motor vehicle travel times - on identified road segments, where a strong relationship indicates a road segment where the bus travel times are less robust to congestion.
 
 Initially, the bus performance metric to be used and applied was the average delay experienced by a bus trip on the segment of interest, as measured by a stop's predicted arrival time versus the scheduled arrival time. However, this was later revised to measuring the bus travel time between the first and last stops of a segment, removing the possibility that we are measuring how accurately the schedule predicts and/or buffers for congestion. The road congestion metric used is the average travel time of the vehicles across the segment.
 
 A proposal outlining the analysis, the objectives, and the methodology was created and sent to the client, this was followed by a discussion with the client to provide more information regarding the analysis and clarify any points raised by the client. Ultimately, an agreement was reached for the analysis to fulfill the following objectives:
 
-1. Detailed travel time or congestion analysis comparing public transport response to road traffic on selected sections of road over a given period of time
+1.  Detailed travel time or congestion analysis comparing public transport response to road traffic on selected sections of road over a given period of time
 
-2. Repeatable methodology, code, functions, and visuals that produce detailed analysis on other segments of interest
+2.  Repeatable methodology, code, functions, and visuals that produce detailed analysis on other segments of interest
 
 In fulfilling the first objective, the segments of road analysed are South Road and Marion Road in Adelaide. This report uses the former to illustrate the methodology, while the latter is used for comparison. The period of time chosen is March 2022.
 
-Regarding the second objective, the methodology and the code created aim to ensure the requirement of as little manual input and edits as possible  when applied to different road segments.
+Regarding the second objective, the methodology and the code created aim to ensure the requirement of as little manual input and edits as possible when applied to different road segments.
 
 The analysis undertaken in this report will form the basis of future analysis into:
 
-- additional road segments of interest to generate a ranking of bus network robustness which can help inform the allocation of resources
+-   additional road segments of interest to generate a ranking of bus network robustness which can help inform the allocation of resources
 
-- analysing the factors that can effect bus travel times such as the use of bus lanes, number of bus stops, traffic lights, etc.
+-   analysing the factors that can effect bus travel times such as the use of bus lanes, number of bus stops, traffic lights, etc.
 
-- creating a model predicting bus travel times using identified features.
+-   creating a model predicting bus travel times using identified features.
 
 # Data Sources, Description, and Wrangling
 
-Three main data sources are used. These data sources and their associated sub-sources will be outlined below. Additionally, the data cleaning and wrangling will be discussed as it was the part of the analysis that required the highest workload.
+Three main data sources are used: DIT Addinsight, GTFS, and GTFSR. These data sources and their associated sub-sources will be outlined below. All the data is stored in the cloud using Amazon Web Services (AWS) and is accessed through Athena which uses regular SQL syntax.
+
+The data cleaning and wrangling will be discussed as it was the part of the analysis that required the highest workload.
+
+As mentioned above, the methodology will be illustrated on South Road, which is one of Adelaide's most important and major roads, and regularly suffers from congestion (Infrastructure Australia, 2019).
+
+```{r, fig.cap="South Rd on map. Source: Google Maps"}
+knitr::include_graphics("images/SouthRd_Map.png")
+```
 
 ## DIT Addinsight
 
 Traffic information collected by DIT. This is done through the use of Bluetooth devices that tag a Bluetooth-equipped vehicle when it comes into its range. The location of a Bluetooth device is called a site, and a link is a segment of road between two sites, an origin site and a destination site. This allows for the calculation of metrics such as the time taken to travel the link, among others.
 
-The DIT Addinsight database is very large and contains many tables, each recording its own set of information, with foreign keys connecting most tables. The data is stored in the cloud using Amazon Web Services (AWS) and is accessed through Athena which uses regular SQL syntax. This analysis uses only a subset of the tables in the database, presented below.
+The DIT Addinsight database is very large and contains many tables, each recording its own set of information, with foreign keys connecting most tables. This analysis uses only a subset of the tables in the database, presented below.
 
 ### Holidays
 
@@ -205,46 +213,270 @@ southrd_link_stats_raw %>%
 
 The identification of the links on the segment and the data wrangling of the statistics will be discussed later in the report.
 
+## General Transit Feed Specification (GTFS)
 
+This is a common format developed by Google and used by public transport agencies around the world and contains static or scheduled information about public transport services such as routes, stops, schedule and geographic transit information. For the purposes of this analysis, only the bus routes and bus stops datasets will be used.
 
+### Routes
 
+These are the bus routes that go through South Road. These were identified by overlaying all the network routes on a map in Tableau and the routes on South Road were highlighted and exported to a list. The dataset contains simply the unique collection of route_id on the segment.
 
+```{r}
+segment_route_stops <- clean_names(southrd_routes_stops_raw)
+  
+segment_routes <- segment_route_stops %>% 
+  pull(route_id) %>% 
+  unique()
+```
 
+### Stops
 
+The list of bus stops on the segment were identified in the same fashion as when identifying the routes. This produces a list of the stop_id's on the segment.
 
+A dataset containing all the stops in the bus network and information relating to each stop is used and filtered to only the stops present on the segment (for the purposes of this report, the file containing all the stops on the network was pre-filtered to the stops on the segment only to accommodate Github file size limits. However, the code and methodology contained here apply as if the complete dataset were used and filtered through the code).
 
+```{r}
+segment_stops <- segment_route_stops %>% 
+  pull(stop_id_gtfs_history_prod_stops_csv) %>% 
+  unique()
 
+# Join stops information to stops on the segment
+stops_segment <- full_stops_raw %>%
+  filter(stop_id %in% segment_stops) %>%
+  select(stop_id, stop_name, stop_desc, stop_lat, stop_lon) %>%
+  distinct(stop_id, .keep_all = TRUE) %>%
+  # If stop is on East side, that means trip SB, and vice versa
+  mutate(direction = if_else(str_detect(stop_name, "East"), "SB", "NB"))
 
+rm(southrd_routes_stops_raw)
+```
 
+```{r, stops-desc}
+stops_segment %>% 
+  names() %>% 
+  as_tibble_col("Variable") %>% 
+  mutate(Description = c("Unique stop identifier",
+                         "Name of the location. Uses a name that people will understand",
+                         "Address of the stop",
+                         "Latitude of the stop",
+                         "Longitude of the stop",
+                         "Road direction of the stop")) %>% 
+  kable(caption = "Stops data description") %>% 
+  kable_styling(full_width = FALSE)
+```
 
+The `direction` variable is manually created. In this case, if the stop is on the east side of South Road, then it is southbound (SB) away from the city; if the stop is on the west side of South Road, this it is northbound (NB) towards the city.
 
+The bus stops will be plotted on a map to confirm they are all, in fact, on South Road.
 
+```{r, fig.cap="Bus stops on South Road"}
+# Plot on map to check the stops are all on South Rd
+stops_segment %>%
+    leaflet() %>% 
+    addTiles() %>% 
+    addCircles(lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id)
+```
 
+## General Transit Feed Specification Realtime (GTFSR)
 
+Unlike GTFS which provides static information, GTFSR provides real time information consisting of two types. The first type is a trip's real time updates regarding a bus stop's expected arrival times and delays. The second type is a real time update of a bus's geographic position and speed at a specific point in time. This analysis uses the former only.
 
+### Trip Updates
 
+```{r}
+# Keep only updates for stops on segment and remove weekends and public holidays
+updates <- southrd_updates_raw %>%
+  rename(
+    trip_id = id,
+    vehicle_id = label) %>%
+  mutate(
+    start_date = ymd(start_date),
+    timestamp = as_datetime(timestamp, tz = "Australia/Adelaide"),
+    arrival_time = as_datetime(arrival_time, tz = "Australia/Adelaide")) %>%
+  select(-wheelchair_accessible) 
+```
 
+Once the bus routes that go through the segment were identified as outlined above, the real time updates for all the trips in March 2022 according to the routes were retrieved from the AWS database using Athena. This dataset is used to derive the bus travel time through the segment, which is the first element in the relationship being assessed in this analysis, with the other being the vehicles travel time as a measure of congestion. The SQL query to retrieve the updates can be found in Appendix \@ref(trip-updates-sql-query)
 
+First, the unedited data will be described.
 
+```{r}
+updates %>% 
+  names() %>% 
+  as_tibble_col("Variable") %>% 
+  mutate(Description = c("Unique route identifier",
+                         "The direction of travel for a trip. 0 is travel in one direction, 
+                         1 is travel in the opposite direction",
+                         "Start date of the trip",
+                         "Unique vehicle identifier",
+                         "Timestamp of the real time update",
+                         "Unique trip identifier",
+                         "Order of stops for a particular trip",
+                         "Unique stop identifier",
+                         "The current schedule deviation for the trip. 
+                         The delay (in seconds) can be positive (meaning that the vehicle is late) 
+                         or negative (meaning that the vehicle is ahead of schedule)", 
+                         "Predicted arrival time for a stop on a particular trip")) %>% 
+  kable(caption = "Unedited updates data description") %>% 
+  kable_styling(full_width = FALSE)
+```
 
+It is important to note the following:
 
+-   One `route_id` can have many `trip_id`s
 
+-   One `trip_id` occurs a maximum of one time on a day, the `trip_id` can occur on multiple days
 
+As a bus trip is occurring, at a certain timestamp a real time prediction of the arrival times of the remaining stops on the trip are updated.
 
+Cleaning and wrangling this dataset proved to be the most challenging and time consuming section of this analysis, with many methodologies and cleaning iterations trialed to arrive at the optimal treatment. This is due to the complex relationships between the observations in the dataset, and the variety of errors and inconsistencies encountered.
 
+The following cleaning steps were done:
 
+1. As each stop on a given trip can have multiple arrival time predictions with each update timestamp prior to reaching that stop, the SQL query insures that each stop only has the predicted arrival time corresponding to the latest timestamp, given that the later the prediction, the more accurate it is.
 
+2. stops in segment and direction
 
+3. weekends and holidays
 
+```{r}
+updates <- updates %>%
+  inner_join(select(stops_segment, stop_id, direction), by = "stop_id") %>%
+  filter(
+    !start_date %in% holidays,
+    !wday(start_date, label = TRUE) %in% c("Sat", "Sun"))
+```
 
+```{r}
+# # Clean updates and get time to each stop for error detection
+# updates_stop_times <- updates %>% 
+#   group_by(start_date, trip_id) %>%
+#   arrange(stop_sequence, .by_group = TRUE) %>%
+#   # Remove trips where all the stops have a delay over 2400 (40 minutes), ie entire trip is delayed.
+#   # Most likely error due to entering the information later. This is done to prevent
+#   # incorrect analysis since they will be in the wrong time period
+#   filter(!(all(delay > 2400) |
+#            all(delay < -900))) %>%
+#   # Remove one-off large jumps in between two observations
+#   filter(!(delay - lag(delay, order_by = stop_sequence, default = 0) > 1000 &
+#              delay - lead(delay, order_by = stop_sequence, default = 0) > 1000)) %>%
+#   # Remove any observations that have an arrival_time later than any following
+#   # arrival_time in the trip AND the timestamp is earlier than any following timestamps in the trip.
+#   # This ensures the most recent timestamp is preferred when discrepancy occurs
+#   filter(!(as.numeric(arrival_time) > order_by(-stop_sequence, cummin(as.numeric(arrival_time))) &
+#              as.numeric(timestamp) == order_by(-stop_sequence, cummin(as.numeric(timestamp))))) %>%
+#   # Remove if the arrival_time is less than the previous arrival_times AND the timestamp
+#   # is older than the previous timestamps
+#   filter(!(arrival_time < order_by(stop_sequence, cummax(as.numeric(arrival_time))) &
+#              timestamp < order_by(stop_sequence, cummax(as.numeric(timestamp))))) %>%
+#   # If arrival_time of a stop is less than prior stops but they all have the same
+#   # timestamp, it's not possible to know which is correct. Assume earlier stop_sequence
+#   # is correct since it is closer when the update is made
+#   filter(!(timestamp == order_by(stop_sequence, cummax(as.numeric(timestamp))) &
+#              arrival_time < order_by(stop_sequence, cummax(as.numeric(arrival_time))))) %>%
+#   # If after the above, two consecutive stops have the same arrival_time, remove
+#   # the one with an older timestamp
+#   filter(!(arrival_time == lead(arrival_time, 
+#                                 order_by = stop_sequence,
+#                                 default = ymd("9999-01-01")) &
+#              timestamp < lead(timestamp, 
+#                               order_by = stop_sequence,
+#                               default = ymd("9999-01-01")))) %>%
+#   # If two stops have the same arrival_time and same time_stamp, remove the one
+#   # with a higher stop sequence. Make sure only 2 stops and not more
+#   filter(!(arrival_time != lead(arrival_time, 
+#                                 order_by = stop_sequence,
+#                                 default = ymd("9999-01-01")) &
+#              arrival_time == lag(arrival_time, 
+#                                  order_by = stop_sequence,
+#                                  default = ymd("0000-01-01")) &
+#              timestamp == lag(timestamp, 
+#                               order_by = stop_sequence,
+#                               default = ymd("0000-01-01")))) %>%
+#   # Remove trips with multiple repeating arrival_times
+#   filter(!n_distinct(arrival_time) < n()) %>%
+#   mutate(
+#     to_stop_time = as.numeric(arrival_time - lag(arrival_time), units = "secs"),
+#     first_stop = first(stop_id, order_by = stop_sequence),
+#     last_stop = last(stop_id, order_by = stop_sequence)) %>% 
+#   ungroup() %>%
+#   mutate(to_stop_time = replace_na(to_stop_time, 0))
+# 
+# paste0("Percentage of errors: ", round((nrow(updates) - nrow(updates_stop_times)) / nrow(updates) * 100, 2), "%")
+# 
+# # Take top occurring stops pair for each direction
+# top_first_last_stops <- updates_stop_times %>% 
+#   distinct(start_date, trip_id, direction, first_stop, last_stop) %>%
+#   group_by(direction) %>% 
+#   count(first_stop, last_stop, sort = TRUE) %>% 
+#   slice_max(order_by = n) %>% 
+#   ungroup()
+# 
+# # Get trips with only most occurring stops pair per direction identified
+# updates_stop_times <- updates_stop_times %>%
+#   semi_join(top_first_last_stops, by = c("direction", "first_stop", "last_stop"))
+# 
+# # Get total time per trip within segment
+# updates_trip_time <- updates_stop_times %>% 
+#   group_by(start_date, trip_id) %>%
+#   arrange(stop_sequence, .by_group = TRUE) %>%
+#   mutate(
+#     trip_time = as.numeric((last(arrival_time) -first(arrival_time)), units = "secs"),
+#     delay_diff = abs(last(delay) - first(delay))) %>% 
+#   ungroup() %>%
+#   # If the delay_diff is greater than 600 (10 minutes), most likely an error. Remove
+#   filter(delay_diff < 600) %>% 
+#   arrange(start_date, trip_id, stop_sequence)
+# 
+# # One row per trip corresponding to highest delay in the trip. For error detection using plots
+# trip_time_delay <- updates_trip_time %>% 
+#   group_by(start_date, trip_id) %>% 
+#   filter(abs(delay) == max(abs(delay))) %>%
+#   ungroup() %>% 
+#   distinct(start_date, trip_id, .keep_all = TRUE)
+# 
+# # One row per trip corresponding to highest to_stop_time in the trip. For error detection using plots
+# trip_time_stop <- updates_trip_time %>% 
+#   group_by(start_date, trip_id) %>% 
+#   filter(abs(to_stop_time) == max(abs(to_stop_time))) %>%
+#   ungroup() %>% 
+#   distinct(start_date, trip_id, .keep_all = TRUE)
+# 
+# # For further analysis, take first stop only from each trip because the arrival_time
+# # of the first stop will be considered as the trip start time used as basis for aggregation later.
+# # Also add whether each trip occurrs during either of the peak times
+# trip_times <- updates_trip_time %>% 
+#   group_by(start_date, trip_id) %>% 
+#   filter(stop_sequence == first(stop_sequence, order_by = stop_sequence)) %>%
+#   ungroup() %>% 
+#   distinct(start_date, trip_id, .keep_all = TRUE) %>% 
+#   mutate(
+#     rush = case_when(
+#       as_hms("06:00:00") <= as_hms(arrival_time) & as_hms(arrival_time) < as_hms("10:00:00") ~ "morning",
+#       as_hms("15:00:00") <= as_hms(arrival_time) & as_hms(arrival_time) < as_hms("19:00:00") ~ "evening",
+#       TRUE ~ "neither"),
+#     rush = factor(rush, levels = c("morning", "evening", "neither")))
+# 
+# trip_times_peaks <- trip_times %>% 
+#   filter(rush %in% c("morning", "evening"))
+# 
+# # Join with trip_times to only have trips analysed
+# stop_times <- updates_stop_times %>% 
+#   semi_join(trip_times, by = c("start_date", "trip_id"))
+# 
+# # Update stops_segment to only pairs of stops needed
+# stops_segment <- stops_segment %>% 
+#   filter(stop_id %in% c(top_first_last_stops$first_stop, top_first_last_stops$last_stop))
+# 
+# rm(southrd_updates_raw)
+```
 
+# Appendix
 
+## Trip Updates SQL Query
 
-
-
-
-
+![](images/updates_SQL.png)
 
 # References
 
-- Infrastructure Australia (2019). Urban Transport Crowding and Congestion. The Australian Infrastructure Audit 2019 Supplementary report. Retrieved from https://www.infrastructureaustralia.gov.au/sites/default/files/2019-08/Urban%20Transport%20Crowding%20and%20Congestion.pdf 
+-   Infrastructure Australia (2019). Urban Transport Crowding and Congestion. The Australian Infrastructure Audit 2019 Supplementary report. Retrieved from <https://www.infrastructureaustralia.gov.au/sites/default/files/2019-08/Urban%20Transport%20Crowding%20and%20Congestion.pdf>
