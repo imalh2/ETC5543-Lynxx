@@ -417,7 +417,12 @@ for (link in unique(links_dir1_map$linkid)) {
   }
 }
 
-map_dir1
+dir1_stops <- stops_segment %>%
+  filter(stop_id %in% c(top_first_last_stops[top_first_last_stops["direction"] == directions[1],]$first_stop,
+                        top_first_last_stops[top_first_last_stops["direction"] == directions[1],]$last_stop))
+
+map_dir1 %>% 
+  addCircles(data = dir1_stops, lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, radius = 50, opacity = 1)
 ```
 
 ### Direction 2
@@ -469,7 +474,12 @@ for (link in unique(links_dir2_map$linkid)) {
   }
 }
 
-map_dir2
+dir2_stops <- stops_segment %>%
+  filter(stop_id %in% c(top_first_last_stops[top_first_last_stops["direction"] == directions[2],]$first_stop,
+                        top_first_last_stops[top_first_last_stops["direction"] == directions[2],]$last_stop))
+
+map_dir2 %>% 
+  addCircles(data = dir2_stops, lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, radius = 50, opacity = 1)
 ```
 
 ### Missing Links
@@ -513,7 +523,9 @@ for (link in unique(links_dir2_map$linkid)) {
                  opacity = 0.3, label = ~linkid)
 }
 
-map_both
+map_both %>% 
+  addCircles(data = dir1_stops, lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, radius = 50, opacity = 1) %>%
+  addCircles(data = dir2_stops, lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, radius = 50, opacity = 1)
 
 # Save linkid's for both directions, the missing links, and extra links needed to impute missing links
 links_all <- unique(c(links_dir1_enabled$linkid, links_dir2_enabled$linkid,
@@ -614,7 +626,9 @@ for (link in unique(links_no_stats$linkid)) {
                  opacity = 1, label = ~linkid)
 }
 
-map_links_with_stats
+map_links_with_stats %>% 
+  addCircles(data = dir1_stops, lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, radius = 50, opacity = 1) %>%
+  addCircles(data = dir2_stops, lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, radius = 50, opacity = 1)
 ```
 
 ### Generate stats for missing links
@@ -658,7 +672,7 @@ trip_times_agg <- trip_times %>%
   mutate(arrival_time = ceiling_date(arrival_time, "5 minutes")) %>% 
   group_by(arrival_time, direction) %>% 
   summarise(
-    number_buses = n(),
+    number_trips = n(),
     bus_time = round(mean(trip_time))) %>%
   ungroup() %>% 
   mutate(

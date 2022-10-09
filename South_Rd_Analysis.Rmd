@@ -412,7 +412,12 @@ for (link in unique(links_dir1_map$linkid)) {
   }
 }
 
-map_dir1
+dir1_stops <- stops_segment %>%
+  filter(stop_id %in% c(top_first_last_stops[top_first_last_stops["direction"] == directions[1],]$first_stop,
+                        top_first_last_stops[top_first_last_stops["direction"] == directions[1],]$last_stop))
+
+map_dir1 %>% 
+  addCircles(data = dir1_stops, lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, radius = 50, opacity = 1)
 ```
 
 ### Direction 2
@@ -464,7 +469,44 @@ for (link in unique(links_dir2_map$linkid)) {
   }
 }
 
-map_dir2
+dir2_stops <- stops_segment %>%
+  filter(stop_id %in% c(top_first_last_stops[top_first_last_stops["direction"] == directions[2],]$first_stop,
+                        top_first_last_stops[top_first_last_stops["direction"] == directions[2],]$last_stop))
+
+map_dir2 %>% 
+  addCircles(data = dir2_stops, lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, radius = 50, opacity = 1)
+```
+
+#### Both directions together
+
+```{r}
+# Plot links from both directions
+map_both <- leaflet() %>% 
+  addTiles()
+
+# Add links first direction
+for (link in unique(links_dir1_map$linkid)) {
+  map_df <- links_dir1_map %>% 
+    filter(linkid == link)
+  
+  map_both <- map_both %>% 
+    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = "green", 
+                 opacity = 0.3, label = ~linkid)
+}
+
+# Add links second direction
+for (link in unique(links_dir2_map$linkid)) {
+  map_df <- links_dir2_map %>% 
+    filter(linkid == link)
+  
+  map_both <- map_both %>% 
+    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = "red",
+                 opacity = 0.3, label = ~linkid)
+}
+
+map_both %>% 
+  addCircles(data = dir1_stops, lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, radius = 50, opacity = 1) %>%
+  addCircles(data = dir2_stops, lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, radius = 50, opacity = 1)
 ```
 
 ### Missing Links
@@ -570,8 +612,6 @@ for (i in 1:nrow(missing_links_dir2)) {
   }
 }
 ```
-
-### Both directions together
 
 ```{r}
 # Plot links from both directions
@@ -699,7 +739,9 @@ for (link in unique(links_no_stats$linkid)) {
                  opacity = 1, label = ~linkid)
 }
 
-map_links_with_stats
+map_links_with_stats %>% 
+  addCircles(data = dir1_stops, lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, radius = 50, opacity = 1) %>%
+  addCircles(data = dir2_stops, lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, radius = 50, opacity = 1)
 ```
 
 ### Generate stats for missing links
@@ -769,7 +811,9 @@ for (link in unique(links_no_stats$linkid)) {
                  opacity = 1, label = ~linkid)
 }
 
-map_links_with_stats
+map_links_with_stats %>% 
+  addCircles(data = dir1_stops, lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, radius = 50, opacity = 1) %>%
+  addCircles(data = dir2_stops, lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, radius = 50, opacity = 1)
 ```
 
 ```{r}
@@ -809,7 +853,7 @@ trip_times_agg <- trip_times %>%
   mutate(arrival_time = ceiling_date(arrival_time, "5 minutes")) %>% 
   group_by(arrival_time, direction) %>% 
   summarise(
-    number_buses = n(),
+    number_trips = n(),
     bus_time = round(mean(trip_time))) %>%
   ungroup() %>% 
   mutate(
