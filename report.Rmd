@@ -1123,9 +1123,7 @@ With all the data now complete, the analysis between the two travel times is rea
 
 # Analysis
 
-The goal of the analysis to ascertain the extent of the relationship between the variations in the motor vehicle travel times and the variations in the bus trip travel times, the variation is in reference to travel times during the same time frame across the entire period. In other words, is the variation from the normal travel time by vehicles matched by a variation from the normal travel time by buses? If so, by what extent?
-
-First, the data in the bus travel times will be split into five minute time periods, with the arrival time of the first stop on the trip used as the basis for this segregation. For example, all bus trips that start between 2022-03-01 12:00:00 and 2022-03-01 12:05:00 will be included in the same time frame. Since each time frame can containt multiple trips, the bus travel times will be averaged into one average bus travel time, this is done to establish a one-to-one relationship with the vehicles travel time, which are also in five minute intervals. The final dataset looks as follows:
+Before proceeding further, the data in the bus travel times will be split into five minute time periods, with the arrival time of the first stop on the trip used as the basis for this segregation. For example, all bus trips that start between 2022-03-01 12:00:00 and 2022-03-01 12:05:00 will be included in the same time frame. Since each time frame can containt multiple trips, the bus travel times will be averaged into one average bus travel time, this is done to establish a one-to-one relationship with the vehicles travel time, which are also in five minute intervals. The final dataset looks as follows:
 
 ```{r}
 # Split trips into 5 minute intervals average the trips times per interval
@@ -1167,7 +1165,7 @@ trip_times_agg %>%
   kable_styling(full_width = FALSE)
 ```
 
-## Initial Travel Times Comparison
+## Travel Times Comparison
 
 The travel times from both sets will be compared against one another. This is done to gain a general understanding of the relationship as well as to validate the datasets, as we would expect to observe a similar pattern between both travel times. The comparison will be done through a series of graphs.
 
@@ -1178,7 +1176,8 @@ travel_times <- trip_times_agg %>%
   mutate(travel_diff = bus_time - links_time)
 
 travel_times_piv <- travel_times %>% 
-  pivot_longer(cols = bus_time:links_time, names_to = "type", values_to = "travel_time")
+  pivot_longer(cols = bus_time:links_time, names_to = "type", values_to = "travel_time") %>% 
+  mutate(type = recode(type, bus_time = "Bus", links_time = "Vehicle"))
 ```
 
 ```{r bus-vehicles-time, fig.cap="Vehicles are faster in both directions"}
@@ -1204,10 +1203,9 @@ Figure \@ref(fig:bus-vehicles-time) shows that northbound traffic is generally f
 travel_times_piv_dir1 <- travel_times_piv %>% 
   filter(direction == directions[1])
 
-travel_times_piv_dir1 %>% 
-  mutate(type = recode(type, bus_time = "Bus", links_time = "Vehicle")) %>% 
+travel_times_piv_dir1 %>%  
   ggplot(aes(time, travel_time, color = type)) +
-  geom_line() +
+  geom_line(size = 0.75) +
   facet_wrap(vars(day), scales = "free_y") +
   ggtitle(directions[1]) +
   labs(x = "Time",
@@ -1233,9 +1231,8 @@ travel_times_piv_dir2 <- travel_times_piv %>%
   filter(direction == directions[2])
 
 travel_times_piv_dir2 %>% 
-  mutate(type = recode(type, bus_time = "Bus", links_time = "Vehicle")) %>% 
   ggplot(aes(time, travel_time, color = type)) +
-  geom_line() +
+  geom_line(size = 0.75) +
   facet_wrap(vars(day), scales = "free_y") +
   ggtitle(directions[2]) +
   labs(x = "Time",
@@ -1327,32 +1324,79 @@ links_trips_30min <- links_30min %>%
   pivot_longer(cols = links_time:bus_time, names_to = "type", values_to = "value") %>% 
   mutate(type = recode(type, bus_time = "Bus", links_time = "Vehicle"))
 
-  ggplot(links_trips_30min, aes(time, value)) +
-  geom_line(alpha = 0.2) +
-  geom_line(data = filter(links_trips_30min, rush == "morning"), color = "blue", size = 0.5) +
-  geom_line(data = filter(links_trips_30min, rush == "evening"), color = "blue", size = 0.5) +
-  facet_grid(rows = vars(type), cols = vars(direction), scales = "free_y") +
-  annotate("rect", xmin = as_hms("06:00:00"), xmax = as_hms("10:00:00"), ymin = -Inf, ymax = Inf,
-           fill = "red", alpha = .1) +
-  annotate("rect", xmin = as_hms("15:00:00"), xmax = as_hms("19:00:00"), ymin = -Inf, ymax = Inf,
-           fill = "red", alpha = .1) +
-  scale_x_time(limits = as_hms(c("06:00:00", "23:59:59")),
-               breaks = as_hms(c("06:00:00", "08:00:00", "10:00:00", "12:00:00",
-                                 "15:00:00", "17:00:00", "19:00:00")),
-               labels = c("6", "8", "10", "12", "15", "17", "19")) +
-  scale_y_continuous(labels = label_comma()) +
-  labs(x = "Time (Hour)",
-       y = "Travel Time (Seconds)",
-       title = "Average Travel Time Pattern") +
-  theme_bw()
+ggplot(links_trips_30min, aes(time, value)) +
+geom_line(alpha = 0.2) +
+geom_line(data = filter(links_trips_30min, rush == "morning"), color = "blue") +
+geom_line(data = filter(links_trips_30min, rush == "evening"), color = "blue") +
+facet_grid(rows = vars(type), cols = vars(direction)) +
+annotate("rect", xmin = as_hms("06:00:00"), xmax = as_hms("10:00:00"), ymin = -Inf, ymax = Inf,
+         fill = "red", alpha = .1) +
+annotate("rect", xmin = as_hms("15:00:00"), xmax = as_hms("19:00:00"), ymin = -Inf, ymax = Inf,
+         fill = "red", alpha = .1) +
+scale_x_time(limits = as_hms(c("06:00:00", "23:59:59")),
+             breaks = as_hms(c("06:00:00", "08:00:00", "10:00:00", "12:00:00",
+                               "15:00:00", "17:00:00", "19:00:00")),
+             labels = c("6", "8", "10", "12", "15", "17", "19")) +
+scale_y_continuous(labels = label_comma()) +
+labs(x = "Time (Hour)",
+     y = "Travel Time (Seconds)",
+     title = "Average Travel Time Pattern") +
+theme_bw()
 ```
 
 Figure \@ref(fig:times-scatter) shows the average pattern of travel times across the day, by direction and type. The morning and evening rush hours have been highlighted as they are the parts of the day worth of examination. Analyzing northbound travel towards the city, both rush hour times display a similar level of travel time for both types, and the travel time in the rush hours are not much greater than non-rush hour times. This is an unexpected result as it is expected that travel times northbound towards the city would be higher in the morning rush hour. Southbound travel away from the city, however, follows expectations as the travel time for both types dramatically increases in the evening rush hour as workers leave the city.
 
 ## Travel Times Variation Analysis
 
+The goal of the analysis to ascertain the extent of the relationship between the variations in the motor vehicle travel times and the variations in the bus trip travel times, the variation is in reference to travel times during the same time frame across the entire period. In other words, if the vehicle travel time varies by a certain level relative to the usual travel time during the same time frame, can we observe a reflection of this variation in the bus travel time? If so, by how much?
 
+In order to assess the variation, the travel times will be standardized. The function `standardiser` is created which separately standardizes both the bus travel times and vehicle travel times according to the total data in the entire period based on either:
 
+- the five minute time frame. For example, a bus/vehicle travel time on 2022-03-01 7:00am would be standardized against all the other travel times that occur on 7:00am in the period
+
+- the hour of travel. For example, a bus/vehicle travel time that occurs on 2022-03-01 between 7am and 8am would be standardized against all the other bus trips in the period that occur during that hour
+
+- the rush hour of travel. For example, a bus/vehicle travel time that occurs on 2022-03-01 during the morning rush hour would be standardized against all the other bus trips in the period that occur during morning rush hour
+
+These options are provided to the function as argument ("time", "hour", "rush"). As the time frame widens, more data is available for standardization. This is why in addition to standardizing the data, the `standardiser` function also displays the total number of data points present in each time frame according to the method chosen. The function also removes observations greater than three standard deviations away as these are outliers that can affect the analysis.
+
+Ideally, the travel times would be standardized according to the same five minute time frame across the entire period as this would provide the highest accuracy. However, as the bus trips per five minute time frame were averaged into one five minute travel time, and we are analyzing only one month of data containing 21 working days, there is not enough travel times to accomplish this, since there would be a maximum of 21 data points per five minute time frame used for standardization. Instead, the default standardization parameter is by hour, which provides a much greater number of data points.
+
+```{r}
+standardiser <- function(basis = hour) {
+  if (!deparse(substitute(basis)) %in% c("time", "hour", "rush")) {
+    stop("basis must be either time, hour, or rush")
+  }
+  
+  trip_times_std <- trip_times_agg %>%
+    group_by({{basis}}, direction) %>% 
+    mutate(
+      period_buses_no = n(),
+      bus_time_std = as.vector(scale(bus_time))) %>% 
+    ungroup() %>% 
+    mutate(bus_time_std = if_else(is.nan(bus_time_std), 0, bus_time_std)) %>%
+    filter(abs(bus_time_std) < 3) %>%
+    select(-bus_time)
+    
+  links_times_std <- links_times %>% 
+    group_by({{basis}}, direction) %>% 
+    mutate(links_time_std = as.vector(scale(links_time))) %>% 
+    ungroup() %>% 
+    filter(abs(links_time_std) < 3) %>%
+    select(-links_time)
+  
+  # Combine
+  travel_times_std <<- trip_times_std %>%
+    inner_join(links_times_std) %>%
+    mutate(std_travel_diff = bus_time_std - links_time_std)
+  
+  travel_times_std_piv <<- travel_times_std %>% 
+    pivot_longer(cols = bus_time_std:links_time_std, names_to = "type", values_to = "std_travel_time") %>% 
+    mutate(type = recode(type, bus_time = "Bus", links_time = "Vehicle"))
+}
+
+standardiser()
+```
 
 
 
