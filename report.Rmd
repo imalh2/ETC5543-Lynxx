@@ -366,7 +366,7 @@ updates_trip_time <- updates_stop_times_x %>%
 
 ggplot(updates_trip_time, aes(trip_time, fill = stops_pair)) +
   geom_density(alpha = 0.5) +
-  scale_x_continuous(labels = label_comma()) +
+  scale_x_continuous(labels = label_comma(), limits = c(min(updates_trip_time$trip_time, 2000))) +
   labs(x = "Trip Time (Seconds)",
        fill = "First-Last Stops",
        title = "Trip Time Distribution per Stops Pair per Direction") +
@@ -430,12 +430,14 @@ ggplot(trip_time_delay, aes(delay_diff, color = direction)) +
   scale_x_continuous(labels = label_comma()) +
   theme_bw() +
   theme(axis.text.y = element_blank(),
-        axis.ticks.y = element_blank())
+        axis.ticks.y = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank())
 ```
 
 Based on figure \@ref(fig:large-trip-times), trips with a `delay_diff` greater than 600 (10 minutes) were removed as they were most likely errors. The resulting data now appears as follows:
 
-```{r trip-times, fig.cap="Excessively large trip times no longer exist"}
+```{r trip-times-all, fig.cap="Excessively large trip times no longer exist"}
 updates_trip_time <- updates_trip_time %>%
   # If the delay_diff is greater than 600 (10 minutes), most likely an error
   filter(delay_diff < 600) %>%
@@ -446,6 +448,12 @@ trip_times <- updates_trip_time %>%
   filter(stop_sequence == first(stop_sequence, order_by = stop_sequence)) %>%
   ungroup() %>%
   distinct(start_date, trip_id, .keep_all = TRUE) %>% 
+  mutate(
+    rush = case_when(
+      as_hms("06:00:00") <= as_hms(arrival_time) & as_hms(arrival_time) < as_hms("10:00:00") ~ "Morning",
+      as_hms("15:00:00") <= as_hms(arrival_time) & as_hms(arrival_time) < as_hms("19:00:00") ~ "Evening",
+      TRUE ~ "Neither"),
+    rush = factor(rush, levels = c("Morning", "Evening", "Neither"))) %>% 
   select(-delay_diff)
 
 rm(southrd_updates_raw)
@@ -454,18 +462,29 @@ ggplot(trip_times, aes(trip_time, fill = direction)) +
   geom_density(alpha = 0.4) +
   labs(x = "Trip Time (Seconds)",
        fill = "Direction",
-       title = "Trip Time Distribution per Direction") +
+       title = "Trip Time Distribution per Direction at All Times") +
   scale_x_continuous(labels = label_comma()) +
   scale_y_continuous(labels = label_comma()) +
-  theme_bw() +
-  theme(
-    axis.text.y = element_blank(),
-    axis.title.y = element_blank(),
-    axis.ticks.y = element_blank())
-  
+  theme_bw()
 ```
 
-Figure \@ref(fig:trip-times) shows that travel times southbound away from the city are larger and more dispersed than the travel times northbound towards the city.
+Figure \@ref(fig:trip-times-all) shows that travel times southbound away from the city are larger and more dispersed than the travel times northbound towards the city.
+
+```{r trip-times-rush, fig.cap="Greater variation exists between the travel times of both directions in the evening"}
+trip_times %>% 
+  filter(rush != "Neither") %>% 
+  ggplot(aes(trip_time, fill = direction)) +
+  geom_density(alpha = 0.3) +
+  labs(x = "Trip Time (Seconds)",
+       fill = "Direction",
+       title = "Trip Time Distribution per Direction by Rush Hours") +
+  scale_x_continuous(labels = label_comma()) +
+  scale_y_continuous(labels = label_comma()) +
+  facet_wrap(vars(rush)) +
+  theme_bw()
+```
+
+Figure \@ref(fig:trip-times-rush) shows that travel times are in fact very similar during the morning rush hour, while in the evening, travel time southbound away from the city is longer as expected.
 
 The data relating to only the first stop per trip was kept since the arrival time of the first stop will be considered as the trip start time used as the basis for aggregation later in the analysis.
 
@@ -1076,10 +1095,10 @@ links_times <- link_stats %>%
     time = as_hms(logtime),
     hour = hour(logtime),
     rush = case_when(
-      between(hour, 6, 9) ~ "morning",
-      between(hour, 15, 18) ~ "evening",
-      TRUE ~ "neither"),
-    rush = factor(rush, levels = c("morning", "evening", "neither"))) %>%
+      between(hour, 6, 9) ~ "Morning",
+      between(hour, 15, 18) ~ "Evening",
+      TRUE ~ "Neither"),
+    rush = factor(rush, levels = c("Morning", "Evening", "Neither"))) %>%
   relocate(day:rush, .after = logtime) %>% 
   select(-logtime)
 ```
@@ -1101,23 +1120,23 @@ links_times %>%
   kable_styling(full_width = FALSE)
 ```
 
-The distribution of the motor vehicle travel times per direction appears as follows:
+The distribution of the motor vehicle travel times per direction during the rush hours appear as follows:
 
-```{r total-times, fig.cap="Both direction have similar travel time profiles"}
-ggplot(links_times, aes(links_time, fill = direction)) +
+```{r total-times, fig.cap="Vehicle travel times behave as expected"}
+links_times %>% 
+  filter(rush != "Neither") %>%
+  ggplot(aes(links_time, fill = direction)) +
   geom_density(alpha = 0.4) +
-  scale_x_continuous(labels = label_comma()) +
+  scale_x_continuous(labels = label_comma(), limits = c(min(links_times$links_time),1500)) +
   scale_y_continuous(labels = label_comma()) +
   labs(x = "Vehicle Travel Time (Seconds)",
        fill = "Direction",
-       title = "Vechile Travel Time Distributions") +
-  theme_bw() +
-  theme(axis.text.y = element_blank(),
-        axis.ticks.y = element_blank(),
-        axis.title.y = element_blank())
+       title = "Vechile Travel Time Distributions by Rush Hour") +
+  facet_wrap(vars(rush)) +
+  theme_bw()
 ```
 
-Figure \@ref(fig:total-times) shows the travel times for both directions are very similar.
+Figure \@ref(fig:total-times) shows the vehicles travel times behave as expected in that northbound travel time is longer in the morning, while southbound travel is longer in the evening. However, it should be noted that the difference in the travel times between both directions is much greater during the evening than it is during the morning, exhibiting a similar behaviour to bus travel times seen in figure \@ref(fig:trip-times-rush).
 
 With all the data now complete, the analysis between the two travel times is ready to be performed.
 
@@ -1139,10 +1158,10 @@ trip_times_agg <- trip_times %>%
     time = as_hms(arrival_time),
     hour = hour(time),
     rush = case_when(
-      between(hour, 6, 9) ~ "morning",
-      between(hour, 15, 18) ~ "evening",
-      TRUE ~ "neither"),
-    rush = factor(rush, levels = c("morning", "evening", "neither"))) %>% 
+      between(hour, 6, 9) ~ "Morning",
+      between(hour, 15, 18) ~ "Evening",
+      TRUE ~ "Neither"),
+    rush = factor(rush, levels = c("Morning", "Evening", "Neither"))) %>% 
   relocate(day:rush, .after = arrival_time) %>% 
   select(-arrival_time)
 ```
@@ -1180,23 +1199,20 @@ travel_times_piv <- travel_times %>%
   mutate(type = recode(type, bus_time = "Bus", links_time = "Vehicle"))
 ```
 
-```{r bus-vehicles-time, fig.cap="Vehicles are faster in both directions"}
+```{r bus-vehicles-time, fig.cap="Vehicles are faster in both directions. Distributions of both types resemble each other"}
 # Travel time distributions
 travel_times_piv %>% 
+  filter(rush != "Neither") %>% 
   mutate(type = recode(type, bus_time = "Bus", links_time = "Vehicle")) %>% 
   ggplot(aes(travel_time, fill = type)) +
   geom_density(alpha = 0.4) +
-  facet_wrap(vars(direction)) +
-  scale_x_continuous(labels = label_comma()) +
+  facet_grid(vars(direction), vars(rush)) +
+  scale_x_continuous(labels = label_comma(), limits = c(min(travel_times_piv$travel_time), 1500)) +
   labs(x = "Travel Time (Seconds)", fill = "Type", title = "Bus Travel Time vs Vehicle Travel Time") +
-  theme_bw() +
-  theme(
-    axis.text.y = element_blank(),
-    axis.title.y = element_blank(),
-    axis.ticks.y = element_blank())
+  theme_bw()
 ```
 
-Figure \@ref(fig:bus-vehicles-time) shows that northbound traffic is generally faster than southbound traffic, buses are slower than vehicles, and the shapes of the distributions between both types are very similar.
+Figure \@ref(fig:bus-vehicles-time) shows that for northbound travel to the city, vehicle travel time largely remains the same during both periods of rush hour, while bus travel time actually increases in the evening, a surprising result. While for southbound travel away from the city, both travel times increase as expected. The bus travel times are generally slower than vehicle travel times, and both types exhibit general patterns overall.
 
 ```{r nb-calendar, fig.height=8, fig.width=9, fig.cap="Northbound bus travel times are slower than vehicle travel times. Both exhibit similar patterns"}
 # Direction 1 calendar plot
@@ -1358,7 +1374,7 @@ In order to assess the variation, the travel times will be standardized. The fun
 
 - the rush hour of travel. For example, a bus/vehicle travel time that occurs on 2022-03-01 during the morning rush hour would be standardized against all the other bus trips in the period that occur during morning rush hour
 
-These options are provided to the function as argument ("time", "hour", "rush"). As the time frame widens, more data is available for standardization. This is why in addition to standardizing the data, the `standardiser` function also displays the total number of data points present in each time frame according to the method chosen. The function also removes observations greater than three standard deviations away as these are outliers that can affect the analysis.
+These options are provided to the function as an argument ("time", "hour", "rush"). As the time frame widens, more data is available for standardization. This is why in addition to standardizing the data, the `standardiser` function also stores the total number of data points present in each time frame according to the method chosen. The function also removes observations greater than three standard deviations away as these are considered outliers that can affect the analysis.
 
 Ideally, the travel times would be standardized according to the same five minute time frame across the entire period as this would provide the highest accuracy. However, as the bus trips per five minute time frame were averaged into one five minute travel time, and we are analyzing only one month of data containing 21 working days, there is not enough travel times to accomplish this, since there would be a maximum of 21 data points per five minute time frame used for standardization. Instead, the default standardization parameter is by hour, which provides a much greater number of data points.
 
@@ -1398,7 +1414,7 @@ standardiser <- function(basis = hour) {
 standardiser()
 ```
 
-
+With the bus and vehicle travel times now standardized, we can 
 
 
 
