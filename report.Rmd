@@ -509,7 +509,11 @@ trip_times %>%
                          "Time (in seconds) to reach the current stop from the previou stop",
                          "First stop of the trip in the segment",
                          "Last stop of the trip in the segment",
-                         "Total trip time (in seconds)")) %>% 
+                         "Total trip time (in seconds)",
+                         "Whether the measurement occurrs during rush hour.
+                          Morning rush hour occurrs between 6am and 10am,
+                          evening rush hour occurrs between 3pm and 7pm,
+                          neither otherwise")) %>% 
   kable(caption = "Bus trip times data description") %>% 
   kable_styling(full_width = FALSE)
 ```
@@ -1223,6 +1227,7 @@ travel_times_piv_dir1 %>%
   ggplot(aes(time, travel_time, color = type)) +
   geom_line(size = 0.75) +
   facet_wrap(vars(day), scales = "free_y") +
+  scale_x_time(label = scales::label_time("%H")) +
   ggtitle(directions[1]) +
   labs(x = "Time",
        y = "Travel Time (Seconds)", 
@@ -1230,7 +1235,6 @@ travel_times_piv_dir1 %>%
        title = "Northbound Bus Times vs Vehicle Times") +
   theme_bw() +
   theme(
-    axis.text.x = element_text(angle = 90),
     axis.text.y = element_blank(),
     axis.ticks.y = element_blank(),
     panel.grid.major.y = element_blank(),
@@ -1250,6 +1254,7 @@ travel_times_piv_dir2 %>%
   ggplot(aes(time, travel_time, color = type)) +
   geom_line(size = 0.75) +
   facet_wrap(vars(day), scales = "free_y") +
+  scale_x_time(label = scales::label_time("%H")) +
   ggtitle(directions[2]) +
   labs(x = "Time",
        y = "Travel Time (Seconds)", 
@@ -1257,7 +1262,6 @@ travel_times_piv_dir2 %>%
        title = "Southbound Bus Times vs Vehicle Times") +
   theme_bw() +
   theme(
-    axis.text.x = element_text(angle = 90),
     axis.text.y = element_blank(),
     axis.ticks.y = element_blank(),
     panel.grid.major.y = element_blank(),
