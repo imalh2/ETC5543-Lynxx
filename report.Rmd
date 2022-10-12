@@ -253,12 +253,14 @@ updates_stop_times <- updates %>%
   ungroup() %>%
   mutate(to_stop_time = replace_na(to_stop_time, 0))
 
-ggplot(updates_stop_times, aes(to_stop_time, delay)) +
+ggplot(updates_stop_times, aes(to_stop_time/60, delay/60)) +
   geom_point(alpha = 0.3) +
   geom_vline(xintercept = 0, color = "red", linetype = "dashed") +
   scale_x_continuous(labels = label_comma()) +
   scale_y_continuous(labels = label_comma()) +
-  labs(x = "To-Stop Time (Seconds)", y = "Delay (Seconds)", title = "Unedited Trip To-Stop Time Vs. Delay") +
+  labs(x = "To-Stop Time (Minutes)",
+       y = "Delay (Minutes)",
+       title = "Unedited Trip To-Stop Time Vs. Delay") +
   theme_bw()
 ```
 
@@ -330,12 +332,14 @@ Great effort was put into identifying each type of error and remedying it in a w
 The percentage of error entries located and fixed in the data was `r error_percentage`%. The cleaned data now appears as follows:
 
 ```{r cleaned-to-stops, fig.cap="Cleaned to-stop times do not contain negative values"}
-ggplot(updates_stop_times, aes(to_stop_time, delay)) +
+ggplot(updates_stop_times, aes(to_stop_time/60, delay/60)) +
   geom_point(alpha = 0.3) +
   geom_vline(xintercept = 0, color = "red", linetype = "dashed") +
   scale_x_continuous(labels = label_comma()) +
   scale_y_continuous(labels = label_comma()) +
-  labs(x = "To-Stop Time (Seconds)", y = "Delay (Seconds)", title = "Cleaned Trip To-Stop Time Vs. Delay") +
+  labs(x = "To-Stop Time (Minutes)",
+       y = "Delay (Minutes)",
+       title = "Cleaned Trip To-Stop Time Vs. Delay") +
   theme_bw()
 ```
 
@@ -364,10 +368,10 @@ updates_trip_time <- updates_stop_times_x %>%
   distinct(start_date, trip_id, .keep_all = TRUE) %>% 
   mutate(stops_pair = paste0(first_stop, "-", last_stop))
 
-ggplot(updates_trip_time, aes(trip_time, fill = stops_pair)) +
+ggplot(updates_trip_time, aes(trip_time/60, fill = stops_pair)) +
   geom_density(alpha = 0.5) +
-  scale_x_continuous(labels = label_comma(), limits = c(min(updates_trip_time$trip_time, 2000))) +
-  labs(x = "Trip Time (Seconds)",
+  scale_x_continuous(labels = label_comma()) +
+  labs(x = "Trip Time (Minutes)",
        fill = "First-Last Stops",
        title = "Trip Time Distribution per Stops Pair per Direction") +
   facet_wrap(vars(direction)) +
@@ -422,9 +426,9 @@ trip_time_delay <- updates_trip_time %>%
   ungroup() %>%
   distinct(start_date, trip_id, .keep_all = TRUE)
 
-ggplot(trip_time_delay, aes(delay_diff, color = direction)) +
+ggplot(trip_time_delay, aes(delay_diff/60, color = direction)) +
   geom_boxplot() +
-  labs(x = "Delay Difference (Seconds)",
+  labs(x = "Delay Difference (Minutes)",
        color = "Direction",
        title = "Size of Difference between Delays of First and Last Stops") +
   scale_x_continuous(labels = label_comma()) +
@@ -458,9 +462,9 @@ trip_times <- updates_trip_time %>%
 
 rm(southrd_updates_raw)
 
-ggplot(trip_times, aes(trip_time, fill = direction)) +
+ggplot(trip_times, aes(trip_time/60, fill = direction)) +
   geom_density(alpha = 0.4) +
-  labs(x = "Trip Time (Seconds)",
+  labs(x = "Trip Time (Minutes)",
        fill = "Direction",
        title = "Trip Time Distribution per Direction at All Times") +
   scale_x_continuous(labels = label_comma()) +
@@ -473,9 +477,9 @@ Figure \@ref(fig:trip-times-all) shows that travel times southbound away from th
 ```{r trip-times-rush, fig.cap="Greater variation exists between the travel times of both directions in the evening"}
 trip_times %>% 
   filter(rush != "Neither") %>% 
-  ggplot(aes(trip_time, fill = direction)) +
+  ggplot(aes(trip_time/60, fill = direction)) +
   geom_density(alpha = 0.3) +
-  labs(x = "Trip Time (Seconds)",
+  labs(x = "Trip Time (Minutes)",
        fill = "Direction",
        title = "Trip Time Distribution per Direction by Rush Hours") +
   scale_x_continuous(labels = label_comma()) +
@@ -936,9 +940,11 @@ link_stats <- link_stats %>%
 
 rm(southrd_link_stats_raw)
 
-ggplot(link_stats, aes(speed, tt, color = factor(linkid))) +
+ggplot(link_stats, aes(speed, tt/60, color = factor(linkid))) +
   geom_point(alpha = 0.3, show.legend = FALSE) +
-  labs(x = "Speed (km/h)", y = "Vehicle Travel Time (Seconds)", title = "Unedited Vehicle Travel Speed Vs Travel Time") +
+  labs(x = "Speed (km/h)", 
+       y = "Vehicle Travel Time (minutes)", 
+       title = "Unedited Vehicle Travel Speed Vs Travel Time") +
   theme_bw()
 ```
 
@@ -949,18 +955,22 @@ link_stats <- link_stats %>%
   # Remove speeds over 150 km/h as most likely errors
   filter(speed < 150)
 
-ggplot(link_stats, aes(speed, tt, color = factor(linkid))) +
+ggplot(link_stats, aes(speed, tt/60, color = factor(linkid))) +
   geom_point(alpha = 0.3, show.legend = FALSE) +
-  labs(x = "Speed (km/h)", y = "Vechile Travel Time (Seconds)", title = "Vehicle Travel Speed Vs Travel Time") +
+  labs(x = "Speed (km/h)", 
+       y = "Vechile Travel Time (Minutes)", 
+       title = "Vehicle Travel Speed Vs Travel Time") +
   theme_bw()
 ```
 
 A plot of the length in meters vs the travel time will be examined:
 
 ```{r lengh-time, fig.cap="Travel time increases with length"}
-ggplot(link_stats, aes(factor(length), tt)) +
+ggplot(link_stats, aes(factor(length), tt/60)) +
   geom_boxplot() +
-  labs(x = "Length (Meters)", y = "Vechile Travel Time (Seconds)", title = "Link Length vs Travel Time") +
+  labs(x = "Length (Meters)", 
+       y = "Vechile Travel Time (Minutes)", 
+       title = "Link Length vs Travel Time") +
   theme_bw()
 ```
 
@@ -1129,11 +1139,11 @@ The distribution of the motor vehicle travel times per direction during the rush
 ```{r total-times, fig.cap="Vehicle travel times behave as expected"}
 links_times %>% 
   filter(rush != "Neither") %>%
-  ggplot(aes(links_time, fill = direction)) +
+  ggplot(aes(links_time/60, fill = direction)) +
   geom_density(alpha = 0.4) +
-  scale_x_continuous(labels = label_comma(), limits = c(min(links_times$links_time),1500)) +
+  scale_x_continuous(labels = label_comma(), limits = c(min(links_times$links_time/60),25)) +
   scale_y_continuous(labels = label_comma()) +
-  labs(x = "Vehicle Travel Time (Seconds)",
+  labs(x = "Vehicle Travel Time (Minutes)",
        fill = "Direction",
        title = "Vechile Travel Time Distributions by Rush Hour") +
   facet_wrap(vars(rush)) +
@@ -1207,12 +1217,11 @@ travel_times_piv <- travel_times %>%
 # Travel time distributions
 travel_times_piv %>% 
   filter(rush != "Neither") %>% 
-  mutate(type = recode(type, bus_time = "Bus", links_time = "Vehicle")) %>% 
-  ggplot(aes(travel_time, fill = type)) +
+  ggplot(aes(travel_time/60, fill = type)) +
   geom_density(alpha = 0.4) +
   facet_grid(vars(direction), vars(rush)) +
-  scale_x_continuous(labels = label_comma(), limits = c(min(travel_times_piv$travel_time), 1500)) +
-  labs(x = "Travel Time (Seconds)", fill = "Type", title = "Bus Travel Time vs Vehicle Travel Time") +
+  scale_x_continuous(labels = label_comma(), limits = c(min(travel_times_piv$travel_time/60), 25)) +
+  labs(x = "Travel Time (Minutes)", fill = "Type", title = "Bus Travel Time vs Vehicle Travel Time") +
   theme_bw()
 ```
 
@@ -1227,10 +1236,10 @@ travel_times_piv_dir1 %>%
   ggplot(aes(time, travel_time, color = type)) +
   geom_line(size = 0.75) +
   facet_wrap(vars(day), scales = "free_y") +
-  scale_x_time(label = scales::label_time("%H")) +
+  scale_x_time(labels = label_time("%H:%M")) +
   ggtitle(directions[1]) +
   labs(x = "Time",
-       y = "Travel Time (Seconds)", 
+       y = "Travel Time", 
        color = "Type", 
        title = "Northbound Bus Times vs Vehicle Times") +
   theme_bw() +
@@ -1254,10 +1263,10 @@ travel_times_piv_dir2 %>%
   ggplot(aes(time, travel_time, color = type)) +
   geom_line(size = 0.75) +
   facet_wrap(vars(day), scales = "free_y") +
-  scale_x_time(label = scales::label_time("%H")) +
+  scale_x_time(labels = label_time("%H:%M")) +
   ggtitle(directions[2]) +
   labs(x = "Time",
-       y = "Travel Time (Seconds)", 
+       y = "Travel Time", 
        color = "Type", 
        title = "Southbound Bus Times vs Vehicle Times") +
   theme_bw() +
@@ -1279,12 +1288,12 @@ A scatter plot of the travel times will be examined:
 ```{r times-scatter, fig.cap="A positive relationship exists between both travel times for both directions"}
 # Scatter plots
 travel_times %>% 
-  ggplot(aes(bus_time, links_time)) +
+  ggplot(aes(bus_time/60, links_time/60)) +
   geom_point(alpha = 0.3) +
   scale_x_continuous(labels = label_comma()) +
   scale_y_continuous(labels = label_comma()) +
-  labs(x = "Bus Travel Times (Seconds)",
-       y = "Vehicles Travel Times (Seconds)",
+  labs(x = "Bus Travel Times (Minutes)",
+       y = "Vehicles Travel Times (Minutes)",
        title = "Bus Travel Times vs Vehicles Travel Times per Direction") +
   facet_wrap(vars(direction), scales = "free") +
   theme_bw()
@@ -1344,7 +1353,7 @@ links_trips_30min <- links_30min %>%
   pivot_longer(cols = links_time:bus_time, names_to = "type", values_to = "value") %>% 
   mutate(type = recode(type, bus_time = "Bus", links_time = "Vehicle"))
 
-ggplot(links_trips_30min, aes(time, value)) +
+ggplot(links_trips_30min, aes(time, value/60)) +
 geom_line(alpha = 0.2) +
 geom_line(data = filter(links_trips_30min, rush == "morning"), color = "blue") +
 geom_line(data = filter(links_trips_30min, rush == "evening"), color = "blue") +
@@ -1359,7 +1368,7 @@ scale_x_time(limits = as_hms(c("06:00:00", "23:59:59")),
              labels = c("6", "8", "10", "12", "15", "17", "19")) +
 scale_y_continuous(labels = label_comma()) +
 labs(x = "Time (Hour)",
-     y = "Travel Time (Seconds)",
+     y = "Travel Time (Minutes)",
      title = "Average Travel Time Pattern") +
 theme_bw()
 ```
@@ -1418,7 +1427,10 @@ standardiser <- function(basis = hour) {
 standardiser()
 ```
 
-With the bus and vehicle travel times now standardized, we can 
+With the bus and vehicle travel times now standardized, we can now examine the relationship between the travel times with respect to variation.
+
+
+
 
 
 
