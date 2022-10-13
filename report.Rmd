@@ -24,13 +24,13 @@ library(scales)
 
 ```{r data}
 # Holidays dates
-holidays_raw <- read_csv(here("data/addinsight/addinsight_prod.btspecialdays.csv.csv"))
+holidays_raw <- read_csv(here("data/DIT/specialdays.csv"))
 
 # Links information
-links_raw <- read_csv(here("data/AddInsight/addinsight_prod.btlinks.csv.csv"))
+links_raw <- read_csv(here("data/DIT/links.csv"))
 
 # List of links on South Rd and their geometries
-southrd_links_raw <- read_csv(here("data/South-Rd/BT Links - South Rd.csv"))
+southrd_links_raw <- read_csv(here("data/South-Rd/Links - South Rd.csv"))
 
 # List of links on Marion Rd and their geometries
 marionrd_links_raw <- read_csv(here("data/Marion-Rd/Marion Rd Links.csv"))
@@ -414,6 +414,16 @@ updates_trip_time <- updates_stop_times %>%
     trip_time = as.numeric((last(arrival_time) -first(arrival_time)), units = "secs"),
     delay_diff = abs(last(delay) - first(delay))) %>%
   ungroup()
+
+ggplot(updates_trip_time, aes(trip_time/60)) +
+  geom_histogram(fill = "blue") +
+  labs(x = "Trip Time (Minutes)",
+       fill = "Direction",
+       title = "Unedited Trip Time Distribution per Direction") +
+  scale_x_continuous(labels = label_comma()) +
+  scale_y_continuous(labels = label_comma()) +
+  facet_wrap(vars(direction)) +
+  theme_bw()
 ```
 
 As figure \@ref(fig:large-trip-times) shows, excessive trip times occur, especially southbound. It is difficult to determine whether these are errors or genuine trip times without using further information. A variable called `delay_diff` is created which calculates the size of the difference between the delay of the first stop and the delay of the last stop per trip. Excessive values of this variable indicates the large travel time is due to an error as either of the stops has an artificially large delay or early arrival. A plot of `delay_diff` vs `travel_time` is shown below.
@@ -492,33 +502,45 @@ Figure \@ref(fig:trip-times-rush) shows that travel times are in fact very simil
 
 The data relating to only the first stop per trip was kept since the arrival time of the first stop will be considered as the trip start time used as the basis for aggregation later in the analysis.
 
-The final form of the bus trip times dataset is as follows:
+The data in the bus travel times will be split into five minute time periods, with the arrival time of the first stop on the trip used as the basis for this segregation. For example, all bus trips that start between 2022-03-01 12:00:00 and 2022-03-01 12:05:00 will be included in the same time frame. Since each time frame can contain multiple trips, the bus travel times will be averaged into one average bus travel time, this is done to establish a one-to-one relationship with the vehicles travel time, which are also in five minute intervals. The final dataset looks as follows:
 
 ```{r}
-trip_times %>% 
+# Split trips into 5 minute intervals average the trips times per interval
+trip_times_agg <- trip_times %>% 
+  mutate(arrival_time = ceiling_date(arrival_time, "5 minutes")) %>% 
+  group_by(arrival_time, direction) %>% 
+  summarise(
+    number_buses = n(),
+    bus_time = round(mean(trip_time))) %>%
+  ungroup() %>% 
+  mutate(
+    day = date(arrival_time),
+    time = as_hms(arrival_time),
+    hour = hour(time),
+    rush = case_when(
+      between(hour, 6, 9) ~ "Morning",
+      between(hour, 15, 18) ~ "Evening",
+      TRUE ~ "Neither"),
+    rush = factor(rush, levels = c("Morning", "Evening", "Neither"))) %>% 
+  relocate(day:rush, .after = arrival_time) %>% 
+  select(-arrival_time)
+```
+
+```{r}
+trip_times_agg %>%
   names() %>% 
   as_tibble_col("Variable") %>% 
-  mutate(Description = c("Unique route identifier",
-                         "Start date of the trip",
-                         "Unique vehicle identifier",
-                         "Timestamp of the real time update",
-                         "Unique trip identifier",
-                         "Order of stops for a particular trip",
-                         "Unique stop identifier",
-                         "The current schedule deviation for the trip. 
-                         The delay (in seconds) can be positive (meaning that the vehicle is late) 
-                         or negative (meaning that the vehicle is ahead of schedule)", 
-                         "Predicted arrival time for a stop on a particular trip",
-                         "Direction of the trip",
-                         "Time (in seconds) to reach the current stop from the previou stop",
-                         "First stop of the trip in the segment",
-                         "Last stop of the trip in the segment",
-                         "Total trip time (in seconds)",
+  mutate(Description = c("Date of measurement",
+                         "Time of the day in hour:minute:seconds of the measurement",
+                         "The hour of the measurement",
                          "Whether the measurement occurrs during rush hour.
                           Morning rush hour occurrs between 6am and 10am,
                           evening rush hour occurrs between 3pm and 7pm,
-                          neither otherwise")) %>% 
-  kable(caption = "Bus trip times data description") %>% 
+                          neither otherwise",
+                         "The direction of travel",
+                         "The original number of trips during the five minute interval",
+                         "The bus trip travel time across the segment")) %>% 
+  kable(caption = "Aggregated bus trip travel times data description") %>% 
   kable_styling(full_width = FALSE)
 ```
 
@@ -574,6 +596,8 @@ southrd_links_raw %>%
 ```
 
 The links data was limited to the end of the period examined, in this case the end of March 2022. The data was filtered to the most recent update per link. This is done to obtain the most recent enabled status of each link. The two links datasets were joined together to create a single dataset which contains the links on the segment and all their related information. Finally, the `name` variable was used to created two additional variables, `start_loc` and `end_loc` which give the name of the link start location and end location, respectively. These variables will be used to identify the sequence of non-overlapping links on the segment later.
+
+START_LAT END_LAT!!!
 
 ```{r}
 # Limit updates to end of period examined and get most recent update per link,
@@ -1156,48 +1180,6 @@ With all the data now complete, the analysis between the two travel times is rea
 
 # Analysis
 
-Before proceeding further, the data in the bus travel times will be split into five minute time periods, with the arrival time of the first stop on the trip used as the basis for this segregation. For example, all bus trips that start between 2022-03-01 12:00:00 and 2022-03-01 12:05:00 will be included in the same time frame. Since each time frame can containt multiple trips, the bus travel times will be averaged into one average bus travel time, this is done to establish a one-to-one relationship with the vehicles travel time, which are also in five minute intervals. The final dataset looks as follows:
-
-```{r}
-# Split trips into 5 minute intervals average the trips times per interval
-trip_times_agg <- trip_times %>% 
-  mutate(arrival_time = ceiling_date(arrival_time, "5 minutes")) %>% 
-  group_by(arrival_time, direction) %>% 
-  summarise(
-    number_buses = n(),
-    bus_time = round(mean(trip_time))) %>%
-  ungroup() %>% 
-  mutate(
-    day = date(arrival_time),
-    time = as_hms(arrival_time),
-    hour = hour(time),
-    rush = case_when(
-      between(hour, 6, 9) ~ "Morning",
-      between(hour, 15, 18) ~ "Evening",
-      TRUE ~ "Neither"),
-    rush = factor(rush, levels = c("Morning", "Evening", "Neither"))) %>% 
-  relocate(day:rush, .after = arrival_time) %>% 
-  select(-arrival_time)
-```
-
-```{r}
-trip_times_agg %>%
-  names() %>% 
-  as_tibble_col("Variable") %>% 
-  mutate(Description = c("Date of measurement",
-                         "Time of the day in hour:minute:seconds of the measurement",
-                         "The hour of the measurement",
-                         "Whether the measurement occurrs during rush hour.
-                          Morning rush hour occurrs between 6am and 10am,
-                          evening rush hour occurrs between 3pm and 7pm,
-                          neither otherwise",
-                         "The direction of travel",
-                         "The original number of trips during the five minute interval",
-                         "The bus trip travel time across the segment")) %>% 
-  kable(caption = "Aggregated bus trip travel times data description") %>% 
-  kable_styling(full_width = FALSE)
-```
-
 ## Travel Times Comparison
 
 The travel times from both sets will be compared against one another. This is done to gain a general understanding of the relationship as well as to validate the datasets, as we would expect to observe a similar pattern between both travel times. The comparison will be done through a series of graphs.
@@ -1234,10 +1216,9 @@ travel_times_piv_dir1 <- travel_times_piv %>%
 
 travel_times_piv_dir1 %>%  
   ggplot(aes(time, travel_time, color = type)) +
-  geom_line(size = 0.75) +
+  geom_line() +
   facet_wrap(vars(day), scales = "free_y") +
   scale_x_time(labels = label_time("%H:%M")) +
-  ggtitle(directions[1]) +
   labs(x = "Time",
        y = "Travel Time", 
        color = "Type", 
@@ -1261,10 +1242,9 @@ travel_times_piv_dir2 <- travel_times_piv %>%
 
 travel_times_piv_dir2 %>% 
   ggplot(aes(time, travel_time, color = type)) +
-  geom_line(size = 0.75) +
+  geom_line() +
   facet_wrap(vars(day), scales = "free_y") +
   scale_x_time(labels = label_time("%H:%M")) +
-  ggtitle(directions[2]) +
   labs(x = "Time",
        y = "Travel Time", 
        color = "Type", 
@@ -1354,9 +1334,9 @@ links_trips_30min <- links_30min %>%
   mutate(type = recode(type, bus_time = "Bus", links_time = "Vehicle"))
 
 ggplot(links_trips_30min, aes(time, value/60)) +
-geom_line(alpha = 0.2) +
-geom_line(data = filter(links_trips_30min, rush == "morning"), color = "blue") +
-geom_line(data = filter(links_trips_30min, rush == "evening"), color = "blue") +
+geom_line(alpha = 0.2, size = 1) +
+geom_line(data = filter(links_trips_30min, rush == "morning"), color = "blue", size = 1) +
+geom_line(data = filter(links_trips_30min, rush == "evening"), color = "blue", size = 1) +
 facet_grid(rows = vars(type), cols = vars(direction)) +
 annotate("rect", xmin = as_hms("06:00:00"), xmax = as_hms("10:00:00"), ymin = -Inf, ymax = Inf,
          fill = "red", alpha = .1) +
@@ -1421,15 +1401,73 @@ standardiser <- function(basis = hour) {
   
   travel_times_std_piv <<- travel_times_std %>% 
     pivot_longer(cols = bus_time_std:links_time_std, names_to = "type", values_to = "std_travel_time") %>% 
-    mutate(type = recode(type, bus_time = "Bus", links_time = "Vehicle"))
+    mutate(type = recode(type, bus_time_std = "Bus", links_time_std = "Vehicle"))
 }
 
 standardiser()
 ```
 
-With the bus and vehicle travel times now standardized, we can now examine the relationship between the travel times with respect to variation.
+With the bus and vehicle travel times standardized, we can now examine the relationship between the travel times with respect to variation. If the vehicle travel time deviates from the average, do we observe a similar deviation by the bus travel time?
 
+Plots of the standardized travel times are shown below: 
 
+```{r nb-std-calendar, fig.height=8, fig.width=9, fig.cap="Northbound morning travel time variations are similar"}
+# Morning Northbound
+travel_times_std_NB_morn <- travel_times_std %>% 
+  filter(direction == "NB",
+         rush == "Morning")
+
+travel_times_std_piv_NB_morn <- travel_times_std_piv %>% 
+  filter(direction == "NB",
+         rush == "Morning")
+
+travel_times_std_piv_NB_morn %>%
+  ggplot(aes(time, std_travel_time, color = type)) +
+  geom_line() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(vars(day)) +
+  scale_x_time(labels = label_time("%H:%M")) +
+  labs(x = "Time",
+       y = "Travel Time", 
+       color = "Type", 
+       title = "Standardized Northbound Morning Bus Times vs Vehicle Times") +
+  theme_bw() +
+  theme(
+    legend.title = element_blank(),
+    legend.justification = "bottom",
+    legend.position = c(0.5, 0),
+    legend.text = element_text(size = 10))
+```
+
+```{r sb-std-calendar, fig.height=8, fig.width=9, fig.cap="Southbound evening travel time variations are similar"}
+# Evening Southbound
+travel_times_std_SB_eve <- travel_times_std %>% 
+  filter(direction == "SB",
+         rush == "Evening")
+
+travel_times_std_piv_SB_eve <- travel_times_std_piv %>% 
+  filter(direction == "SB",
+         rush == "Evening")
+
+travel_times_std_piv_SB_eve %>%
+  ggplot(aes(time, std_travel_time, color = type)) +
+  geom_line() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(vars(day)) +
+  scale_x_time(labels = label_time("%H:%M")) +
+  labs(x = "Time",
+       y = "Travel Time", 
+       color = "Type", 
+       title = "Standardized Southbound Evening Bus Times vs Vehicle Times") +
+  theme_bw() +
+  theme(
+    legend.title = element_blank(),
+    legend.justification = "bottom",
+    legend.position = c(0.5, 0),
+    legend.text = element_text(size = 10))
+```
+
+Figure \@ref(fig:nb-std-calendar) and figure \@ref(fig:sb-std-calendar) show that variations in vehicle travel times are in fact closely matched by variations in bus travel times, especially during the morning and northbound towards the city, where the variations also exist in greater magnitudes.
 
 
 

@@ -31,15 +31,15 @@ vignettes/*.pdf
 *_cache/
 /cache/
 
+# cache files folder
+*_files/
+
 # Temporary files created by R markdown
 *.utf8.md
 *.knit.md
 
 # R Environment Variables
 .Renviron
-
-# Folders containing large files
-**/large
 
 # Data folder
 data/
