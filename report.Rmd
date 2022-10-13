@@ -464,8 +464,8 @@ trip_times <- updates_trip_time %>%
   distinct(start_date, trip_id, .keep_all = TRUE) %>% 
   mutate(
     rush = case_when(
-      as_hms("06:00:00") <= as_hms(arrival_time) & as_hms(arrival_time) < as_hms("10:00:00") ~ "Morning",
-      as_hms("15:00:00") <= as_hms(arrival_time) & as_hms(arrival_time) < as_hms("19:00:00") ~ "Evening",
+      as_hms("06:30:00") <= as_hms(arrival_time) & as_hms(arrival_time) < as_hms("10:00:00") ~ "Morning",
+      as_hms("15:30:00") <= as_hms(arrival_time) & as_hms(arrival_time) < as_hms("19:00:00") ~ "Evening",
       TRUE ~ "Neither"),
     rush = factor(rush, levels = c("Morning", "Evening", "Neither"))) %>% 
   select(-delay_diff)
@@ -518,8 +518,8 @@ trip_times_agg <- trip_times %>%
     time = as_hms(arrival_time),
     hour = hour(time),
     rush = case_when(
-      between(hour, 6, 9) ~ "Morning",
-      between(hour, 15, 18) ~ "Evening",
+      between(time, as_hms("06:30:00"), as_hms("09:59:00")) ~ "Morning",
+      between(time, as_hms("15:30:00"), as_hms("18:59:00")) ~ "Evening",
       TRUE ~ "Neither"),
     rush = factor(rush, levels = c("Morning", "Evening", "Neither"))) %>% 
   relocate(day:rush, .after = arrival_time) %>% 
@@ -1133,8 +1133,8 @@ links_times <- link_stats %>%
     time = as_hms(logtime),
     hour = hour(logtime),
     rush = case_when(
-      between(hour, 6, 9) ~ "Morning",
-      between(hour, 15, 18) ~ "Evening",
+      between(time, as_hms("06:30:00"), as_hms("09:59:00")) ~ "Morning",
+      between(time, as_hms("15:30:00"), as_hms("18:59:00")) ~ "Evening",
       TRUE ~ "Neither"),
     rush = factor(rush, levels = c("Morning", "Evening", "Neither"))) %>%
   relocate(day:rush, .after = logtime) %>% 
@@ -1265,34 +1265,37 @@ Both figures \@ref(fig:nb-calendar) and \@ref(fig:sb-calendar) show that the tra
 
 A scatter plot of the travel times will be examined:
 
-```{r times-scatter, fig.cap="A positive relationship exists between both travel times for both directions"}
+```{r times-scatter, fig.cap="A positive relationship exists between both travel times for both directions during peak times"}
 # Scatter plots
 travel_times %>% 
+  filter(rush != "Neither") %>% 
   ggplot(aes(bus_time/60, links_time/60)) +
   geom_point(alpha = 0.3) +
   scale_x_continuous(labels = label_comma()) +
   scale_y_continuous(labels = label_comma()) +
   labs(x = "Bus Travel Times (Minutes)",
        y = "Vehicles Travel Times (Minutes)",
-       title = "Bus Travel Times vs Vehicles Travel Times per Direction") +
-  facet_wrap(vars(direction), scales = "free") +
+       title = "Bus Travel Times vs Vehicles Travel Times per Direction per Rush Hour") +
+  facet_grid(vars(direction), vars(rush), scales = "free") +
   theme_bw()
 ```
 
-Figure \@ref(fig:times-scatter) shows that a positive relationship exists between the travel times, more so for the southbound direction.
+Figure \@ref(fig:times-scatter) shows that a positive relationship exists between the travel times, more so for the southbound direction in the evening.
 
 The correlations between the travel times are:
 
 ```{r general-corr}
 travel_times %>% 
-  group_by(direction) %>% 
+  filter(rush != "Neither") %>% 
+  group_by(rush, direction) %>% 
   summarise(Correlation = round(cor(bus_time, links_time), 2)) %>% 
-  rename(Direction = direction) %>% 
-  kable(caption = "Correlation between travel times per direction") %>% 
+  rename(Direction = direction,
+         Rush = rush) %>% 
+  kable(caption = "Correlation between travel times per direction per rush hour") %>% 
   kable_styling(full_width = FALSE)
 ```
 
-Table \@ref(tab:general-corr) shows that the travel times between buses and vehicles are high correlated, especially in the southbound direction away from the city.
+Table \@ref(tab:general-corr) shows that the travel times between buses and vehicles are high correlated in the morning northbound towards the city, and in the evening southbound away from the city.
 
 To gain a clearer picture of the patterns and relationship throughout an average day, the travel times within 30 minute aggregates of the same time frame will be averaged across all the days. For example, for each travel type, all the measures occurring between 12:00 and 12:30 across all the days will be averaged, then plotted.
 
@@ -1308,8 +1311,8 @@ links_30min <- link_stats %>%
   summarise(links_time = mean(links_time)) %>% 
   ungroup() %>% 
   mutate(rush = case_when(
-           between(time, as_hms("06:00:00"), as_hms("10:00:00")) ~ "morning",
-           between(time, as_hms("15:00:00"), as_hms("19:00:00")) ~ "evening",
+           between(time, as_hms("06:30:00"), as_hms("10:00:00")) ~ "morning",
+           between(time, as_hms("15:30:00"), as_hms("19:00:00")) ~ "evening",
            TRUE ~ "neither"),
          rush = factor(rush, levels = c("morning", "evening", "neither"))) %>% 
   relocate(links_time, .after = everything())
@@ -1322,8 +1325,8 @@ trip_times_30min <- trip_times %>%
   summarise(bus_time = round(mean(trip_time))) %>%
   ungroup() %>% 
   mutate(rush = case_when(
-           between(time, as_hms("06:00:00"), as_hms("10:00:00")) ~ "morning",
-           between(time, as_hms("15:00:00"), as_hms("19:00:00")) ~ "evening",
+           between(time, as_hms("06:30:00"), as_hms("10:00:00")) ~ "morning",
+           between(time, as_hms("15:30:00"), as_hms("19:00:00")) ~ "evening",
            TRUE ~ "neither"),
          rush = factor(rush, levels = c("morning", "evening", "neither"))) %>% 
   relocate(bus_time, .after = everything())
@@ -1338,9 +1341,9 @@ geom_line(alpha = 0.2, size = 1) +
 geom_line(data = filter(links_trips_30min, rush == "morning"), color = "blue", size = 1) +
 geom_line(data = filter(links_trips_30min, rush == "evening"), color = "blue", size = 1) +
 facet_grid(rows = vars(type), cols = vars(direction)) +
-annotate("rect", xmin = as_hms("06:00:00"), xmax = as_hms("10:00:00"), ymin = -Inf, ymax = Inf,
+annotate("rect", xmin = as_hms("06:30:00"), xmax = as_hms("10:00:00"), ymin = -Inf, ymax = Inf,
          fill = "red", alpha = .1) +
-annotate("rect", xmin = as_hms("15:00:00"), xmax = as_hms("19:00:00"), ymin = -Inf, ymax = Inf,
+annotate("rect", xmin = as_hms("15:30:00"), xmax = as_hms("19:00:00"), ymin = -Inf, ymax = Inf,
          fill = "red", alpha = .1) +
 scale_x_time(limits = as_hms(c("06:00:00", "23:59:59")),
              breaks = as_hms(c("06:00:00", "08:00:00", "10:00:00", "12:00:00",
@@ -1423,7 +1426,7 @@ travel_times_std_piv_NB_morn <- travel_times_std_piv %>%
 
 travel_times_std_piv_NB_morn %>%
   ggplot(aes(time, std_travel_time, color = type)) +
-  geom_line() +
+  geom_line(size = 0.75) +
   geom_hline(yintercept = 0, linetype = "dashed") +
   facet_wrap(vars(day)) +
   scale_x_time(labels = label_time("%H:%M")) +
@@ -1451,7 +1454,7 @@ travel_times_std_piv_SB_eve <- travel_times_std_piv %>%
 
 travel_times_std_piv_SB_eve %>%
   ggplot(aes(time, std_travel_time, color = type)) +
-  geom_line() +
+  geom_line(size = 0.75) +
   geom_hline(yintercept = 0, linetype = "dashed") +
   facet_wrap(vars(day)) +
   scale_x_time(labels = label_time("%H:%M")) +
@@ -1469,10 +1472,62 @@ travel_times_std_piv_SB_eve %>%
 
 Figure \@ref(fig:nb-std-calendar) and figure \@ref(fig:sb-std-calendar) show that variations in vehicle travel times are in fact closely matched by variations in bus travel times, especially during the morning and northbound towards the city, where the variations also exist in greater magnitudes.
 
+```{r std-scatter, fig.cap="A positive relationship exists between both travel times for both directions during peak times"}
+travel_times_std %>% 
+  filter(rush != "Neither") %>% 
+  ggplot(aes(links_time_std, bus_time_std)) +
+  geom_point(alpha = 0.3) +
+  facet_grid(vars(direction), vars(rush)) +
+  labs(x = "Standardized Bus Travel Times",
+       y = "Standardized Vehicles Travel Times",
+       title = "Bus Travel Times vs Vehicles Travel Times per Direction per Rush Hour") +
+  theme_bw()
+```
 
+Figure \@ref(fig:std-scatter) shows that the standardized travel times are particulary correlated in the evening southbound away from the city.
 
+The correlations between the standardized travel times are :
 
+```{r std-corr}
+# Peak times and direction correlation
+travel_times_std %>% 
+  filter(rush != "Neither") %>% 
+  group_by(rush, direction) %>% 
+  summarise(correlation = round(cor(bus_time_std, links_time_std), 2)) %>% 
+  ungroup() %>% 
+  rename(Direction = direction,
+         Rush = rush) %>% 
+  kable(caption = "Correlation between standardized travel times per direction per rush hour") %>% 
+  kable_styling(full_width = FALSE)
+```
 
+Table \@ref(tab:std-corr) shows that strong correlation exists between the standardized travel times during the evening southbound away from the city.
+
+The following plot increases the granularity of the correlation to a per hour figure:
+
+```{r hourly-corr, fig.cap="High correlation is more uniform in the evening southbound"}
+# Hourly correlation
+travel_times_std_hr_cor <- travel_times_std %>%
+  filter(rush != "Neither") %>%
+  group_by(hour, rush, direction) %>% 
+  summarise(
+    correlation = cor(bus_time_std, links_time_std),
+    sample_size = n()) %>% 
+  ungroup() %>%
+  na.omit()
+
+travel_times_std_hr_cor %>% 
+  ggplot(aes(hour, correlation, label = round(correlation, 2))) +
+  geom_line(color = "red") +
+  geom_label(color = "blue") +
+  facet_grid(vars(direction), vars(rush), scales = "free_x") +
+  labs(x = "Hour",
+       y = "Correlation",
+       title = "Correlation per Hour per Direction") +
+  theme_bw()
+```
+
+Figure \@ref(fig:hourly-corr) shows that high correlation exists in the morning northbound towards the city between 7am and 9am, while in the evening southbound away from the city, high correlation exists throughout the rush hour and peaking betwen 6pm and 7pm.
 
 
 

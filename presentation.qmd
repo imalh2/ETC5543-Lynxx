@@ -422,8 +422,8 @@ trip_times <- updates_trip_time %>%
   distinct(start_date, trip_id, .keep_all = TRUE) %>% 
   mutate(
     rush = case_when(
-      as_hms("06:00:00") <= as_hms(arrival_time) & as_hms(arrival_time) < as_hms("10:00:00") ~ "Morning",
-      as_hms("15:00:00") <= as_hms(arrival_time) & as_hms(arrival_time) < as_hms("19:00:00") ~ "Evening",
+      as_hms("06:30:00") <= as_hms(arrival_time) & as_hms(arrival_time) < as_hms("10:00:00") ~ "Morning",
+      as_hms("15:30:00") <= as_hms(arrival_time) & as_hms(arrival_time) < as_hms("19:00:00") ~ "Evening",
       TRUE ~ "Neither"),
     rush = factor(rush, levels = c("Morning", "Evening", "Neither"))) %>% 
   select(-delay_diff)
@@ -476,8 +476,8 @@ trip_times_agg <- trip_times %>%
     time = as_hms(arrival_time),
     hour = hour(time),
     rush = case_when(
-      between(hour, 6, 9) ~ "Morning",
-      between(hour, 15, 18) ~ "Evening",
+      between(time, as_hms("06:30:00"), as_hms("09:59:00")) ~ "Morning",
+      between(time, as_hms("15:30:00"), as_hms("18:59:00")) ~ "Evening",
       TRUE ~ "Neither"),
     rush = factor(rush, levels = c("Morning", "Evening", "Neither"))) %>% 
   relocate(day:rush, .after = arrival_time) %>% 
@@ -1048,8 +1048,8 @@ links_times <- link_stats %>%
     time = as_hms(logtime),
     hour = hour(logtime),
     rush = case_when(
-      between(hour, 6, 9) ~ "Morning",
-      between(hour, 15, 18) ~ "Evening",
+      between(time, as_hms("06:30:00"), as_hms("09:59:00")) ~ "Morning",
+      between(time, as_hms("15:30:00"), as_hms("18:59:00")) ~ "Evening",
       TRUE ~ "Neither"),
     rush = factor(rush, levels = c("Morning", "Evening", "Neither"))) %>%
   relocate(day:rush, .after = logtime) %>% 
@@ -1216,8 +1216,8 @@ links_30min <- link_stats %>%
   summarise(links_time = mean(links_time)) %>% 
   ungroup() %>% 
   mutate(rush = case_when(
-           between(time, as_hms("06:00:00"), as_hms("10:00:00")) ~ "morning",
-           between(time, as_hms("15:00:00"), as_hms("19:00:00")) ~ "evening",
+           between(time, as_hms("06:30:00"), as_hms("10:00:00")) ~ "morning",
+           between(time, as_hms("15:30:00"), as_hms("19:00:00")) ~ "evening",
            TRUE ~ "neither"),
          rush = factor(rush, levels = c("morning", "evening", "neither"))) %>% 
   relocate(links_time, .after = everything())
@@ -1230,8 +1230,8 @@ trip_times_30min <- trip_times %>%
   summarise(bus_time = round(mean(trip_time))) %>%
   ungroup() %>% 
   mutate(rush = case_when(
-           between(time, as_hms("06:00:00"), as_hms("10:00:00")) ~ "morning",
-           between(time, as_hms("15:00:00"), as_hms("19:00:00")) ~ "evening",
+           between(time, as_hms("06:30:00"), as_hms("10:00:00")) ~ "morning",
+           between(time, as_hms("15:30:00"), as_hms("19:00:00")) ~ "evening",
            TRUE ~ "neither"),
          rush = factor(rush, levels = c("morning", "evening", "neither"))) %>% 
   relocate(bus_time, .after = everything())
@@ -1242,13 +1242,13 @@ links_trips_30min <- links_30min %>%
   mutate(type = recode(type, bus_time = "Bus", links_time = "Vehicle"))
 
 ggplot(links_trips_30min, aes(time, value/60)) +
-geom_line(alpha = 0.2) +
-geom_line(data = filter(links_trips_30min, rush == "morning"), color = "blue") +
-geom_line(data = filter(links_trips_30min, rush == "evening"), color = "blue") +
+geom_line(alpha = 0.2, size = 1) +
+geom_line(data = filter(links_trips_30min, rush == "morning"), color = "blue", size = 1) +
+geom_line(data = filter(links_trips_30min, rush == "evening"), color = "blue", size = 1) +
 facet_grid(rows = vars(type), cols = vars(direction)) +
-annotate("rect", xmin = as_hms("06:00:00"), xmax = as_hms("10:00:00"), ymin = -Inf, ymax = Inf,
+annotate("rect", xmin = as_hms("06:30:00"), xmax = as_hms("10:00:00"), ymin = -Inf, ymax = Inf,
          fill = "red", alpha = .1) +
-annotate("rect", xmin = as_hms("15:00:00"), xmax = as_hms("19:00:00"), ymin = -Inf, ymax = Inf,
+annotate("rect", xmin = as_hms("15:30:00"), xmax = as_hms("19:00:00"), ymin = -Inf, ymax = Inf,
          fill = "red", alpha = .1) +
 scale_x_time(limits = as_hms(c("06:00:00", "23:59:59")),
              breaks = as_hms(c("06:00:00", "08:00:00", "10:00:00", "12:00:00",
