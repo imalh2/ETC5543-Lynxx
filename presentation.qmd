@@ -1,7 +1,9 @@
 ---
-title: "Bus Travel Times Variations vs Motor Vehicle Travel Times Variations"
+title: "Road Congestion and Bus Travel Times"
 author: "Ibrahim Al-Hindi"
-format: revealjs
+format: 
+  revealjs:
+    theme: serif
 editor: visual
 knitr:
   opts_chunk: 
@@ -33,36 +35,24 @@ links_raw <- read_csv(here("data/DIT/links.csv"))
 # List of links on South Rd and their geometries
 southrd_links_raw <- read_csv(here("data/South-Rd/Links - South Rd.csv"))
 
-# List of links on Marion Rd and their geometries
-marionrd_links_raw <- read_csv(here("data/Marion-Rd/Marion Rd Links.csv"))
-
 # Stops information
 full_stops_raw <- read_csv(here("data/GTFS/stops.csv"))
 
 # Routes, trips, and stops on South Rd
 southrd_routes_stops_raw <- read_csv(here("data/South-Rd/South Rd Routes and Trips gtfs 1157.csv"))
 
-# Routes, trips, and stops on Marion Rd
-marionrd_routes_stops_raw <- read_csv(here("data/Marion-Rd/Marion Rd Routes Stops.csv"))
-
 # GTFS-R Trip Updates for South Rd
 southrd_updates_raw <- read_csv(here("data/South-Rd/trip_updates_SouthRd_Mar.csv"))
 
-# GTFS-R Trip Updates for Marion Rd
-marionrd_updates_raw <- read_csv(here("data/Marion-Rd/trip_updates_MarionRd_Mar.csv"))
-
 # South Rd link statistics
 southrd_link_stats_raw <- read_csv(here("data/South-Rd/link_stats_Mar.csv"))
-
-# Marion Rd link statistics
-marionrd_link_stats_raw <- read_csv(here("data/Marion-Rd/link_stats_Mar.csv"))
 ```
 
 ## Background
 
--   Adelaide's increasing population along with travel KM's
+-   Adelaide's population increased from 1.1 to 1.3 million between 2006 and 2016, along with 66 million additional travel km's
 
--   Costly road congestion projected to increase in the coming years
+-   Costly road congestion projected to increase in the coming years. \$1.4 billion in 2016 to \$2.6 billion in 2031
 
 -   Client is South Australia Department of Infrastructure and Transport (DIT)
 
@@ -75,11 +65,15 @@ marionrd_link_stats_raw <- read_csv(here("data/Marion-Rd/link_stats_Mar.csv"))
 
 -   Client proposal created followed by discussion with the client
 
+<br>
+
 #### Objectives
 
 1.  Investigate the extent of the relationship between the **variation** in bus travel times vs the **variation** in motor vehicle travel time in a given segment of road. Provides an indicated or road robustness to congestion
 
 2.  Methodology and code as repeatable and automated as possible
+
+<br>
 
 Analysis done on South Road during March 2022
 :::
@@ -111,7 +105,7 @@ Analysis done on South Road during March 2022
 
 <br>
 
-3.  **DIT**
+3.  **DIT Addinsight**
 
     Traffic information collected by DIT using Bluetooth devices on the roads. The location of a Bluetooth device is called a site, and a link is a segment of road between two sites, an origin site and a destination site
 
@@ -337,7 +331,7 @@ ggplot(updates_stop_times, aes(to_stop_time/60, delay/60)) +
 
 ## Multiple Stops Pairs
 
-Different pairs of start-end stops per direction lead to non-consistent travel times
+Different pairs of start-end stops per direction lead to inconsistent travel times
 
 ```{r}
 # Take top occurring stops pair for each direction
@@ -393,11 +387,6 @@ stops_segment %>%
   addCircles(lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, opacity = 1)
 ```
 
-## Bus Travel Times Distributions
-
-::: panel-tabset
-## All Times
-
 ```{r}
 updates_stop_times <- updates_stop_times %>%
   semi_join(top_first_last_stops, by = c("direction", "first_stop", "last_stop"))
@@ -429,33 +418,7 @@ trip_times <- updates_trip_time %>%
   select(-delay_diff)
 
 rm(southrd_updates_raw)
-
-ggplot(trip_times, aes(trip_time/60, fill = direction)) +
-  geom_density(alpha = 0.4) +
-  labs(x = "Trip Time (Minutes)",
-       fill = "Direction",
-       title = "Trip Time Distribution per Direction at All Times") +
-  scale_x_continuous(labels = label_comma()) +
-  scale_y_continuous(labels = label_comma()) +
-  theme_bw()
 ```
-
-## Peak Times
-
-```{r}
-trip_times %>% 
-  filter(rush != "Neither") %>% 
-  ggplot(aes(trip_time/60, fill = direction)) +
-  geom_density(alpha = 0.3) +
-  labs(x = "Trip Time (Minutes)",
-       fill = "Direction",
-       title = "Trip Time Distribution per Direction by Rush Hours") +
-  scale_x_continuous(labels = label_comma()) +
-  scale_y_continuous(labels = label_comma()) +
-  facet_wrap(vars(rush)) +
-  theme_bw()
-```
-:::
 
 ## Trip Times Segregation {.scrollable}
 
@@ -490,8 +453,8 @@ trip_times_agg %>%
                          "Time of the day in hour:minute:seconds of the measurement",
                          "The hour of the measurement",
                          "Whether the measurement occurrs during rush hour.
-                          Morning rush hour occurrs between 6am and 10am,
-                          evening rush hour occurrs between 3pm and 7pm,
+                          Morning rush hour occurrs between 6:30am and 10am,
+                          evening rush hour occurrs between 3:30pm and 7pm,
                           neither otherwise",
                          "The direction of travel",
                          "The original number of trips during the five minute interval",
@@ -567,7 +530,7 @@ links_segment %>%
 
 ## Links Statistics
 
--   5 minute aggregated statistics per link, including travel time
+-   5 minute aggregated statistics per link
 
 -   However, links extracted contain links that overlap. Need to identify non-overlapping sequence of links to avoid double counting
 
@@ -709,7 +672,14 @@ dir2_stops <- stops_segment %>%
                         top_first_last_stops[top_first_last_stops["direction"] == directions[2],]$last_stop))
 ```
 
-## Non-Overlapping Links Map
+## Northbound Links Map
+
+```{r}
+map_dir1 %>% 
+  addCircles(data = dir1_stops, lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, radius = 50, opacity = 1)
+```
+
+## Both Directions Links Map
 
 ```{r}
 map_both <- leaflet() %>% 
@@ -1033,9 +1003,6 @@ map_links_with_stats %>%
 
 ## Links Statistics {.scrollable}
 
-::: panel-tabset
-## Data
-
 The travel time of all the links in the same five minute period will be summed, per direction, to give the travel time per the segment
 
 ```{r}
@@ -1062,31 +1029,14 @@ links_times %>%
                          "Time of the day in hour:minute:seconds of the measurement",
                          "The hour of the measurement",
                          "Whether the measurement occurrs during rush hour.
-                          Morning rush hour occurrs between 6am and 10am,
-                          evening rush hour occurrs between 3pm and 7pm,
+                          Morning rush hour occurrs between 6:30am and 10am,
+                          evening rush hour occurrs between 3:30pm and 7pm,
                           neither otherwise",
                          "The direction of travel",
                          "The total travel time across the segment")) %>% 
   kable() %>% 
   kable_styling()
 ```
-
-## Plot
-
-```{r}
-links_times %>% 
-  filter(rush != "Neither") %>%
-  ggplot(aes(links_time/60, fill = direction)) +
-  geom_density(alpha = 0.4) +
-  scale_x_continuous(labels = label_comma(), limits = c(min(links_times$links_time/60),25)) +
-  scale_y_continuous(labels = label_comma()) +
-  labs(x = "Vehicle Travel Time (Minutes)",
-       fill = "Direction",
-       title = "Vechile Travel Time Distributions by Rush Hour") +
-  facet_wrap(vars(rush)) +
-  theme_bw()
-```
-:::
 
 ## Travel Times Comparison
 
@@ -1173,39 +1123,6 @@ travel_times_piv_dir2 %>%
 ```
 :::
 
-## Scatter Plot and Correlation
-
-::: panel-tabset
-## Plot
-
-```{r}
-travel_times %>% 
-  filter(rush != "Neither") %>% 
-  ggplot(aes(bus_time/60, links_time/60)) +
-  geom_point(alpha = 0.3) +
-  scale_x_continuous(labels = label_comma()) +
-  scale_y_continuous(labels = label_comma()) +
-  labs(x = "Bus Travel Times (Minutes)",
-       y = "Vehicles Travel Times (Minutes)",
-       title = "Bus Travel Times vs Vehicles Travel Times per Direction per Rush Hour") +
-  facet_grid(vars(direction), vars(rush), scales = "free") +
-  theme_bw()
-```
-
-## Correlation
-
-```{r}
-travel_times %>% 
-  filter(rush != "Neither") %>% 
-  group_by(rush, direction) %>% 
-  summarise(Correlation = round(cor(bus_time, links_time), 2)) %>% 
-  rename(Direction = direction,
-         Rush = rush) %>% 
-  kable(caption = "Correlation between travel times per direction per rush hour") %>% 
-  kable_styling(full_width = FALSE)
-```
-:::
-
 ## Average Day Travel Time
 
 ```{r}
@@ -1263,6 +1180,39 @@ labs(x = "Time (Hour)",
      title = "Average Travel Time Pattern") +
 theme_bw()
 ```
+
+## Scatter Plot and Correlation
+
+::: panel-tabset
+## Plot
+
+```{r}
+travel_times %>% 
+  filter(rush != "Neither") %>% 
+  ggplot(aes(bus_time/60, links_time/60)) +
+  geom_point(alpha = 0.3) +
+  scale_x_continuous(labels = label_comma()) +
+  scale_y_continuous(labels = label_comma()) +
+  labs(x = "Bus Travel Times (Minutes)",
+       y = "Vehicles Travel Times (Minutes)",
+       title = "Bus Travel Times vs Vehicles Travel Times per Direction per Rush Hour") +
+  facet_grid(vars(direction), vars(rush), scales = "free") +
+  theme_bw()
+```
+
+## Correlation
+
+```{r}
+travel_times %>% 
+  filter(rush != "Neither") %>% 
+  group_by(rush, direction) %>% 
+  summarise(Correlation = round(cor(bus_time, links_time), 2)) %>% 
+  rename(Direction = direction,
+         Rush = rush) %>% 
+  kable(caption = "Correlation between travel times per direction per rush hour") %>% 
+  kable_styling(full_width = FALSE)
+```
+:::
 
 ## Standardize Travel Times
 
@@ -1376,6 +1326,20 @@ travel_times_std_piv_SB_eve %>%
 ```
 :::
 
+## Standardized Travel Times Distributions
+
+```{r}
+travel_times_std_piv %>% 
+  filter(rush != "Neither") %>% 
+  ggplot(aes(std_travel_time, fill = type)) +
+  geom_density(alpha = 0.4) +
+  facet_grid(vars(direction), vars(rush)) +
+  labs(x = "Standardized Travel Time",
+       fill = "Type",
+       title = "Standardized Bus Travel Time vs Vehicle Travel Time") +
+  theme_bw()
+```
+
 ## Scatter Plots and Correlation
 
 ::: panel-tabset
@@ -1408,15 +1372,15 @@ travel_times_std %>%
 ```
 :::
 
-## Findings
+## Findings {.scrollable}
 
--   In the evening away from the city, travel time is greater and more varied than travel time in the morning to the city
+-   In the evening from the city, travel time is greater and more varied than travel time in the morning to the city across the entire peak time and period
 
--   Standardization shows that morning travel times to the city vary to a greater extent than evening travel times from the city
+-   The standardization with respect to time of day shows that morning travel times to the city vary to a greater extent than evening travel times from the city
 
--   The evening southbound correlation is strong between the travel times variations, however the travel times don't vary by much, therefore it's difficult to infer robustness
+-   The evening southbound correlation is strong between the standardized travel times, however the variations are relatively small, therefore it's difficult to infer the bus transportation robustness to congestion
 
--   The morning travel times towards the city are more varied and the correlation is lower, therefore bus travel times during are more robust to congestion
+-   The morning standardized travel times towards the city are more varied and the correlation is lower, implying the bus transportation is relatively more robust to congestion
 
 ## Future Directions
 

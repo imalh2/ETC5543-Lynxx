@@ -1978,7 +1978,8 @@ travel_times_marionrd <- trip_times_agg_marionrd %>%
   mutate(travel_diff = bus_time - links_time)
 
 travel_times_marionrd_piv <- travel_times_marionrd %>% 
-  pivot_longer(cols = bus_time:links_time, names_to = "type", values_to = "travel_time")
+  pivot_longer(cols = bus_time:links_time, names_to = "type", values_to = "travel_time") %>% 
+  mutate(type = recode(type, bus_time = "Bus", links_time = "Vehicle"))
 ```
 
 ```{r}
