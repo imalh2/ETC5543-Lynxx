@@ -1180,14 +1180,15 @@ travel_times_piv_dir2 %>%
 
 ```{r}
 travel_times %>% 
+  filter(rush != "Neither") %>% 
   ggplot(aes(bus_time/60, links_time/60)) +
   geom_point(alpha = 0.3) +
   scale_x_continuous(labels = label_comma()) +
   scale_y_continuous(labels = label_comma()) +
   labs(x = "Bus Travel Times (Minutes)",
        y = "Vehicles Travel Times (Minutes)",
-       title = "Bus Travel Times vs Vehicles Travel Times per Direction") +
-  facet_wrap(vars(direction), scales = "free") +
+       title = "Bus Travel Times vs Vehicles Travel Times per Direction per Rush Hour") +
+  facet_grid(vars(direction), vars(rush), scales = "free") +
   theme_bw()
 ```
 
@@ -1195,11 +1196,13 @@ travel_times %>%
 
 ```{r}
 travel_times %>% 
-  group_by(direction) %>% 
+  filter(rush != "Neither") %>% 
+  group_by(rush, direction) %>% 
   summarise(Correlation = round(cor(bus_time, links_time), 2)) %>% 
-  rename(Direction = direction) %>% 
-  kable() %>% 
-  kable_styling()
+  rename(Direction = direction,
+         Rush = rush) %>% 
+  kable(caption = "Correlation between travel times per direction per rush hour") %>% 
+  kable_styling(full_width = FALSE)
 ```
 :::
 
@@ -1260,3 +1263,169 @@ labs(x = "Time (Hour)",
      title = "Average Travel Time Pattern") +
 theme_bw()
 ```
+
+## Standardize Travel Times
+
+-   To allows cross examination of variations from "normal"
+
+-   Function `standardizer` created to standardize both types of travel times with respect to one of:
+
+    -   five minute period across the month
+
+    -   hour across the month
+
+    -   rush hour across the month
+
+Function default is hour
+
+```{r}
+standardiser <- function(basis = hour) {
+  if (!deparse(substitute(basis)) %in% c("time", "hour", "rush")) {
+    stop("basis must be either time, hour, or rush")
+  }
+  
+  trip_times_std <- trip_times_agg %>%
+    group_by({{basis}}, direction) %>% 
+    mutate(
+      period_buses_no = n(),
+      bus_time_std = as.vector(scale(bus_time))) %>% 
+    ungroup() %>% 
+    mutate(bus_time_std = if_else(is.nan(bus_time_std), 0, bus_time_std)) %>%
+    filter(abs(bus_time_std) < 3) %>%
+    select(-bus_time)
+    
+  links_times_std <- links_times %>% 
+    group_by({{basis}}, direction) %>% 
+    mutate(links_time_std = as.vector(scale(links_time))) %>% 
+    ungroup() %>% 
+    filter(abs(links_time_std) < 3) %>%
+    select(-links_time)
+  
+  # Combine
+  travel_times_std <<- trip_times_std %>%
+    inner_join(links_times_std) %>%
+    mutate(std_travel_diff = bus_time_std - links_time_std)
+  
+  travel_times_std_piv <<- travel_times_std %>% 
+    pivot_longer(cols = bus_time_std:links_time_std, names_to = "type", values_to = "std_travel_time") %>% 
+    mutate(type = recode(type, bus_time_std = "Bus", links_time_std = "Vehicle"))
+}
+
+standardiser()
+```
+
+## Standardized Travel Times
+
+::: panel-tabset
+## Northbound - Morning
+
+```{r}
+travel_times_std_NB_morn <- travel_times_std %>% 
+  filter(direction == "NB",
+         rush == "Morning")
+
+travel_times_std_piv_NB_morn <- travel_times_std_piv %>% 
+  filter(direction == "NB",
+         rush == "Morning")
+
+travel_times_std_piv_NB_morn %>%
+  ggplot(aes(time, std_travel_time, color = type)) +
+  geom_line(size = 0.75) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(vars(day)) +
+  scale_x_time(labels = label_time("%H:%M")) +
+  labs(x = "Time",
+       y = "Travel Time", 
+       color = "Type", 
+       title = "Standardized Northbound Morning Bus Times vs Vehicle Times") +
+  theme_bw() +
+  theme(
+    legend.title = element_blank(),
+    legend.justification = "bottom",
+    legend.position = c(0.5, 0),
+    legend.text = element_text(size = 10))
+```
+
+## Southbound - Evening
+
+```{r}
+travel_times_std_SB_eve <- travel_times_std %>% 
+  filter(direction == "SB",
+         rush == "Evening")
+
+travel_times_std_piv_SB_eve <- travel_times_std_piv %>% 
+  filter(direction == "SB",
+         rush == "Evening")
+
+travel_times_std_piv_SB_eve %>%
+  ggplot(aes(time, std_travel_time, color = type)) +
+  geom_line(size = 0.75) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(vars(day)) +
+  scale_x_time(labels = label_time("%H:%M")) +
+  labs(x = "Time",
+       y = "Travel Time", 
+       color = "Type", 
+       title = "Standardized Southbound Evening Bus Times vs Vehicle Times") +
+  theme_bw() +
+  theme(
+    legend.title = element_blank(),
+    legend.justification = "bottom",
+    legend.position = c(0.5, 0),
+    legend.text = element_text(size = 10))
+```
+:::
+
+## Scatter Plots and Correlation
+
+::: panel-tabset
+## Scatter Plots
+
+```{r}
+travel_times_std %>% 
+  filter(rush != "Neither") %>% 
+  ggplot(aes(links_time_std, bus_time_std)) +
+  geom_point(alpha = 0.3) +
+  facet_grid(vars(direction), vars(rush)) +
+  labs(x = "Standardized Bus Travel Times",
+       y = "Standardized Vehicles Travel Times",
+       title = "Bus Travel Times vs Vehicles Travel Times per Direction per Rush Hour") +
+  theme_bw()
+```
+
+## Correlation
+
+```{r}
+travel_times_std %>% 
+  filter(rush != "Neither") %>% 
+  group_by(rush, direction) %>% 
+  summarise(Correlation = round(cor(bus_time_std, links_time_std), 2)) %>% 
+  ungroup() %>% 
+  rename(Direction = direction,
+         Rush = rush) %>% 
+  kable() %>% 
+  kable_styling()
+```
+:::
+
+## Findings
+
+-   In the evening away from the city, travel time is greater and more varied than travel time in the morning to the city
+
+-   Standardization shows that morning travel times to the city vary to a greater extent than evening travel times from the city
+
+-   The evening southbound correlation is strong between the travel times variations, however the travel times don't vary by much, therefore it's difficult to infer robustness
+
+-   The morning travel times towards the city are more varied and the correlation is lower, therefore bus travel times during are more robust to congestion
+
+## Future Directions
+
+-   Analyze more roads on the network to create a hierarchy of road robustness. More targeted allocation of resources
+
+-   Analyze previous periods to provide rate of decline of robustness
+
+-   Use average speed as congestion measure. More versatile: more stops pairs, bottlenecks identification
+
+-   Include other factors for comparison, such as bus lanes, number of cars, number of stops, traffic lights...
+
+-   Build a predictive model with identified features

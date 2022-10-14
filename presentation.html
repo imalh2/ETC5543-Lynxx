@@ -1235,7 +1235,7 @@
 <ul id="tabset-10" class="panel-tabset-tabby"><li><a data-tabby-default="" href="#tabset-10-1">Plot</a></li><li><a href="#tabset-10-2">Correlation</a></li></ul>
 <div class="tab-content">
 <div id="tabset-10-1">
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-30_adc704f3c3ee4f85d48117dbdb78740d">
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-30_9b8e17801d18d064f95e6a48281fdee6">
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure>
@@ -1246,24 +1246,38 @@
 </div>
 </div>
 <div id="tabset-10-2">
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-31_76d0214fd3379fbb987eea2fb28be672">
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-31_35442a443315ccf1da0ad460791bd686">
 <div class="cell-output-display">
 
-<table class="table" style="margin-left: auto; margin-right: auto;">
+<table class="table" style="width: auto !important; margin-left: auto; margin-right: auto;">
+<caption>Correlation between travel times per direction per rush hour</caption>
  <thead>
   <tr>
+   <th style="text-align:left;"> Rush </th>
    <th style="text-align:left;"> Direction </th>
    <th style="text-align:right;"> Correlation </th>
   </tr>
  </thead>
 <tbody>
   <tr>
+   <td style="text-align:left;"> Morning </td>
    <td style="text-align:left;"> NB </td>
-   <td style="text-align:right;"> 0.61 </td>
+   <td style="text-align:right;"> 0.79 </td>
   </tr>
   <tr>
+   <td style="text-align:left;"> Morning </td>
    <td style="text-align:left;"> SB </td>
-   <td style="text-align:right;"> 0.82 </td>
+   <td style="text-align:right;"> 0.49 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Evening </td>
+   <td style="text-align:left;"> NB </td>
+   <td style="text-align:right;"> 0.66 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Evening </td>
+   <td style="text-align:left;"> SB </td>
+   <td style="text-align:right;"> 0.85 </td>
   </tr>
 </tbody>
 </table>
@@ -1277,7 +1291,130 @@
 <section id="average-day-travel-time" class="slide level2">
 <h2>Average Day Travel Time</h2>
 
-<img data-src="presentation_files/figure-revealjs/unnamed-chunk-32-1.png" width="960" class="r-stretch quarto-figure-center"><div class="footer footer-default">
+<img data-src="presentation_files/figure-revealjs/unnamed-chunk-32-1.png" width="960" class="r-stretch quarto-figure-center"></section>
+<section id="standardize-travel-times" class="slide level2">
+<h2>Standardize Travel Times</h2>
+<ul>
+<li><p>To allows cross examination of variations from “normal”</p></li>
+<li><p>Function <code>standardizer</code> created to standardize both types of travel times with respect to one of:</p>
+<ul>
+<li><p>five minute period across the month</p></li>
+<li><p>hour across the month</p></li>
+<li><p>rush hour across the month</p></li>
+</ul></li>
+</ul>
+<p>Function default is hour</p>
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-33_a07ef122dd4fd006362ec2fb6701fbce">
+
+</div>
+</section>
+<section id="standardized-travel-times" class="slide level2">
+<h2>Standardized Travel Times</h2>
+<div class="panel-tabset">
+<ul id="tabset-11" class="panel-tabset-tabby"><li><a data-tabby-default="" href="#tabset-11-1">Northbound - Morning</a></li><li><a href="#tabset-11-2">Southbound - Evening</a></li></ul>
+<div class="tab-content">
+<div id="tabset-11-1">
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-34_66c30503adaf0b760a002f16a00f3bf2">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure>
+<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-34-1.png" width="960"></p>
+</figure>
+</div>
+</div>
+</div>
+</div>
+<div id="tabset-11-2">
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-35_968fd4f948671e3c400909ffef7ec4e4">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure>
+<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-35-1.png" width="960"></p>
+</figure>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section id="scatter-plots-and-correlation" class="slide level2">
+<h2>Scatter Plots and Correlation</h2>
+<div class="panel-tabset">
+<ul id="tabset-12" class="panel-tabset-tabby"><li><a data-tabby-default="" href="#tabset-12-1">Scatter Plots</a></li><li><a href="#tabset-12-2">Correlation</a></li></ul>
+<div class="tab-content">
+<div id="tabset-12-1">
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-36_3ffcf6cb8684f7404dc72e9ab2e4cd8a">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure>
+<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-36-1.png" width="960"></p>
+</figure>
+</div>
+</div>
+</div>
+</div>
+<div id="tabset-12-2">
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-37_ed8ccee4799603202537b15b2eb563d5">
+<div class="cell-output-display">
+
+<table class="table" style="margin-left: auto; margin-right: auto;">
+ <thead>
+  <tr>
+   <th style="text-align:left;"> Rush </th>
+   <th style="text-align:left;"> Direction </th>
+   <th style="text-align:right;"> Correlation </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> Morning </td>
+   <td style="text-align:left;"> NB </td>
+   <td style="text-align:right;"> 0.67 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Morning </td>
+   <td style="text-align:left;"> SB </td>
+   <td style="text-align:right;"> 0.22 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Evening </td>
+   <td style="text-align:left;"> NB </td>
+   <td style="text-align:right;"> 0.44 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Evening </td>
+   <td style="text-align:left;"> SB </td>
+   <td style="text-align:right;"> 0.74 </td>
+  </tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section id="findings" class="slide level2">
+<h2>Findings</h2>
+<ul>
+<li><p>In the evening away from the city, travel time is greater and more varied than travel time in the morning to the city</p></li>
+<li><p>Standardization shows that morning travel times to the city vary to a greater extent than evening travel times from the city</p></li>
+<li><p>The evening southbound correlation is strong between the travel times variations, however the travel times don’t vary by much, therefore it’s difficult to infer robustness</p></li>
+<li><p>The morning travel times towards the city are more varied and the correlation is lower, therefore bus travel times during are more robust to congestion</p></li>
+</ul>
+</section>
+<section id="future-directions" class="slide level2">
+<h2>Future Directions</h2>
+<ul>
+<li><p>Analyze more roads on the network to create a hierarchy of road robustness. More targeted allocation of resources</p></li>
+<li><p>Analyze previous periods to provide rate of decline of robustness</p></li>
+<li><p>Use average speed as congestion measure. More versatile: more stops pairs, bottlenecks identification</p></li>
+<li><p>Include other factors for comparison, such as bus lanes, number of cars, number of stops, traffic lights…</p></li>
+<li><p>Build a predictive model with identified features</p></li>
+</ul>
+<div class="footer footer-default">
 
 </div>
 </section>

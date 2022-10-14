@@ -506,7 +506,7 @@ The data in the bus travel times will be split into five minute time periods, wi
 
 ```{r}
 # Split trips into 5 minute intervals average the trips times per interval
-trip_times_agg <- trip_times %>% 
+trip_times_agg_southrd <- trip_times %>% 
   mutate(arrival_time = ceiling_date(arrival_time, "5 minutes")) %>% 
   group_by(arrival_time, direction) %>% 
   summarise(
@@ -527,7 +527,7 @@ trip_times_agg <- trip_times %>%
 ```
 
 ```{r}
-trip_times_agg %>%
+trip_times_agg_southrd %>%
   names() %>% 
   as_tibble_col("Variable") %>% 
   mutate(Description = c("Date of measurement",
@@ -1186,23 +1186,23 @@ The travel times from both sets will be compared against one another. This is do
 
 ```{r}
 # Combine links times and bus trip times
-travel_times <- trip_times_agg %>%
+travel_times_southrd <- trip_times_agg_southrd %>%
   inner_join(links_times) %>% 
   mutate(travel_diff = bus_time - links_time)
 
-travel_times_piv <- travel_times %>% 
+travel_times_southrd_piv <- travel_times_southrd %>% 
   pivot_longer(cols = bus_time:links_time, names_to = "type", values_to = "travel_time") %>% 
   mutate(type = recode(type, bus_time = "Bus", links_time = "Vehicle"))
 ```
 
 ```{r bus-vehicles-time, fig.cap="Vehicles are faster in both directions. Distributions of both types resemble each other"}
 # Travel time distributions
-travel_times_piv %>% 
+travel_times_southrd_piv %>% 
   filter(rush != "Neither") %>% 
   ggplot(aes(travel_time/60, fill = type)) +
   geom_density(alpha = 0.4) +
   facet_grid(vars(direction), vars(rush)) +
-  scale_x_continuous(labels = label_comma(), limits = c(min(travel_times_piv$travel_time/60), 25)) +
+  scale_x_continuous(labels = label_comma(), limits = c(min(travel_times_southrd_piv$travel_time/60), 25)) +
   labs(x = "Travel Time (Minutes)", fill = "Type", title = "Bus Travel Time vs Vehicle Travel Time") +
   theme_bw()
 ```
@@ -1211,7 +1211,7 @@ Figure \@ref(fig:bus-vehicles-time) shows that for northbound travel to the city
 
 ```{r nb-calendar, fig.height=8, fig.width=9, fig.cap="Northbound bus travel times are slower than vehicle travel times. Both exhibit similar patterns"}
 # Direction 1 calendar plot
-travel_times_piv_dir1 <- travel_times_piv %>% 
+travel_times_piv_dir1 <- travel_times_southrd_piv %>% 
   filter(direction == directions[1])
 
 travel_times_piv_dir1 %>%  
@@ -1237,7 +1237,7 @@ travel_times_piv_dir1 %>%
 
 ```{r sb-calendar, fig.height=8, fig.width=9, fig.cap="Southbound bus travel times are slower than vehicle travel times. Both exhibit similar patterns"}
 # Direction 2 calendar plot
-travel_times_piv_dir2 <- travel_times_piv %>% 
+travel_times_piv_dir2 <- travel_times_southrd_piv %>% 
   filter(direction == directions[2])
 
 travel_times_piv_dir2 %>% 
@@ -1267,7 +1267,7 @@ A scatter plot of the travel times will be examined:
 
 ```{r times-scatter, fig.cap="A positive relationship exists between both travel times for both directions during peak times"}
 # Scatter plots
-travel_times %>% 
+travel_times_southrd %>% 
   filter(rush != "Neither") %>% 
   ggplot(aes(bus_time/60, links_time/60)) +
   geom_point(alpha = 0.3) +
@@ -1285,7 +1285,7 @@ Figure \@ref(fig:times-scatter) shows that a positive relationship exists betwee
 The correlations between the travel times are:
 
 ```{r general-corr}
-travel_times %>% 
+travel_times_southrd %>% 
   filter(rush != "Neither") %>% 
   group_by(rush, direction) %>% 
   summarise(Correlation = round(cor(bus_time, links_time), 2)) %>% 
@@ -1318,7 +1318,7 @@ links_30min <- link_stats %>%
   relocate(links_time, .after = everything())
 
 # Average bus trip times in each 30 minute bin
-trip_times_30min <- trip_times %>% 
+trip_times_30min_southrd <- trip_times %>% 
   mutate(arrival_time = ceiling_date(arrival_time, "30 minutes"),
          time = as_hms(arrival_time)) %>% 
   group_by(time, direction) %>% 
@@ -1332,7 +1332,7 @@ trip_times_30min <- trip_times %>%
   relocate(bus_time, .after = everything())
 
 links_trips_30min <- links_30min %>% 
-  inner_join(trip_times_30min) %>% 
+  inner_join(trip_times_30min_southrd) %>% 
   pivot_longer(cols = links_time:bus_time, names_to = "type", values_to = "value") %>% 
   mutate(type = recode(type, bus_time = "Bus", links_time = "Vehicle"))
 
@@ -1380,7 +1380,7 @@ standardiser <- function(basis = hour) {
     stop("basis must be either time, hour, or rush")
   }
   
-  trip_times_std <- trip_times_agg %>%
+  trip_times_southrd_std <- trip_times_agg_southrd %>%
     group_by({{basis}}, direction) %>% 
     mutate(
       period_buses_no = n(),
@@ -1398,11 +1398,11 @@ standardiser <- function(basis = hour) {
     select(-links_time)
   
   # Combine
-  travel_times_std <<- trip_times_std %>%
+  travel_times_southrd_std <<- trip_times_southrd_std %>%
     inner_join(links_times_std) %>%
     mutate(std_travel_diff = bus_time_std - links_time_std)
   
-  travel_times_std_piv <<- travel_times_std %>% 
+  travel_times_southrd_std_piv <<- travel_times_southrd_std %>% 
     pivot_longer(cols = bus_time_std:links_time_std, names_to = "type", values_to = "std_travel_time") %>% 
     mutate(type = recode(type, bus_time_std = "Bus", links_time_std = "Vehicle"))
 }
@@ -1416,11 +1416,11 @@ Plots of the standardized travel times are shown below:
 
 ```{r nb-std-calendar, fig.height=8, fig.width=9, fig.cap="Northbound morning travel time variations are similar"}
 # Morning Northbound
-travel_times_std_NB_morn <- travel_times_std %>% 
+travel_times_std_NB_morn <- travel_times_southrd_std %>% 
   filter(direction == "NB",
          rush == "Morning")
 
-travel_times_std_piv_NB_morn <- travel_times_std_piv %>% 
+travel_times_std_piv_NB_morn <- travel_times_southrd_std_piv %>% 
   filter(direction == "NB",
          rush == "Morning")
 
@@ -1444,11 +1444,11 @@ travel_times_std_piv_NB_morn %>%
 
 ```{r sb-std-calendar, fig.height=8, fig.width=9, fig.cap="Southbound evening travel time variations are similar"}
 # Evening Southbound
-travel_times_std_SB_eve <- travel_times_std %>% 
+travel_times_std_SB_eve <- travel_times_southrd_std %>% 
   filter(direction == "SB",
          rush == "Evening")
 
-travel_times_std_piv_SB_eve <- travel_times_std_piv %>% 
+travel_times_std_piv_SB_eve <- travel_times_southrd_std_piv %>% 
   filter(direction == "SB",
          rush == "Evening")
 
@@ -1473,7 +1473,7 @@ travel_times_std_piv_SB_eve %>%
 Figure \@ref(fig:nb-std-calendar) and figure \@ref(fig:sb-std-calendar) show that variations in vehicle travel times are in fact closely matched by variations in bus travel times, especially during the morning and northbound towards the city, where the variations also exist in greater magnitudes.
 
 ```{r std-scatter, fig.cap="A positive relationship exists between both travel times for both directions during peak times"}
-travel_times_std %>% 
+travel_times_southrd_std %>% 
   filter(rush != "Neither") %>% 
   ggplot(aes(links_time_std, bus_time_std)) +
   geom_point(alpha = 0.3) +
@@ -1490,10 +1490,10 @@ The correlations between the standardized travel times are :
 
 ```{r std-corr}
 # Peak times and direction correlation
-travel_times_std %>% 
+travel_times_southrd_std %>% 
   filter(rush != "Neither") %>% 
   group_by(rush, direction) %>% 
-  summarise(correlation = round(cor(bus_time_std, links_time_std), 2)) %>% 
+  summarise(Correlation = round(cor(bus_time_std, links_time_std), 2)) %>% 
   ungroup() %>% 
   rename(Direction = direction,
          Rush = rush) %>% 
@@ -1507,7 +1507,7 @@ The following plot increases the granularity of the correlation to a per hour fi
 
 ```{r hourly-corr, fig.cap="High correlation is more uniform in the evening southbound"}
 # Hourly correlation
-travel_times_std_hr_cor <- travel_times_std %>%
+travel_times_std_hr_cor <- travel_times_southrd_std %>%
   filter(rush != "Neither") %>%
   group_by(hour, rush, direction) %>% 
   summarise(
