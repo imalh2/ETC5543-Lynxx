@@ -10,7 +10,7 @@
   <meta name="generator" content="quarto-1.0.36">
 
   <meta name="author" content="Ibrahim Al-Hindi">
-  <title>Road Congestion and Bus Travel Times</title>
+  <title>The Relationship Between Bus Travel Times and Road Congestion</title>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
@@ -395,8 +395,9 @@
     <div class="slides">
 
 <section id="title-slide" class="center">
-  <h1 class="title">Road Congestion and Bus Travel Times</h1>
+  <h1 class="title">The Relationship Between Bus Travel Times and Road Congestion</h1>
   <p class="author">Ibrahim Al-Hindi</p>
+  <p class="institute">Lynxx</p>
 </section>
 
 <section id="background" class="slide level2">
@@ -405,6 +406,7 @@
 <li><p>Adelaide’s population increased from 1.1 to 1.3 million between 2006 and 2016, along with 66 million additional travel km’s</p></li>
 <li><p>Costly road congestion projected to increase in the coming years. $1.4 billion in 2016 to $2.6 billion in 2031</p></li>
 <li><p>Client is South Australia Department of Infrastructure and Transport (DIT)</p></li>
+<li><p>Client has a large collection of mostly unused traffic data</p></li>
 </ul>
 </section>
 <section id="objectives" class="slide level2">
@@ -418,7 +420,7 @@
 <p><br></p>
 <h4 id="objectives-1">Objectives</h4>
 <ol type="1">
-<li><p>Investigate the extent of the relationship between the <strong>variation</strong> in bus travel times vs the <strong>variation</strong> in motor vehicle travel time in a given segment of road. Provides an indicated or road robustness to congestion</p></li>
+<li><p>Investigate the extent of the relationship between the <strong>variation</strong> in bus travel times vs the <strong>variation</strong> in motor vehicle travel time in a given segment of road. Provides an indication of road robustness to congestion</p></li>
 <li><p>Methodology and code as repeatable and automated as possible</p></li>
 </ol>
 <p><br></p>
@@ -427,8 +429,25 @@
 </section>
 <section id="south-road" class="slide level2">
 <h2>South Road</h2>
-
-<img data-src="images/SouthRd_Map.png" style="width:100.0%" class="r-stretch quarto-figure-center"></section>
+<div class="quarto-figure quarto-figure-center">
+<figure>
+<p><img data-src="images/SouthRd_Map.png" style="width:100.0%"></p>
+</figure>
+</div>
+<aside class="notes">
+<p>one of Adelaide’s most important and major roads, and regularly suffers from congestion</p>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
+</section>
 <section id="south-road-1" class="slide level2">
 <h2>South Road</h2>
 
@@ -454,9 +473,25 @@
 <li><p><strong>DIT Addinsight</strong></p>
 <p>Traffic information collected by DIT using Bluetooth devices on the roads. The location of a Bluetooth device is called a site, and a link is a segment of road between two sites, an origin site and a destination site</p></li>
 </ol>
-<p><br></p>
-<p>All data is stored in DIT’s AWS</p>
 </div>
+<aside class="notes">
+<ul>
+<li><p>GTFS developed by Google. Open source. Worldwide</p></li>
+<li><p>Explain GTFSR</p></li>
+<li><p>Explain DIT</p></li>
+<li><p>data is stored in AWS</p></li>
+</ul>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
 </section>
 <section id="gtfs" class="slide level2 scrollable">
 <h2>GTFS</h2>
@@ -464,11 +499,11 @@
 <ul id="tabset-1" class="panel-tabset-tabby"><li><a data-tabby-default="" href="#tabset-1-1">Routes</a></li><li><a href="#tabset-1-2">Stops</a></li></ul>
 <div class="tab-content">
 <div id="tabset-1-1">
-<p>Segment route ID’s extracted through Tableau</p>
+<p>Segment route ID’s extracted through Tableau. Needed for trip updates data</p>
 </div>
 <div id="tabset-1-2">
 <p>Also extracted through Tableau</p>
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-2_7a1043a596c7c87a26dcc539b210a05a">
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-2_8a561e42e64ed3fb0ce5cd144134045d">
 <div class="cell-output-display">
 
 <table class="table" style="margin-left: auto; margin-right: auto;">
@@ -501,7 +536,7 @@
   </tr>
   <tr>
    <td style="text-align:left;"> direction </td>
-   <td style="text-align:left;"> Road direction of the stop </td>
+   <td style="text-align:left;"> Road direction of the stop. Created </td>
   </tr>
 </tbody>
 </table>
@@ -598,6 +633,22 @@
 </div>
 </div>
 </div>
+<aside class="notes">
+<ul>
+<li><p>Unedited data according to the routes identified</p></li>
+<li><p>Original method used delays. Changed to time to remove the possibility that we are measuring how accurately the schedule predicts and/or buffers for congestion.</p></li>
+</ul>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
 </section>
 <section id="trip-updates-cleaning" class="slide level2">
 <h2>Trip Updates Cleaning</h2>
@@ -686,12 +737,55 @@
 </div>
 </div>
 </div>
+<aside class="notes">
+<ul>
+<li><p>Explain to_stop_time</p></li>
+<li><p>Negative values</p></li>
+<li><p>Very high delays (all stops delayed)</p></li>
+<li><p>Cleaning took a long time. Insure no further errors, surgical, correct order, correct code</p></li>
+<li><p>Percentage of errors: 3.83%</p></li>
+</ul>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
 </section>
 <section id="multiple-stops-pairs" class="slide level2">
 <h2>Multiple Stops Pairs</h2>
-<p>Different pairs of start-end stops per direction lead to inconsistent travel times</p>
-
-<img data-src="presentation_files/figure-revealjs/unnamed-chunk-9-1.png" width="960" class="r-stretch quarto-figure-center"></section>
+<p>Different pairs of start-end stops per direction lead to inconsistent travel times due to different distances</p>
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-9_2dcd5aa3ead751254957e95e35cde5b9">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure>
+<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-9-1.png" width="960"></p>
+</figure>
+</div>
+</div>
+</div>
+<aside class="notes">
+<ul>
+<li><p>Explain how trip time is calculated (arrival time of last stop - first stop)</p></li>
+<li><p>Different travel times are incomparable and can lead to issues in calculations later</p></li>
+</ul>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
+</section>
 <section id="most-occurring-stops-pair" class="slide level2">
 <h2>Most Occurring Stops Pair</h2>
 <div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-10_d3fa17954e6144b91f5266a1aa0bcb2d">
@@ -757,11 +851,24 @@
 
 </div>
 </div>
+<aside class="notes">
+<p>done to establish a one-to-one relationship with the vehicles travel time, which are also in five minute intervals</p>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
 </section>
 <section id="dit---links" class="slide level2 scrollable">
 <h2>DIT - Links</h2>
 <p>Segment links extracted using Tableau</p>
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-13_7ce47eb53ed791c8a22145c6b8392028">
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-13_642814d5f0c0038ea15d6df8ee2a9d10">
 <div class="cell-output-display">
 
 <table class="table" style="margin-left: auto; margin-right: auto;">
@@ -794,19 +901,19 @@
   </tr>
   <tr>
    <td style="text-align:left;"> start_loc </td>
-   <td style="text-align:left;"> Name of link start location </td>
+   <td style="text-align:left;"> Name of link start location. Created </td>
   </tr>
   <tr>
    <td style="text-align:left;"> end_loc </td>
-   <td style="text-align:left;"> Name of link end location </td>
+   <td style="text-align:left;"> Name of link end location. Created </td>
   </tr>
   <tr>
    <td style="text-align:left;"> start_lat </td>
-   <td style="text-align:left;"> Latitude of the link's first shape coordinate </td>
+   <td style="text-align:left;"> Latitude of the link's first shape coordinate. Created </td>
   </tr>
   <tr>
    <td style="text-align:left;"> end_lat </td>
-   <td style="text-align:left;"> Latitude of the link's last shape coordinate </td>
+   <td style="text-align:left;"> Latitude of the link's last shape coordinate. Created </td>
   </tr>
   <tr>
    <td style="text-align:left;"> originid </td>
@@ -833,6 +940,22 @@
 
 </div>
 </div>
+<aside class="notes">
+<ul>
+<li><p>Remind what a link is</p></li>
+<li><p>Need for vehicles travel time</p></li>
+</ul>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
 </section>
 <section id="links-statistics" class="slide level2">
 <h2>Links Statistics</h2>
@@ -840,6 +963,7 @@
 <li><p>5 minute aggregated statistics per link</p></li>
 <li><p>However, links extracted contain links that overlap. Need to identify non-overlapping sequence of links to avoid double counting</p></li>
 <li><p>Total length of the sequence of links needs to be approximately the same as the length between the stops pairs</p></li>
+<li><p>Retrieve statistics of identified links from AWS</p></li>
 <li><p>Impute statistics for links with missing statistics</p></li>
 <li><p>Multiple iterations trialed</p></li>
 <li><p>Minimum manual input</p></li>
@@ -1021,7 +1145,7 @@
 </section>
 <section id="link-statistics" class="slide level2">
 <h2>Link Statistics</h2>
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-20_5b984f4c7861f60f296384c37ec3db0e">
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-20_be63d48ebaf42a7448ca55b58c6baf76">
 <div class="cell-output-display">
 
 <table class="table" style="margin-left: auto; margin-right: auto;">
@@ -1046,21 +1170,36 @@
   </tr>
   <tr>
    <td style="text-align:left;"> direction </td>
-   <td style="text-align:left;"> The link direction of travel </td>
+   <td style="text-align:left;"> The link direction of travel. From links dataset </td>
   </tr>
   <tr>
    <td style="text-align:left;"> length </td>
-   <td style="text-align:left;"> The link length in metres </td>
+   <td style="text-align:left;"> The link length in metres. From links dataset </td>
   </tr>
   <tr>
    <td style="text-align:left;"> speed </td>
-   <td style="text-align:left;"> Calculated speed in km/h </td>
+   <td style="text-align:left;"> Calculated speed in km/h. Created </td>
   </tr>
 </tbody>
 </table>
 
 </div>
 </div>
+<aside class="notes">
+<ul>
+<li>Link statistics for links on segment as well as links used for imputation</li>
+</ul>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
 </section>
 <section id="links-statistics-cleaning" class="slide level2">
 <h2>Links Statistics Cleaning</h2>
@@ -1163,8 +1302,33 @@
 <li><p>General understanding of the relationship</p></li>
 <li><p>Validate data</p></li>
 </ul>
-
-<img data-src="presentation_files/figure-revealjs/unnamed-chunk-26-1.png" width="960" class="r-stretch quarto-figure-center"></section>
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-26_50c7954b12cebdc7f73879112ba162f1">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure>
+<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-26-1.png" width="960"></p>
+</figure>
+</div>
+</div>
+</div>
+<aside class="notes">
+<ul>
+<li><p>For northbound travel to the city, vehicle travel time largely remains the same during both periods of rush hour, while bus travel time actually increases in the evening, a surprising result.</p></li>
+<li><p>For southbound travel away from the city, both travel times in the evening increase as expected and are more varied than the travel times in the morning.</p></li>
+<li><p>The bus travel times are generally slower than vehicle travel times as expected, and both types exhibit general patterns overall.</p></li>
+</ul>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
+</section>
 <section id="travel-times-calendar" class="slide level2">
 <h2>Travel Times Calendar</h2>
 <div class="panel-tabset">
@@ -1194,11 +1358,55 @@
 </div>
 </div>
 </div>
+<aside class="notes">
+<ul>
+<li><p>Client asked to validate the data</p></li>
+<li><p>Similar patterns</p></li>
+<li><p>Buses always slower</p></li>
+<li><p>Towards the end of the day in both directions, the travel times seem to level off at a low value, this is likely due to less traffic being present on the road in the evening time, leading to a faster traversal through the segment, with only constant factors affecting the travel time such as the speed limit and traffic lights.</p></li>
+</ul>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
 </section>
 <section id="average-day-travel-time" class="slide level2">
 <h2>Average Day Travel Time</h2>
-
-<img data-src="presentation_files/figure-revealjs/unnamed-chunk-29-1.png" width="960" class="r-stretch quarto-figure-center"></section>
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-29_e27dfbf07bc9ea56879a0db6febfcb29">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure>
+<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-29-1.png" width="960"></p>
+</figure>
+</div>
+</div>
+</div>
+<aside class="notes">
+<ul>
+<li><p>30 minute aggregates across all days</p></li>
+<li><p>morning and evening rush hours highlighted</p></li>
+<li><p>northbound travel towards the city, both rush hour times display a similar level of travel time for both types, and the travel time in the rush hours are not much greater than non-rush hour times. This is an unexpected result as it is expected that travel times northbound towards the city would be higher in the morning rush hour</p></li>
+<li><p>Southbound travel away from the city, however, follows expectations as the travel time for both types dramatically increases in the evening rush hour as workers leave the city.</p></li>
+</ul>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
+</section>
 <section id="scatter-plot-and-correlation" class="slide level2">
 <h2>Scatter Plot and Correlation</h2>
 <div class="panel-tabset">
@@ -1257,11 +1465,24 @@
 </div>
 </div>
 </div>
+<aside class="notes">
+<p>positive relationship, especially southbound evening</p>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
 </section>
 <section id="standardize-travel-times" class="slide level2">
 <h2>Standardize Travel Times</h2>
 <ul>
-<li><p>To allows cross examination of variations from “normal”</p></li>
+<li><p>Allows cross examination of variations from “normal”</p></li>
 <li><p>Function <code>standardizer</code> created to standardize both types of travel times with respect to one of:</p>
 <ul>
 <li><p>five minute period across the month</p></li>
@@ -1273,6 +1494,27 @@
 <div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-32_224ce62da7de03eae0aaf25ed2f49e2c">
 
 </div>
+<aside class="notes">
+<ul>
+<li><p>Travel time naturally changes across the day</p></li>
+<li><p>Need to compare to “normal” per timeframe</p></li>
+<li><p>if the vehicle travel time varies by a certain level relative to the usual travel time during the same time frame, can we observe a reflection of this variation in the bus travel time? If so, by how much?</p></li>
+<li><p>if correlation is low, bus network more resilient</p></li>
+<li><p>As the time frame widens, more data is available for standardization, but the standardization takes a wider time range, leading to bias</p></li>
+<li><p>Remove observations more than 3 standard deviations away</p></li>
+<li><p>Maximum 21 5 minute periods</p></li>
+</ul>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
 </section>
 <section id="standardized-travel-times" class="slide level2">
 <h2>Standardized Travel Times</h2>
@@ -1303,11 +1545,45 @@
 </div>
 </div>
 </div>
+<aside class="notes">
+<p>variations follow each other</p>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
 </section>
 <section id="standardized-travel-times-distributions" class="slide level2">
 <h2>Standardized Travel Times Distributions</h2>
-
-<img data-src="presentation_files/figure-revealjs/unnamed-chunk-35-1.png" width="960" class="r-stretch quarto-figure-center"></section>
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-35_622f03571c621c5a42435036d08cdc6b">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure>
+<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-35-1.png" width="960"></p>
+</figure>
+</div>
+</div>
+</div>
+<aside class="notes">
+<p>standard travel times are more varied in the morning towards the city</p>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
+</section>
 <section id="scatter-plots-and-correlation" class="slide level2">
 <h2>Scatter Plots and Correlation</h2>
 <div class="panel-tabset">
@@ -1365,6 +1641,19 @@
 </div>
 </div>
 </div>
+<aside class="notes">
+<p>strong correlation in the evening towards the city</p>
+<style type="text/css">
+        span.MJX_Assistive_MathML {
+          position:absolute!important;
+          clip: rect(1px, 1px, 1px, 1px);
+          padding: 1px 0 0 0!important;
+          border: 0!important;
+          height: 1px!important;
+          width: 1px!important;
+          overflow: hidden!important;
+          display:block!important;
+      }</style></aside>
 </section>
 <section id="findings" class="slide level2 scrollable">
 <h2>Findings</h2>
@@ -1375,7 +1664,7 @@
 <li><p>The morning standardized travel times towards the city are more varied and the correlation is lower, implying the bus transportation is relatively more robust to congestion</p></li>
 </ul>
 </section>
-<section id="future-directions" class="slide level2">
+<section id="future-directions" class="slide level2 scrollable">
 <h2>Future Directions</h2>
 <ul>
 <li><p>Analyze more roads on the network to create a hierarchy of road robustness. More targeted allocation of resources</p></li>
@@ -1383,6 +1672,7 @@
 <li><p>Use average speed as congestion measure. More versatile: more stops pairs, bottlenecks identification</p></li>
 <li><p>Include other factors for comparison, such as bus lanes, number of cars, number of stops, traffic lights…</p></li>
 <li><p>Build a predictive model with identified features</p></li>
+<li><p>Works are planned for South Road. Redo analysis after works are completed to study their impact</p></li>
 </ul>
 <div class="footer footer-default">
 

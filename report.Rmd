@@ -1,11 +1,12 @@
 ---
-title: "Report"
+title: "The Relationship Between Bus Travel Times and Road Congestion"
 author: "Ibrahim Al-Hindi"
-date: "`r Sys.Date()`"
+subtitle: "Lynxx Asia Pacific"
+date: "October 2022"
 output:
   bookdown::html_document2:
     number_sections: false
-    theme: cerulean
+    theme: dark
 ---
 
 ```{r setup, include=FALSE}
@@ -48,13 +49,15 @@ southrd_link_stats_raw <- read_csv(here("data/South-Rd/link_stats_Mar.csv"))
 
 # Abstract
 
+The continual increase of Adelaide's population results in an increase in road congestion and its associated costs. As the residents of Adelaide are becoming more reliant on public transport, it is critical to estimate the resilience of the public bus network to the aforementioned rise in road congestion. The analyses contained in this report seeks to provide the South Australia Department for Infrastructure and Transport (DIT) such an estimate by examining the relationship between the travel times of both motor vehicles and bus trips, especially during morning and evening rush hours. The core objective of the analysis is to determine for a specified road segment: the extent to which the variation of motor vehicles travel times from normal relative to the same time frame, is matched with such a variation in bus travel times, where a lower correlation indicates a more resilient bus network to increasing road congestion. Bus travel times are calculated using trip updates data obtained from the open source General Transit Feed Specification Realtime (GTFS) by calculating the time taken between the first and last stops of the trips on the segment, while the motor vehicle travel times are calculated using links metrics available through DIT's Addinsights data lake. Upon completing the descriptive analysis of the travel times relationship, the travel times were standardized relative to the time of day to better examine the response of the bus travel times to variations in the motor vehicles travel times. The analysis was performed on South Road for the period of March 2022, for both the northbound direction towards the city, and the southbound direction away from the city. The analysis shows that the evening southbound correlation is strong between the standardized travel times, however the variations are relatively small, therefore it is difficult to infer the bus transportation robustness to congestion as larger variation magnitudes would have to be observed and examined. It also finds that the morning standardized travel times towards the city are more varied and the correlation is lower, implying the bus transportation is relatively more robust to congestion than evening bus travel from the city
+
 # Background
 
 Adelaide's population increased from 1.1 million to 1.3 million residents between 2006 and 2016, with 66 million more kilometers traveled on the road network during that time. Infrastructure Australia paints a dire picture of the level of road congestion in Adelaide and its continued worsening in the coming years in line with both an increasing population and an increasing reliance on public transport in comparison to cars. The report estimated the annualized cost of road congestion for Greater Adelaide to be approximately \$1.4 billion in 2016 and is projected to rise to \$2.6 billion in 2031 (Infrastructure Australia, 2019).
 
-With this backdrop in mind, the client (South Australia Department for Infrastructure and Transport (DIT)) has in its possession an untapped wealth of data relating to traffic information collected through Bluetooth probes, which take count of passing motor vehicles in a particular time and location, therefore producing a metric for road congestion.
+With this backdrop in mind, the client - DIT - has in its possession an untapped wealth of data relating to traffic information collected through Bluetooth probes, which take count of passing motor vehicles in a particular time and location, therefore producing a metric for road congestion.
 
-This data will be examined in conjunction with publicly available, historical real time bus trip updates collected by General Transit Feed Specification Realtime (GTFSR), which provides the arrival time for each stop on a bus's trip. The analysis aims to identify the relationship and robustness of bus travel times to road congestion on road segments of interest, especially during peak times.
+This data will be examined in conjunction with publicly available, historical real time bus trip updates collected by GTFSR, which provides the arrival time for each stop on a bus's trip. The analysis aims to identify the relationship and robustness of bus travel times to road congestion on road segments of interest, especially during peak times.
 
 # Objectives
 
@@ -76,7 +79,11 @@ The analysis undertaken in this report will form the basis of future analysis in
 
 -   additional road segments of interest to generate a ranking of bus network robustness which can help inform the allocation of resources
 
--   analysing the factors that can effect bus travel times such as the use of bus lanes, number of bus stops, traffic lights, etc.
+-   the rate of decline to bus resilience to congestion by examining prior periods of the same road segment
+
+-   the impact of road works on bus performance by conducting and comparing the results of both pre- and post-works analysis
+
+-   identifying the factors that can effect bus travel times such as the use of bus lanes, number of bus stops, traffic lights, etc.
 
 -   creating a model predicting bus travel times using identified features.
 
@@ -1471,29 +1478,31 @@ travel_times_southrd_std %>%
 
 Table \@ref(tab:std-corr) shows that strong correlation exists between the standardized travel times during the evening southbound away from the city.
 
-# Findings
+# Conclusion, Findings, Future Directions
 
-The results from the analysis show the following:
+The report examined the relationship between the bus travel times and motor vehicle travel times, and the robustness of the bus network to road congestion, particularly during rush hour periods. A major takeaway from the project was the recognition of the extensive workload incurred in cleaning and wrangling the data, a common theme in many analysis projects, as well as in creating the methodology to perform the analysis. A couple of limitations exist in the analysis. The first is that the trip updates dataset provides the anticipated arrival times of the bus stops, whereas the actual arrival time can provide greater accuracy. A further limitation is the period of the analysis is constrained to one month only due to size limitations, where a longer time frame can provide greater certainty in the results.
+
+An additional objective of the project was to create the analysis code in such a way as to allow reproducibility with minimal manual input across different road segments and time periods; in fact, the analysis was conducted on an additional road in Adelaide (Marion Road), to enable comparison with South Road and to highlight any possible enhancements in the code. The result of that analysis was not included in this report due to size limitations, however a modified report that includes and compares both roads was created and sent to the client.
+
+The results from the analysis on South Road show the following:
 
 - The absolute travel times in the evening rush hour away from the city are much greater and more varied than those in the morning towards the city
 
-- The standardization of the the travel times with respect to the time of day indicates that while evening travel times from the city are greater in absolute terms, they are consistently so. Whereas the variation of the morning travel time towards the city is more varied while taking less time in absolute terms
+- The standardization of the the travel times with respect to the time of day indicates that while evening travel times from the city are greater in absolute terms, they are consistently so. Whereas the variation of the morning travel time towards the city has a wider range while taking less time in absolute terms
 
 - The evening southbound correlation is strong between the standardized travel times, however the variations are relatively small, therefore it is difficult to infer the bus transportation robustness to congestion as larger variation magnitudes would have to be observed and examined
 
 - The morning standardized travel times towards the city are more varied and the correlation is lower, implying the bus transportation is relatively more robust to congestion than evening bus travel from the city
 
+Possible future directions stemming from this analysis include:
 
+- performing the analysis on more roads to create a ranking of bus network robustness to road congestion. This can result in a prioritization list of resource allocation
 
+- conducting the analysis on previous periods to provide an indication of the rate of decline of bus network resilience to congestion
 
+- identifying the factors that can affect bus travel times
 
-
-
-
-
-
-
-
+- creating a predictive model for bus travel times using the identified features
 
 # Appendix
 
@@ -1531,9 +1540,6 @@ These trips were removed as they will be in the wrong timeframe when analyzing a
 
 8. Many stops on the same trip have the same arrival time likely due to retrospective entry error. These trips were removed
 
-
-
-
 # References
 
 - Cheng J, Karambelkar B, Xie Y (2022). _leaflet: Create Interactive Web Maps with the JavaScript 'Leaflet' Library_. R
@@ -1565,5 +1571,3 @@ These trips were removed as they will be in the wrong timeframe when analyzing a
 
 - Zhu H (2021). _kableExtra: Construct Complex Table with 'kable' and Pipe Syntax_. R package version 1.3.4,
   <https://CRAN.R-project.org/package=kableExtra>
-  
-  
