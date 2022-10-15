@@ -1,0 +1,107 @@
+stop_id,stop_code,stop_name,stop_desc,stop_lat,stop_lon,zone_id,stop_url,location_type,parent_station,stop_timezone,wheelchair_boarding,feed_version,ingest_year,ingest_month,ingest_day,feed_version_partition
+3998,13873,Stop 5 South Rd - West side,"546-548 South Rd, Kurralta Park",-34.951768484,138.571225832,NA,http://www.adelaidemetro.com.au/stops/view/13873,NA,NA,NA,NA,1157,2021,12,17,1157
+4819,14684,Stop 23 Marion Rd - East side,"817 Marion Rd, Mitchell Park",-34.99925,138.55754,NA,http://www.adelaidemetro.com.au/stops/view/14684,NA,NA,NA,NA,1157,2021,12,17,1157
+3988,13865,Stop 5 South Rd - East side,"3 Tyson St, Ashford",-34.951871321,138.571947313,NA,http://www.adelaidemetro.com.au/stops/view/13865,NA,NA,NA,NA,1157,2021,12,17,1157
+4735,14602,Stop 21 Marion Rd - West side,"783 Marion Rd, Park Holme",-34.994426905738,138.556879534574,NA,http://www.adelaidemetro.com.au/stops/view/14602,NA,NA,NA,NA,1157,2021,12,17,1157
+4259,14133,Stop 12 Marion Rd - East side,"429-431 Marion Rd, Plympton",-34.966771731,138.555068373,NA,http://www.adelaidemetro.com.au/stops/view/14133,NA,NA,NA,NA,1157,2021,12,17,1157
+4799,14664,Stop 19 South Rd - East side,"1167 South Rd, St Marys",-34.9969771145502,138.575269865819,NA,http://www.adelaidemetro.com.au/stops/view/14664,NA,NA,NA,NA,1157,2021,12,17,1157
+100811,17906,Stop 4A South Rd - West Side,"508-516 South Rd, Kurralta Park",-34.948752,138.571411,NA,http://www.adelaidemetro.com.au/stops/view/17906,NA,NA,NA,NA,1157,2021,12,17,1157
+4257,14131,Stop 12 Marion Rd - West side,"420 Marion Rd, Plympton",-34.966284919,138.554801643,NA,http://www.adelaidemetro.com.au/stops/view/14131,NA,NA,NA,NA,1157,2021,12,17,1157
+4604,14471,Stop 19 Marion Rd - West side,"632 Marion Rd, Park Holme",-34.98639,138.55635,NA,http://www.adelaidemetro.com.au/stops/view/14471,NA,NA,NA,NA,1157,2021,12,17,1157
+4953,14818,Stop Industrial Alawoona Ave / Marion Rd,"25 Alawoona Ave, Mitchell Park",-35.0075580108689,138.559544440784,NA,http://www.adelaidemetro.com.au/stops/view/14818,NA,NA,NA,NA,1157,2021,12,17,1157
+101013,18105,Stop 4 South Rd - East side,"471-475 South Rd, Keswick",-34.945875,138.571478,NA,http://www.adelaidemetro.com.au/stops/view/18105,NA,NA,NA,NA,1157,2021,12,17,1157
+4213,14087,Stop 9 South Rd - East side,"747 South Rd, Black Forest",-34.964705948206,138.572950230953,NA,http://www.adelaidemetro.com.au/stops/view/14087,NA,NA,NA,NA,1157,2021,12,17,1157
+4174,14049,Stop 11 Marion Rd - East side,"397 Marion Rd, Plympton",-34.962957814,138.554844474,NA,http://www.adelaidemetro.com.au/stops/view/14049,NA,NA,NA,NA,1157,2021,12,17,1157
+4548,14416,Stop 13 South Rd - West side,"985 South Rd, Melrose Park",-34.9812731319021,138.573860957532,NA,http://www.adelaidemetro.com.au/stops/view/14416,NA,NA,NA,NA,1157,2021,12,17,1157
+4032,13907,Stop 9A Marion Rd - East side,"315-317 Marion Rd, North Plympton",-34.954007146,138.554166741,NA,http://www.adelaidemetro.com.au/stops/view/13907,NA,NA,NA,NA,1157,2021,12,17,1157
+5164,15027,Stop 29B Marion Rd - East side,"912 Marion Rd, Sturt",-35.0207446447547,138.559426245813,NA,http://www.adelaidemetro.com.au/stops/view/15027,NA,NA,NA,NA,1157,2021,12,17,1157
+7276,16653,Stop 25 Marion Rd - East side,"897 Marion Rd, Mitchell Park",-35.00857436,138.55833,NA,http://www.adelaidemetro.com.au/stops/view/16653,NA,NA,NA,NA,1157,2021,12,17,1157
+3488,13375,Stop 8A Marion Rd - West side,"10 Marion Rd, Brooklyn Park",-34.925641628,138.551874946,NA,http://www.adelaidemetro.com.au/stops/view/13375,NA,NA,NA,NA,1157,2021,12,17,1157
+4911,14776,Stop 21 South Rd - East side,"1265 South Rd, St Marys",-35.0036629675021,138.575786224096,NA,http://www.adelaidemetro.com.au/stops/view/14776,NA,NA,NA,NA,1157,2021,12,17,1157
+3889,13767,Stop 8G Marion Rd - West side,"229 Marion Rd, Marleston",-34.945066934,138.553294222,NA,http://www.adelaidemetro.com.au/stops/view/13767,NA,NA,NA,NA,1157,2021,12,17,1157
+4339,14210,Stop 13 Marion Rd - West side,"466 Marion Rd, Plympton Park",-34.97026,138.55508,NA,http://www.adelaidemetro.com.au/stops/view/14210,NA,NA,NA,NA,1157,2021,12,17,1157
+4811,14676,Stop 19 South Rd - West side,"1178 South Rd, Clovelly Park",-34.9975466667464,138.575095455195,NA,http://www.adelaidemetro.com.au/stops/view/14676,NA,NA,NA,NA,1157,2021,12,17,1157
+4000,13875,Stop 9 Marion Rd - East side,"295 Marion Rd, North Plympton",-34.951424232,138.553999288,NA,http://www.adelaidemetro.com.au/stops/view/13875,NA,NA,NA,NA,1157,2021,12,17,1157
+4519,14389,Stop 17 Marion Rd - East side,"601 Marion Rd, South Plympton",-34.98126,138.55618,NA,http://www.adelaidemetro.com.au/stops/view/14389,NA,NA,NA,NA,1157,2021,12,17,1157
+4211,14085,Stop 9 South Rd - West side,"714-766 South Rd, Glandore",-34.96466,138.57257,NA,http://www.adelaidemetro.com.au/stops/view/14085,NA,NA,NA,NA,1157,2021,12,17,1157
+4149,14024,Stop 10 Marion Rd - East side,"365-377 Marion Rd, Plympton",-34.96080358,138.5546867,NA,http://www.adelaidemetro.com.au/stops/view/14024,NA,NA,NA,NA,1157,2021,12,17,1157
+3875,13753,Stop 3A South Rd - West side,"446-448 South Rd, Marleston",-34.944472068,138.571152011,NA,http://www.adelaidemetro.com.au/stops/view/13753,NA,NA,NA,NA,1157,2021,12,17,1157
+101320,18411,Stop 27 Marion Rd - West side,"860 Marion Rd, Marion",-35.01515,138.55848,NA,http://www.adelaidemetro.com.au/stops/view/18411,NA,NA,NA,NA,1157,2021,12,17,1157
+4381,14252,Stop 11 South Rd - West side,"868 South Rd, Edwardstown",-34.972840722363,138.573261859975,NA,http://www.adelaidemetro.com.au/stops/view/14252,NA,NA,NA,NA,1157,2021,12,17,1157
+3567,13454,Stop 8B Marion Rd - East side,"51 Marion Rd, Torrensville",-34.9288786,138.552334935,NA,http://www.adelaidemetro.com.au/stops/view/13454,NA,NA,NA,NA,1157,2021,12,17,1157
+4095,13970,Stop 7 South Rd - East side,"631 South Rd, Everard Park",-34.958361,138.572401,NA,http://www.adelaidemetro.com.au/stops/view/13970,NA,NA,NA,NA,1157,2021,12,17,1157
+4121,13996,Stop 7 South Rd - West side,"635 South Rd, Black Forest",-34.958671,138.572211,NA,http://www.adelaidemetro.com.au/stops/view/13996,NA,NA,NA,NA,1157,2021,12,17,1157
+4916,14781,Stop 22 South Rd - West side,"1274 South Rd, Clovelly Park",-35.0045464845164,138.575629968428,NA,http://www.adelaidemetro.com.au/stops/view/14781,NA,NA,NA,NA,1157,2021,12,17,1157
+4668,14535,Stop 16 South Rd - West side,"1076-1078 South Rd, Edwardstown",-34.9894582047615,138.574503535212,NA,http://www.adelaidemetro.com.au/stops/view/14535,NA,NA,NA,NA,1157,2021,12,17,1157
+4655,14522,Stop 20 Marion Rd - West side,"735 Marion Rd, Ascot Park",-34.9903842778964,138.556597324791,NA,http://www.adelaidemetro.com.au/stops/view/14522,NA,NA,NA,NA,1157,2021,12,17,1157
+4817,14682,Stop 23 Marion Rd - West side,"694-696 Marion Rd, Marion",-34.99906,138.5573,NA,http://www.adelaidemetro.com.au/stops/view/14682,NA,NA,NA,NA,1157,2021,12,17,1157
+4580,14448,Stop 14 South Rd - East side,"1015-1019 South Rd, Melrose Park",-34.98385,138.5743,NA,http://www.adelaidemetro.com.au/stops/view/14448,NA,NA,NA,NA,1157,2021,12,17,1157
+4424,14295,Stop 15 Marion Rd - West side,"526-528 Marion Rd, Plympton Park",-34.97612,138.55555,NA,http://www.adelaidemetro.com.au/stops/view/14295,NA,NA,NA,NA,1157,2021,12,17,1157
+4125,14000,Stop 10 Marion Rd - West side,"362 Marion Rd, North Plympton",-34.958807161,138.554292287,NA,http://www.adelaidemetro.com.au/stops/view/14000,NA,NA,NA,NA,1157,2021,12,17,1157
+3569,13456,Stop 8B Marion Rd - West side,"42-44 Marion Rd, Brooklyn Park",-34.928935217,138.552108792,NA,http://www.adelaidemetro.com.au/stops/view/13456,NA,NA,NA,NA,1157,2021,12,17,1157
+100812,17907,Stop 4 South Rd - West Side,"490 South Rd, Kurralta Park",-34.94667778,138.571310173,NA,http://www.adelaidemetro.com.au/stops/view/17907,NA,NA,NA,NA,1157,2021,12,17,1157
+3496,13383,Stop 8A Marion Rd - East side,"11-13 Marion Rd, Torrensville",-34.925877528,138.552118913,NA,http://www.adelaidemetro.com.au/stops/view/13383,NA,NA,NA,NA,1157,2021,12,17,1157
+4575,14443,Stop 14 South Rd - West side,"1022 South Rd, Edwardstown",-34.9836843954792,138.57405771397,NA,http://www.adelaidemetro.com.au/stops/view/14443,NA,NA,NA,NA,1157,2021,12,17,1157
+4388,14259,Stop 14 Marion Rd - West side,"494 Marion Rd, Plympton Park",-34.97288,138.55528,NA,http://www.adelaidemetro.com.au/stops/view/14259,NA,NA,NA,NA,1157,2021,12,17,1157
+3748,13627,Stop 8E Marion Rd - West side,"134 Marion Rd, West Richmond",-34.937534091,138.552742473,NA,http://www.adelaidemetro.com.au/stops/view/13627,NA,NA,NA,NA,1157,2021,12,17,1157
+3706,13586,Stop 8D Marion Rd - East side,"117 Marion Rd, Cowandilla",-34.935046958,138.552800811,NA,http://www.adelaidemetro.com.au/stops/view/13586,NA,NA,NA,NA,1157,2021,12,17,1157
+3936,13813,Stop 8H Marion Rd - East side,"267 Marion Rd, Marleston",-34.948806,138.553792999,NA,http://www.adelaidemetro.com.au/stops/view/13813,NA,NA,NA,NA,1157,2021,12,17,1157
+5163,15026,Stop 29B Marion Rd - West side,"910 Marion Rd, Sturt",-35.0206787541368,138.559038669449,NA,http://www.adelaidemetro.com.au/stops/view/15026,NA,NA,NA,NA,1157,2021,12,17,1157
+4035,13910,Stop 6 South Rd - East side,"589 South Rd, Everard Park",-34.9547337400797,138.5721266186,NA,http://www.adelaidemetro.com.au/stops/view/13910,NA,NA,NA,NA,1157,2021,12,17,1157
+3896,13774,Stop 8G Marion Rd - East side,"229 Marion Rd, Marleston",-34.945322194,138.553547242,NA,http://www.adelaidemetro.com.au/stops/view/13774,NA,NA,NA,NA,1157,2021,12,17,1157
+4172,14047,Stop 11 Marion Rd - West side,"392-400 Marion Rd, Plympton",-34.962989043,138.554597327,NA,http://www.adelaidemetro.com.au/stops/view/14047,NA,NA,NA,NA,1157,2021,12,17,1157
+4708,14575,Stop 17 South Rd - West side,"1098 South Rd, Edwardstown",-34.9919651147003,138.574686074493,NA,http://www.adelaidemetro.com.au/stops/view/14575,NA,NA,NA,NA,1157,2021,12,17,1157
+4490,14360,Stop 16 Marion Rd - East side,"551 Marion Rd, South Plympton",-34.978904,138.556011,NA,http://www.adelaidemetro.com.au/stops/view/14360,NA,NA,NA,NA,1157,2021,12,17,1157
+4651,14518,Stop 20 Marion Rd - East side,"719 Marion Rd, Ascot Park",-34.98952,138.55683,NA,http://www.adelaidemetro.com.au/stops/view/14518,NA,NA,NA,NA,1157,2021,12,17,1157
+4336,14208,Stop 13 Marion Rd - East side,"453 Marion Rd, South Plympton",-34.96948,138.5553,NA,http://www.adelaidemetro.com.au/stops/view/14208,NA,NA,NA,NA,1157,2021,12,17,1157
+3642,13524,Stop 8C Marion Rd - East side,"83 Marion Rd, Cowandilla",-34.93154419,138.552545415,NA,http://www.adelaidemetro.com.au/stops/view/13524,NA,NA,NA,NA,1157,2021,12,17,1157
+3739,13618,Stop 8E Marion Rd - East side,"141 Marion Rd, Richmond",-34.937484308,138.552982708,NA,http://www.adelaidemetro.com.au/stops/view/13618,NA,NA,NA,NA,1157,2021,12,17,1157
+5222,15082,Stop 29C Marion Rd - East side,"1A Ralph St, Sturt",-35.023759,138.559592,NA,http://www.adelaidemetro.com.au/stops/view/15082,NA,NA,NA,NA,1157,2021,12,17,1157
+4607,14474,Stop 19 Marion Rd - East side,"677 Marion Rd, Ascot Park",-34.9863351834985,138.556573436478,NA,http://www.adelaidemetro.com.au/stops/view/14474,NA,NA,NA,NA,1157,2021,12,17,1157
+101318,18409,Stop 26 Marion Rd - West side,"824 Marion Rd, Marion",-35.0119,138.55815,NA,http://www.adelaidemetro.com.au/stops/view/18409,NA,NA,NA,NA,1157,2021,12,17,1157
+4480,14350,Stop 12 South Rd - West side,"960 South Rd, Edwardstown",-34.977408884447,138.57357433208,NA,http://www.adelaidemetro.com.au/stops/view/14350,NA,NA,NA,NA,1157,2021,12,17,1157
+7275,16652,Stop 25 Marion Rd - West side,"778 Marion Rd, Marion",-35.00864,138.55798,NA,http://www.adelaidemetro.com.au/stops/view/16652,NA,NA,NA,NA,1157,2021,12,17,1157
+4423,14294,Stop 15 Marion Rd - East side,"531 Marion Rd, South Plympton",-34.97654,138.55582,NA,http://www.adelaidemetro.com.au/stops/view/14294,NA,NA,NA,NA,1157,2021,12,17,1157
+4049,13924,Stop 9B Marion Rd - East side,"327 Marion Rd, North Plympton",-34.95535441,138.554287501,NA,http://www.adelaidemetro.com.au/stops/view/13924,NA,NA,NA,NA,1157,2021,12,17,1157
+4768,14635,Stop 22 Marion Rd - West side,"801 Marion Rd, Mitchell Park",-34.9968,138.55709,NA,http://www.adelaidemetro.com.au/stops/view/14635,NA,NA,NA,NA,1157,2021,12,17,1157
+4296,14168,Stop 10 South Rd - East side,"807 South Rd, Clarence Gardens",-34.96807,138.57321,NA,http://www.adelaidemetro.com.au/stops/view/14168,NA,NA,NA,NA,1157,2021,12,17,1157
+4763,14630,Stop 18 South Rd - West side,"1140 South Rd, Clovelly Park",-34.994152,138.574857,NA,http://www.adelaidemetro.com.au/stops/view/14630,NA,NA,NA,NA,1157,2021,12,17,1157
+4078,13953,Stop 9C Marion Rd - West side,"337 Marion Rd, North Plympton",-34.957127727,138.554174587,NA,http://www.adelaidemetro.com.au/stops/view/13953,NA,NA,NA,NA,1157,2021,12,17,1157
+4627,14494,Stop 15 South Rd - West side,"1044-1046 South Rd, Edwardstown",-34.98666,138.57426,NA,http://www.adelaidemetro.com.au/stops/view/14494,NA,NA,NA,NA,1157,2021,12,17,1157
+4761,14628,Stop 18 South Rd - East side,"1131 South Rd, St Marys",-34.9945181624236,138.575092078856,NA,http://www.adelaidemetro.com.au/stops/view/14628,NA,NA,NA,NA,1157,2021,12,17,1157
+4156,14031,Stop 8 South Rd - East side,"685-687 South Rd, Black Forest",-34.96132,138.57262,NA,http://www.adelaidemetro.com.au/stops/view/14031,NA,NA,NA,NA,1157,2021,12,17,1157
+3874,13752,Stop 3A South Rd - East side,"441-443 South Rd, Keswick",-34.944402868,138.571363711,NA,http://www.adelaidemetro.com.au/stops/view/13752,NA,NA,NA,NA,1157,2021,12,17,1157
+3999,13874,Stop 9 Marion Rd - West side,"290 Marion Rd, Netley",-34.950963149,138.553723187,NA,http://www.adelaidemetro.com.au/stops/view/13874,NA,NA,NA,NA,1157,2021,12,17,1157
+4702,14569,Stop 21 Marion Rd - East side,"769 Marion Rd, Ascot Park",-34.9929341283878,138.55707712957,NA,http://www.adelaidemetro.com.au/stops/view/14569,NA,NA,NA,NA,1157,2021,12,17,1157
+3852,13730,Stop 8F Marion Rd - West side,"194 Marion Rd, West Richmond",-34.942363927,138.553101433,NA,http://www.adelaidemetro.com.au/stops/view/13730,NA,NA,NA,NA,1157,2021,12,17,1157
+3691,13571,Stop 8D Marion Rd - West side,"106 Marion Rd, Brooklyn Park",-34.934803798,138.552541053,NA,http://www.adelaidemetro.com.au/stops/view/13571,NA,NA,NA,NA,1157,2021,12,17,1157
+4320,14192,Stop 10 South Rd - West side,"822 South Rd, Edwardstown",-34.9689,138.57285,NA,http://www.adelaidemetro.com.au/stops/view/14192,NA,NA,NA,NA,1157,2021,12,17,1157
+5229,15088,Stop 29C Marion Rd - West side,"926 Marion Rd, Sturt",-35.023649,138.559271,NA,http://www.adelaidemetro.com.au/stops/view/15088,NA,NA,NA,NA,1157,2021,12,17,1157
+3617,13499,Stop 8C Marion Rd - West side,"72 Marion Rd, Brooklyn Park",-34.93164875,138.552309396,NA,http://www.adelaidemetro.com.au/stops/view/13499,NA,NA,NA,NA,1157,2021,12,17,1157
+4564,14432,Stop 18 Marion Rd - East side,"649-651 Marion Rd, Ascot Park",-34.98408,138.55645,NA,http://www.adelaidemetro.com.au/stops/view/14432,NA,NA,NA,NA,1157,2021,12,17,1157
+101319,18410,Stop 27 Marion Rd - East side,"864 Marion Rd, Marion",-35.01538,138.55888,NA,http://www.adelaidemetro.com.au/stops/view/18410,NA,NA,NA,NA,1157,2021,12,17,1157
+100850,17942,Stop 6 South Rd - West side,"112 Anzac Hwy, Glandore",-34.95407,138.57129,NA,http://www.adelaidemetro.com.au/stops/view/17942,NA,NA,NA,NA,1157,2021,12,17,1157
+3940,13817,Stop 8H Marion Rd - West side,"266 Marion Rd, Netley",-34.948719,138.553555,NA,http://www.adelaidemetro.com.au/stops/view/13817,NA,NA,NA,NA,1157,2021,12,17,1157
+4566,14434,Stop 18 Marion Rd - West side,"616 Marion Rd, Park Holme",-34.98469,138.55623,NA,http://www.adelaidemetro.com.au/stops/view/14434,NA,NA,NA,NA,1157,2021,12,17,1157
+3841,13719,Stop 8F Marion Rd - East side,"189 Marion Rd, Richmond",-34.941978789,138.553306738,NA,http://www.adelaidemetro.com.au/stops/view/13719,NA,NA,NA,NA,1157,2021,12,17,1157
+4852,14717,Stop 20 South Rd - East side,"1219 South Rd, St Marys",-35.0000439910973,138.575508870676,NA,http://www.adelaidemetro.com.au/stops/view/14717,NA,NA,NA,NA,1157,2021,12,17,1157
+4159,14034,Stop 8 South Rd - West side,"686 South Rd, Glandore",-34.9614434153598,138.572435410927,NA,http://www.adelaidemetro.com.au/stops/view/14034,NA,NA,NA,NA,1157,2021,12,17,1157
+6757,16575,Stop 10 Marion Rd,"431 Marion Rd, Plympton",-34.967003,138.555326,NA,http://www.adelaidemetro.com.au/stops/view/16575,NA,50108,NA,NA,1157,2021,12,17,1157
+4390,14261,Stop 11 South Rd - East side,"885 South Rd, Clarence Gardens",-34.972901,138.573486,NA,http://www.adelaidemetro.com.au/stops/view/14261,NA,NA,NA,NA,1157,2021,12,17,1157
+4056,13931,Stop 9B Marion Rd - West side,"338-342 Marion Rd, North Plympton",-34.955630976,138.554053156,NA,http://www.adelaidemetro.com.au/stops/view/13931,NA,NA,NA,NA,1157,2021,12,17,1157
+4524,14394,Stop 13 South Rd - East side,"985 South Rd, Melrose Park",-34.9812595150094,138.574082394468,NA,http://www.adelaidemetro.com.au/stops/view/14394,NA,NA,NA,NA,1157,2021,12,17,1157
+4526,14396,Stop 17 Marion Rd - West side,"584 Marion Rd, Plympton Park",-34.9813569750689,138.555969195065,NA,http://www.adelaidemetro.com.au/stops/view/14396,NA,NA,NA,NA,1157,2021,12,17,1157
+101439,18528,Stop 10 Marion Rd,"620 Cross Rd, Plympton Park",-34.96744,138.554638,NA,http://www.adelaidemetro.com.au/stops/view/18528,NA,50108,NA,NA,1157,2021,12,17,1157
+4895,14760,Stop 24 Marion Rd - West side,"728 Marion Rd, Marion",-35.003081,138.557608,NA,http://www.adelaidemetro.com.au/stops/view/14760,NA,NA,NA,NA,1157,2021,12,17,1157
+4674,14541,Stop 16 South Rd - East side,"1081-1089 South Rd, Melrose Park",-34.9900637668092,138.57478932119,NA,http://www.adelaidemetro.com.au/stops/view/14541,NA,NA,NA,NA,1157,2021,12,17,1157
+4030,13905,Stop 9A Marion Rd - West side,"328 Marion Rd, Netley",-34.953956275,138.553932405,NA,http://www.adelaidemetro.com.au/stops/view/13905,NA,NA,NA,NA,1157,2021,12,17,1157
+3955,13832,Stop 4A South Rd - East side,"523-525 South Rd, Ashford",-34.948500097,138.571675083,NA,http://www.adelaidemetro.com.au/stops/view/13832,NA,NA,NA,NA,1157,2021,12,17,1157
+4626,14493,Stop 15 South Rd - East side,"1045 South Rd, Edwardstown",-34.9865030239212,138.574497554947,NA,http://www.adelaidemetro.com.au/stops/view/14493,NA,NA,NA,NA,1157,2021,12,17,1157
+4481,14351,Stop 16 Marion Rd - West side,"560 Marion Rd, Plympton Park",-34.97866,138.55582,NA,http://www.adelaidemetro.com.au/stops/view/14351,NA,NA,NA,NA,1157,2021,12,17,1157
+4070,13945,Stop 9C Marion Rd - East side,"337 Marion Rd, North Plympton",-34.9569112389206,138.55438197895,NA,http://www.adelaidemetro.com.au/stops/view/13945,NA,NA,NA,NA,1157,2021,12,17,1157
+4856,14721,Stop 20 South Rd - West side,"1212 South Rd, Clovelly Park",-35.00024,138.57533,NA,http://www.adelaidemetro.com.au/stops/view/14721,NA,NA,NA,NA,1157,2021,12,17,1157
+4890,14755,Stop 24 Marion Rd - East side,"849 Marion Rd, Mitchell Park",-35.004047,138.557909,NA,http://www.adelaidemetro.com.au/stops/view/14755,NA,NA,NA,NA,1157,2021,12,17,1157
+4766,14633,Stop 22 Marion Rd - East side,"805 Marion Rd, Mitchell Park",-34.99682,138.55739,NA,http://www.adelaidemetro.com.au/stops/view/14633,NA,NA,NA,NA,1157,2021,12,17,1157
+4475,14345,Stop 12 South Rd - East side,"929 South Rd, Clarence Gardens",-34.9774326654318,138.573809351302,NA,http://www.adelaidemetro.com.au/stops/view/14345,NA,NA,NA,NA,1157,2021,12,17,1157
+101317,18408,Stop 26 Marion Rd - East Side,"838 Marion Rd, Marion",-35.01257,138.55865,NA,http://www.adelaidemetro.com.au/stops/view/18408,NA,NA,NA,NA,1157,2021,12,17,1157
+4387,14258,Stop 14 Marion Rd - East side,"499 Marion Rd, South Plympton",-34.97311,138.55554,NA,http://www.adelaidemetro.com.au/stops/view/14258,NA,NA,NA,NA,1157,2021,12,17,1157

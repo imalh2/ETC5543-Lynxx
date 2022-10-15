@@ -1,0 +1,255 @@
+---
+title: "Initial Exploration"
+author: "Ibrahim Al-Hindi"
+date: "2022-08-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Libraries
+library(tidyverse)
+library(reticulate)
+library(skimr)
+library(lubridate)
+library(ggmap)
+library(geosphere)
+library(sf)
+library(geodist)
+library(dodgr)
+```
+
+```{r}
+# Read in data
+probe1 <- read_csv("Data/samples/SingleProbe.csv")
+probe2 <- read_csv("Data/samples/SingleProbe2.csv")
+```
+
+
+
+# Data Exploration
+
+## Probes
+
+```{r}
+probe2 <- probe2 %>% 
+  mutate(ingest_hour...11 = as.numeric(ingest_hour...11))
+
+tot_probes <- probe1 %>% 
+  bind_rows(probe2)
+
+probes <- tot_probes %>%
+  # remove duplicates if the variables below are identical
+  distinct(logtime, siteid, probeid, firstseenat, id, number, name, beaconindex,
+           instance_id, androidname, longitude, latitude,
+           .keep_all = TRUE) %>% 
+  mutate(logtime = as_datetime(str_remove(logtime, " \\+10:30"), tz = "UTC"),
+         firstseenat = as_datetime(str_remove(firstseenat, " \\+10:30"), tz = "UTC")) %>% 
+  arrange(probeid, logtime)
+
+# different information(s) for the same logtime, probeid, and firsseenat
+discrepencies <- probes %>% 
+  group_by(logtime, probeid, firstseenat) %>% 
+  filter(
+      n_distinct(siteid) > 1 |
+      n_distinct(id) > 1 |
+      n_distinct(number) > 1 |
+      n_distinct(name) > 1 |
+      n_distinct(beaconindex) > 1 |
+      n_distinct(instance_id) > 1 |
+      n_distinct(androidname) > 1 |
+      n_distinct(longitude) > 1 |
+      n_distinct(latitude) > 1) %>% 
+  ungroup() %>% 
+  arrange(logtime)
+```
+
+```{r}
+probes %>% 
+  count(probeid)
+```
+
+
+### Calculate Speeds
+
+#### Calculate Distances
+
+Distance is calculated using haversine distance, therefore does not consider roads.
+gmapdistance package can calculate driving distance using Google Maps but Google API used needs payment
+
+```{r}
+# need to create a for loop because the geodist function does not work with grouped data
+df <- tibble(cols = names(probes),
+               values = NA) %>%
+    pivot_wider(names_from = cols, values_from = values) %>%
+    # rename because geodist only recognises "lat" and "lon"
+    rename(lat = latitude, lon = longitude)
+
+for (probe in unique(probes$probeid)) {
+    df1 <- probes %>% 
+    filter(probeid == probe) %>% 
+    rename(lat = latitude, lon = longitude)
+  
+  distances <- df1 %>%  
+    geodist(sequential = TRUE, measure = "haversine")
+  
+  df1 <- df1 %>% 
+    mutate(distance = c(0, distances))
+  
+  df <- df %>% 
+    bind_rows(df1)
+}
+
+df <- df[-1,] %>% 
+  relocate(distance, .after = lat) %>% 
+  rename(latitude = lat, longitude = lon)
+
+# convert meters to KM
+probes <- df %>% 
+  mutate(distance = distance/1000)
+```
+
+```{r}
+ggplot(probes, aes(distance)) +
+  geom_histogram()
+
+ggplot(probes, aes(distance)) +
+  geom_histogram() +
+  facet_wrap(vars(probeid))
+```
+probe 260 problematic
+
+#### Calculate Times
+
+```{r}
+probes <- probes %>%
+  group_by(probeid) %>% 
+  mutate(time = as.numeric(difftime(logtime, lag(logtime)), units = "hours"),
+         time = replace_na(time, 0)) %>% 
+  relocate(time, .after = logtime) %>% 
+  ungroup()
+```
+
+```{r}
+ggplot(probes, aes(time)) +
+  geom_histogram()
+
+ggplot(probes, aes(time)) +
+  geom_histogram() +
+  facet_wrap(vars(probeid))
+```
+
+looks fine
+
+
+```{r}
+ggplot(probes, aes(distance, time)) +
+  geom_point()
+
+ggplot(probes, aes(distance, time)) +
+  geom_point() +
+  facet_wrap(vars(probeid))
+```
+
+probe 260 looks very problematic, a few points for 315 looks problematic
+
+#### Calculate Speeds
+
+```{r}
+probes <- probes %>% 
+  mutate(speed = distance/time)
+```
+
+```{r}
+ggplot(probes, aes(speed)) +
+  geom_histogram()
+
+ggplot(probes, aes(speed)) +
+  geom_histogram() +
+  facet_wrap(vars(probeid), scales = "free")
+```
+
+
+
+```{r}
+high_speeds <- probes %>% 
+  filter(speed > 200) %>% 
+  select(probeid, time, distance, speed)
+
+ggplot(high_speeds, aes(x = as.character(probeid))) +
+  geom_bar()
+```
+
+probeid 968243260 looks especially problematic
+
+#### Average Speeds Between Each Pair of Beacons
+
+possibly exclude the following sites first
+
+```{r}
+multi_coords <- probes %>% 
+  group_by(siteid) %>% 
+  summarise(nums = n_distinct(latitude, longitude)) %>% 
+  arrange(-nums) %>% 
+  ungroup() %>% 
+  filter(nums > 1) %>% 
+  pull(siteid)
+
+multi_coords_probes <- probes %>% 
+  filter(siteid %in% multi_coords) %>% 
+  arrange(siteid, name)
+```
+
+several sites have more than one pair of coordinates
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Map
+
+```{r}
+adel_map <- get_map(c(left = min(probes$longitude) - 0.005,
+                      bottom = min(probes$latitude) - 0.005,
+                      right = max(probes$longitude) + 0.005,
+                      top = max(probes$latitude)) + 0.005,
+                    source = "stamen")
+
+ggmap(adel_map) +
+  geom_point(data = probes, aes(x = longitude, y = latitude), color = "red")
+
+
+
+
+
+qmplot(longitude, latitude, data = probes, maptype = "toner-lite", color = I("red"))
+  
+
+
+```
+
+
+
+
+
+
+
