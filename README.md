@@ -16,3 +16,5 @@ The presentation is the document titled 'presentation'.
 The client proposal created can be found in the folder 'proposal'.
 
 Preliminary and extra analysis can be found in the folder 'other-analysis'
+
+The bare code to conduct the analysis can be found in the file 'standalone_code'
