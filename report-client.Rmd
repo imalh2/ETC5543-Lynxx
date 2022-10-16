@@ -62,7 +62,7 @@ marionrd_link_stats_raw <- read_csv(here("data/Marion-Rd/link_stats_Mar.csv"))
 
 # Abstract
 
-The continual increase of Adelaide's population results in an increase in road congestion and its associated costs. As the residents of Adelaide are becoming more reliant on public transport, it is critical to quantify the resilience of the public bus network to the aforementioned rise in road congestion. The analyses contained in this report seeks to provide the South Australia Department for Infrastructure and Transport (DIT) such an estimate by examining the relationship between the travel times of both motor vehicles and bus trips, especially during morning and evening rush hours. The core objective of the analysis is to determine for a specified road segment: the extent to which the variation of motor vehicles travel times from normal relative to the same time frame, is matched with such a variation in bus travel times, where a lower correlation indicates a more resilient bus network to increasing road congestion. Bus travel times are calculated using trip updates data obtained from the open source General Transit Feed Specification Realtime (GTFSR) by calculating the time taken between the first and last stops of the trips on the segment, while the motor vehicle travel times are calculated using links metrics available through DIT's Addinsight data lake. Upon completing the descriptive analysis of the travel times relationship, the travel times were standardized relative to the time of day to better examine the response of the bus travel times to variations in the motor vehicles travel times. The analysis was performed on South Road for the period of March 2022, for both the northbound direction towards the city, and the southbound direction away from the city. The analysis shows that the evening southbound correlation is strong between the standardized travel times, however the variations are relatively small, therefore it is difficult to infer the bus transportation robustness to congestion as larger variation magnitudes would have to be observed and examined. It also finds that the morning standardized travel times towards the city are more varied and the correlation is lower, implying the bus transportation is relatively more robust to congestion than evening bus travel from the city.
+The continual increase of Adelaide's population results in an increase in road congestion and its associated costs. As the residents of Adelaide are becoming more reliant on public transport, it is critical to quantify the resilience of the public bus network to the aforementioned rise in road congestion. The analyses contained in this report seeks to provide the South Australia Department for Infrastructure and Transport (DIT) such an estimate by examining the relationship between the travel times of both motor vehicles and bus trips, especially during morning and evening rush hours. The core objective of the analysis is to determine for a specified road segment: the extent to which the variation of motor vehicle travel times from normal relative to the same time frame, is matched with such a variation in bus travel times, where a lower correlation indicates a more resilient bus network to increasing road congestion. Bus travel times are calculated using trip updates data obtained from the open source General Transit Feed Specification Realtime (GTFSR) by calculating the time taken between the first and last stops of the trips on the segment, while the motor vehicle travel times are calculated using links metrics available through DIT's Addinsight data lake. Upon completing the descriptive analysis of the travel times relationship, the travel times were standardized relative to the time of day to better examine the response of the bus travel times to variations in the motor vehicle travel times. The analysis was performed on South Road for the period of March 2022, for both the northbound direction towards the city, and the southbound direction away from the city. The analysis shows that the evening southbound correlation is strong between the standardized travel times, however the variations are relatively small, therefore it is difficult to infer the bus transportation robustness to congestion as larger variation magnitudes would have to be observed and examined. It also finds that the morning standardized travel times towards the city are more varied and the correlation is lower, implying the bus transportation is relatively more robust to congestion than evening bus travel from the city. The analysis was also performed on Marion Road to compare with South Road. The analysis shows that motor vehicle travel times do not vary by a great degree, therefore a conclusion on the bus network resilience to road congestion on Marion Road cannot be substantiated.
 
 <br>
 
@@ -80,15 +80,15 @@ This data will be examined in conjunction with publicly available, historical re
 
 The aim of the proposed analysis is to investigate the extent of the relationship between bus travel times and road congestion - as measured by motor vehicle travel times - on identified road segments, where a strong relationship indicates a road segment where the bus travel times are less robust to congestion.
 
-Initially, the bus performance metric to be used and applied was the average delay experienced by a bus trip on the segment of interest, as measured by a stop's predicted arrival time versus the scheduled arrival time. However, the metric was later revised to the bus travel time between the first and last stops of a segment, removing the possibility that we are measuring how accurately the schedule predicts and/or buffers for congestion.
+Bus travel times are calculated as the time taken between the first and last stops of a segment, removing the possibility that we are measuring how accurately the schedule predicts and/or buffers for congestion.
 
-A proposal outlining the analysis, the objectives, and the methodology was created and sent to the client (found [here](https://github.com/imalh2/ETC5543-Lynxx/raw/main/proposal/Monash%20University%20Intern%20Project%20-%20Congestion%20vs%20Bus%20Performance%20Investigation%20Proposal.pdf)), this was followed by a discussion with the client to provide more information regarding the analysis and clarify any points raised by them. An agreement was reached for the analysis to fulfill the following objectives:
+The analysis aims to fulfill the following objectives:
 
 1.  Detailed travel time or congestion analysis comparing public transport response to road traffic on selected sections of road over a given period of time, especially during peak hours
 
 2.  Repeatable methodology, code, functions, and visuals that produce detailed analysis on other segments of interest
 
-In fulfilling the first objective, the segment of road analysed is South Road in Adelaide. The period of time chosen is March 2022.
+In fulfilling the first objective, the first segment of road analysed is South Road in Adelaide. The period of time chosen is March 2022. The second segment of road analysed is Marion Road during the same period of time.
 
 Regarding the second objective, the methodology and the code created aim to ensure as little manual input and edits as possible when applied to different road segments.
 
@@ -108,11 +108,9 @@ The analysis undertaken in this report will form the basis of future analysis in
 
 # Data Sources, Description, and Wrangling
 
-Three main data sources are used: DIT Addinsight, General Transit Feed Specification (GTFS), and GTFSR. These data sources and their associated sub-sources will be outlined below. All the data is stored in the cloud using Amazon Web Services (AWS), and is accessed and retrieved through Athena which uses regular SQL syntax.
+Three main data sources are used: DIT Addinsight, General Transit Feed Specification (GTFS), and GTFSR. These data sources and their associated sub-sources will be outlined below.
 
-The data cleaning and wrangling will be discussed as it was the part of the analysis that required the highest workload.
-
-As mentioned above, the methodology will be illustrated on South Road, which is one of Adelaide's most important and major roads, and regularly suffers from congestion (Infrastructure Australia, 2019).
+The methodology will be illustrated on South Road, which is one of Adelaide's most important and major roads, and regularly suffers from congestion (Infrastructure Australia, 2019).
 
 <br>
 
@@ -142,7 +140,7 @@ segment_routes <- segment_route_stops %>%
 
 The list of bus stops on the segment were identified using Tableau in the same fashion as when identifying the routes.
 
-A dataset containing all the stops in the bus network and information relating to each stop is used and filtered to only the stops present on the segment (for the purposes of this report, the file containing all the stops on the network was pre-filtered to the stops on the segment only to accommodate Github file size limits. However, the code and methodology contained here apply as if the complete dataset were used and filtered through the code).
+A dataset containing all the stops in the bus network and information relating to each stop is used and filtered to only the stops present on the segment.
 
 ```{r}
 segment_stops <- segment_route_stops %>% 
@@ -237,8 +235,6 @@ It is important to note the following:
 -   One `trip_id` occurs a maximum of one time a day, the `trip_id` can occur on multiple days
 
 As a bus trip is occurring, at certain time intervals a real time prediction of the arrival times of the upcoming stops on the trip are updated.
-
-Cleaning and wrangling this dataset proved to be the most challenging and time consuming section of this analysis, with many methodologies, cleaning iterations, and code trialed to arrive at the optimal treatment. This is due to the complex relationships between the observations in the dataset, and the variety of errors and inconsistencies encountered.
 
 The following preliminary adjustments were done:
 
@@ -352,7 +348,7 @@ updates_stop_times <- updates %>%
 error_percentage <- round((nrow(updates) - nrow(updates_stop_times)) / nrow(updates) * 100, 2)
 ```
 
-Great effort was put into identifying each type of error and remedying it in a way that does not produce further errors, or that removes large amounts of data; identifying the correct order of the types of errors to be tackled was also essential. In addition, formulating the code to fix each error required various trial and error iterations. This was all done to ensure the errors were removed as surgically as possible to minimize data loss and due to the sensitive nature of the relationships between the stops on each trip.
+Each type of error was identified and remedied in a way that does not produce further errors, or that removes large amounts of data; identifying the correct order of the types of errors to be tackled was also essential. This was done to ensure the errors were removed as surgically as possible to minimize data loss and due to the sensitive nature of the relationships between the stops on each trip.
 
 The percentage of error entries located and fixed in the data was `r error_percentage`%. The cleaned data now appears as follows:
 
@@ -572,8 +568,6 @@ trip_times_agg_southrd %>%
 
 This is traffic information collected by DIT, which is done through the use of Bluetooth devices that tag a Bluetooth-equipped vehicle when it comes into its range. The location of a Bluetooth device is called a site, and a link is a segment of road between two sites, an origin site and a destination site. This allows for the calculation of metrics such as the time taken to travel through the link, among others.
 
-The DIT Addinsight database is very large and contains many tables, each recording its own set of information, with foreign keys connecting most tables. This analysis uses only a subset of the tables in the database, presented below.
-
 ### Holidays
 
 This dataset contains holidays dates, which is the only variable used.
@@ -675,7 +669,7 @@ As stated in the previous section, the list of links exported from Tableau conta
 
 ##### Identify Sequence of Links and Links with Missing Statistics
 
-The process of identifying the sequence of non-overlapping links also required time-intensive multiple trials and iterations. The method to identify the links, as with the analysis in general, attempts to ensure maximum automation and minimal manual input. Each direction of travel will be processed separately using the same method. The northbound direction will be used here as an illustration.
+The method to identify the links, as with the analysis in general, attempts to ensure maximum automation and minimal manual input. Each direction of travel will be processed separately using the same method. The northbound direction will be used here as an illustration.
 
 First, the links dataset is ordered from south to north using the starting latitude of each link. The dataset will also be filtered to enabled links as disabled links do not generate statistics. Next, the names of the locations of the start and end points of the segment will be entered, these are identified by examining the stops map in figure \@ref(fig:stops-pair-map) since we need both metrics to cover as much of the same segment as possible. In this case, the segment starts at the intersection of South Road with Walsh Avenue and ends at the intersection of South Road with Anzac Highway. However the link ending in Walsh Avenue is disabled, therefore the intersection prior will be used as the starting point for now, which is Celtic Avenue, and the statistics for Walsh Avenue will be imputed later. Entering the names of the starting and end points is the only manual step in the code.
 
@@ -1610,6 +1604,14 @@ Table \@ref(tab:std-corr) shows that strong correlation exists between the stand
 
 # Marion Road
 
+<br>
+
+```{r, fig.cap="Marion Rd on map. Source: Google Maps"}
+knitr::include_graphics("images/MarionRd_Map.png")
+```
+
+<br>
+
 ```{r}
 # Stops
 segment_routes_stops <- clean_names(marionrd_routes_stops_raw)
@@ -1876,7 +1878,8 @@ From figure \@ref(fig:marion-bus-vehicles-time) we learn the travel times distri
 travel_times_piv_dir1 <- travel_times_marionrd_piv %>% 
   filter(direction == directions[1])
 
-travel_times_piv_dir1 %>%  
+travel_times_piv_dir1 %>% 
+  filter(time > as_hms("00:00:00")) %>% 
   ggplot(aes(time, travel_time, color = type)) +
   geom_line() +
   facet_wrap(vars(day), scales = "free_y") +
@@ -1905,6 +1908,7 @@ travel_times_piv_dir2 <- travel_times_marionrd_piv %>%
   filter(direction == directions[2])
 
 travel_times_piv_dir2 %>% 
+  filter(time > as_hms("01:00:00")) %>% 
   ggplot(aes(time, travel_time, color = type)) +
   geom_line() +
   facet_wrap(vars(day), scales = "free_y") +
@@ -1927,7 +1931,7 @@ travel_times_piv_dir2 %>%
 
 <br>
 
-Figures \@ref(fig:marion-nb-calendar) and \@ref(fig:marion-sb-calendar) show that both travel types follow a similar time pattern. However, the difference in travel times between the types is much wider than that exhibited by South Road per figures \@ref(fig:nb-calendar) and \@ref(fig:sb-calendar).
+Figures \@ref(fig:marion-nb-calendar) and \@ref(fig:marion-sb-calendar) show that both travel types follow a similar travel time pattern. However, the difference in travel times between the types is much wider than that exhibited by South Road per figures \@ref(fig:nb-calendar) and \@ref(fig:sb-calendar).
 
 <br>
 
@@ -1990,7 +1994,7 @@ theme_bw()
 
 <br>
 
-Figures \@ref(fig:marion-avg-pattern) shows that both travel types display a small uptick in travel time towards the city during the morning rush hour. In the southbound direction vehicles have a slightly larger time during the evening, while buses exhibit an increase in travel time during both rush hours. Figure \@ref(fig:avg-pattern) pertaining to South Road show that the southbound direction in particular has a large increase in both travel times during the evening rush hour.
+Figure \@ref(fig:marion-avg-pattern) shows that both travel types display a small uptick in travel time towards the city during the morning rush hour. In the southbound direction vehicles have a slightly larger time during the evening, while buses exhibit an increase in travel time during both rush hours. Figure \@ref(fig:avg-pattern) pertaining to South Road shows that the southbound direction in particular has a large increase in both travel times during the evening rush hour.
 
 <br>
 
@@ -2011,7 +2015,7 @@ travel_times_marionrd %>%
 
 <br>
 
-Figure \@ref(fig:marion-times-scatter) shows that a positive relationship exists both travel types during the morning rush hour towards the city. While a relationship does not seem present during the evening rush hour away from the city.
+Figure \@ref(fig:marion-times-scatter) shows that a positive relationship exists between both travel types during the morning rush hour towards the city. While a relationship does not seem present during the evening rush hour away from the city.
 
 <br>
 
@@ -2028,7 +2032,7 @@ travel_times_marionrd %>%
 
 <br>
 
-\@ref(tab:marion-general-corr) displays the correlation figures between the travel times. Only the travel times during the morning towards the city shows a relatively strong correlation.
+Table \@ref(tab:marion-general-corr) displays the correlation figures between the travel times. Only the travel times during the morning towards the city show a relatively strong correlation.
 
 ```{r}
 standardiser <- function(basis = hour) {
@@ -2128,7 +2132,7 @@ travel_times_std_piv_SB_eve %>%
 
 <br>
 
-Figures \@ref(fig:marion-nb-std-calendar) and \@ref(fig:marion-sb-std-calendar) show that the variations in vehicle travel times are not closely matched by variations in bus travel times. This is in contrast to South Road where figures \@ref(fig:nb-std-calendar) and \@ref(fig:sb-std-calendar) show a close relationship between the variations in time of both travel types.
+Figures \@ref(fig:marion-nb-std-calendar) and \@ref(fig:marion-sb-std-calendar) show that the variations in vehicle travel times are not closely matched by variations in bus travel times. This is in contrast to South Road where figures \@ref(fig:nb-std-calendar) and \@ref(fig:sb-std-calendar) show a close relationship between the variations in travel times of both types.
 
 <br>
 
@@ -2147,7 +2151,7 @@ travel_times_marionrd_std_piv %>%
 
 <br>
 
-Figure \@ref(fig:marion-std-time-dist) shows that travel times within the same time period generally the same level of variation across the rush hour periods and travel directions.
+Figure \@ref(fig:marion-std-time-dist) shows that travel times within the same time period generally possess the same level of variation across the rush hour periods and travel directions.
 
 <br>
 
@@ -2180,15 +2184,15 @@ travel_times_marionrd_std %>%
 
 <br>
 
-Figure \@ref(fig:marion-std-scatter) and table \@ref(tab:marion-std-corr) show that slight relationship exists between the standardized travel times during the morning rush hour towards the city, and no relationship exists otherwise. South Road, on the other hand, displays a positive relationship between the standardized travel times during the morning towards the city and during the evening away from the city, as shown in \@ref(fig:std-scatter) and \@ref(tab:std-corr).
+Figure \@ref(fig:marion-std-scatter) and table \@ref(tab:marion-std-corr) show that a slight relationship exists between the standardized travel times during the morning rush hour towards the city, and no relationship exists otherwise. South Road, on the other hand, displays a positive relationship between the standardized travel times during the morning towards the city and during the evening away from the city, as shown in \@ref(fig:std-scatter) and \@ref(tab:std-corr).
 
 <br>
 
 # Conclusion, Findings, and Future Directions
 
-The report examined the relationship between the bus travel times and motor vehicle travel times, and the robustness of the bus network to road congestion, particularly during rush hour periods. A major takeaway from the project was the recognition of the extensive workload incurred in cleaning and wrangling the data, a common theme in many data analysis projects, as well as in creating the methodology to perform the analysis. A couple of limitations exist in the data The first is that the trip updates dataset provides the predicted arrival times of the bus stops, whereas the actual arrival times can provide greater accuracy. Another limitation is that the period of the analysis is constrained to one month only due to file size limitations, where a longer time frame can provide greater certainty in the results.
+The report examined the relationship between the bus travel times and motor vehicle travel times, and the robustness of the bus network to road congestion, particularly during rush hour periods. A limitation of the data is that the trip updates dataset provides the predicted arrival times of the bus stops, whereas the actual arrival times can provide greater accuracy.
 
-An additional objective of the project was to create the analysis code in such a way as to allow reproducibility with minimal manual input across different road segments and time periods; in fact, the analysis was conducted on an additional road in Adelaide (Marion Road) to enable comparison with South Road and to highlight any possible enhancements to the code. The result of that analysis was not included in this report due to report length limitations, however a modified report that includes and compares both roads was created and provided to the client.
+An additional objective of the project was to create the analysis code in such a way as to allow reproducibility with minimal manual input across different road segments and time periods, therefore the analysis was conducted on an additional road in Adelaide (Marion Road) to enable a comparison with South Road.
 
 The results from the analysis on South Road show the following:
 
@@ -2210,7 +2214,7 @@ Possible future directions stemming from this analysis include:
 
 -   performing the analysis on more roads to create a ranking of bus network robustness to road congestion. This can result in a prioritization list of resource allocation to enhance the bus network
 
--   conducting the analysis on previous periods to provide an indication of the rate of decline of bus network resilience to congestion
+-   conducting the analysis on previous periods to provide an indication of the rate of change of bus network resilience to congestion
 
 -   identifying the factors that can affect bus travel times
 

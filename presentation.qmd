@@ -83,7 +83,7 @@ southrd_link_stats_raw <- read_csv(here("data/South-Rd/link_stats_Mar.csv"))
 <br>
 
 2.  **DIT Addinsight**
-    
+
     -   Traffic information collected by devices on the road that tag motor vehicles
 
     -   The location of a device is called a site, and a link is a segment of road between two sites, an origin site and a destination site
