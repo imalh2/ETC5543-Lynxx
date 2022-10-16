@@ -9,10 +9,12 @@ The data used was publicly available GTFS and GTFSR, as well as traffic informat
 
 The report for the purposes of fulfilling the assessment requirements is the report titled 'report'.
 
-The report titled 'report_client' is the report modified for and delivered to the client.
+The report modified and created for the client can be found in the folder 'report-client'
 
 The presentation is the document titled 'presentation'.
 
 The client proposal created can be found in the folder 'proposal'.
 
 Preliminary and extra analysis can be found in the folder 'other-analysis'
+
+The bare code to conduct the analysis can be found in the file 'standalone_code'
