@@ -1,7 +1,6 @@
 ---
 title: "The Relationship Between Bus Travel Times and Road Congestion"
 author: "Ibrahim Al-Hindi"
-institute: "Lynxx"
 format: 
   revealjs:
     theme: serif
@@ -49,94 +48,55 @@ southrd_updates_raw <- read_csv(here("data/South-Rd/trip_updates_SouthRd_Mar.csv
 southrd_link_stats_raw <- read_csv(here("data/South-Rd/link_stats_Mar.csv"))
 ```
 
-## Background
+## Internship Company and Client
 
--   Adelaide's population increased from 1.1 to 1.3 million between 2006 and 2016, along with 66 million additional travel km's
+<br>
 
--   Costly road congestion projected to increase in the coming years. \$1.4 billion in 2016 to \$2.6 billion in 2031
+#### Lynxx Asia Pacific
 
--   Client is South Australia Department of Infrastructure and Transport (DIT)
+-   Data science consulting company
 
--   Client has a large collection of mostly unused traffic data
+-   Specializing in public transport
+
+<br>
+
+#### South Australia Department for Infrastructure and Transport (DIT)
 
 ## Objectives
 
-::: r-fit-text
-#### Process to formulate
-
--   Initial data exploration (lots of data)
-
--   Client proposal created followed by discussion with the client
-
 <br>
 
-#### Objectives
+1.  If vehicle travel times vary from "normal" relative to the time of day, how much of this variation do we see reflected in bus travel times? Provides an indication of bus network robustness to congestion. Especially during morning and evening rush hours
 
-1.  Investigate the extent of the relationship between the **variation** in bus travel times vs the **variation** in motor vehicle travel time in a given segment of road. Provides an indication of road robustness to congestion
+<br>
 
 2.  Methodology and code as repeatable and automated as possible
 
+## Data {style="font-size: 30px;"}
+
+1.  **General Transit Feed Specification Realtime (GTFSR)**
+
+    -   Created by Google. Open source. Used worldwide
+
+    -   Real time updates at regular intervals that provide expected arrival times for the stops upcoming in the trip
+
 <br>
 
-Analysis done on South Road during March 2022
-:::
+2.  **DIT Addinsight**
+    
+    -   Traffic information collected by devices on the road that tag motor vehicles
 
-## South Road
+    -   The location of a device is called a site, and a link is a segment of road between two sites, an origin site and a destination site
+
+    -   Generates traffic flow metrics such as travel time
+
+## South Road - March 2022
 
 ![](images/SouthRd_Map.png){fig-align="center" width="100%"}
 
 ::: notes
 one of Adelaide's most important and major roads, and regularly suffers from congestion
 :::
-
-## South Road
-
-![](images/southrd.jfif){fig-align="center" width="100%"}
-
-## Data
-
-::: r-fit-text
-1.  **General Transit Feed Specification (GTFS)**
-
-    Static or scheduled information about public transport services such as routes, stops, schedule and geographic transit information
-
-<br>
-
-2.  **General Transit Feed Specification Realtime (GTFSR)**
-
-    Real time information consisting of
-
-    i.  expected arrival times and delays
-
-    ii. geographic position and speed
-
-<br>
-
-3.  **DIT Addinsight**
-
-    Traffic information collected by DIT using Bluetooth devices on the roads. The location of a Bluetooth device is called a site, and a link is a segment of road between two sites, an origin site and a destination site
-:::
-
-::: notes
--   GTFS developed by Google. Open source. Worldwide
-
--   Explain GTFSR
-
--   Explain DIT
-
--   data is stored in AWS
-:::
-
-## GTFS {.scrollable}
-
-::: panel-tabset
-## Routes
-
-Segment route ID's extracted through Tableau. Needed for trip updates data
-
-## Stops
-
-Also extracted through Tableau
 
 ```{r}
 segment_route_stops <- clean_names(southrd_routes_stops_raw)
@@ -158,32 +118,15 @@ stops_segment <- full_stops_raw %>%
   mutate(direction = if_else(str_detect(stop_name, "East"), "SB", "NB"))
 
 rm(southrd_routes_stops_raw)
-
-stops_segment %>% 
-  names() %>% 
-  as_tibble_col("Variable") %>% 
-  mutate(Description = c("Unique stop identifier",
-                         "Name of the location. Uses a name that people will understand",
-                         "Address of the stop",
-                         "Latitude of the stop",
-                         "Longitude of the stop",
-                         "Road direction of the stop. Created")) %>% 
-  kable() %>% 
-  kable_styling()
-```
-:::
-
-## Stops Map
-
-```{r}
-# Plot on map to check the stops are all on South Rd
-stops_segment %>%
-    leaflet() %>% 
-    addTiles() %>% 
-    addCircles(lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, opacity = 1)
 ```
 
-## GTFSR - Trip Updates {.scrollable}
+## GTFSR - Trip Updates
+
+-   Trip stops within segment only
+
+-   Trip time is calculated as time between first stop and last stop on the segment
+
+-   Many errors
 
 ```{r}
 updates <- southrd_updates_raw %>%
@@ -196,51 +139,6 @@ updates <- southrd_updates_raw %>%
     arrival_time = as_datetime(arrival_time, tz = "Australia/Adelaide")) %>%
   select(-direction_id, -wheelchair_accessible)
 ```
-
-::: panel-tabset
-## Data
-
-```{r}
-updates %>% 
-  names() %>% 
-  as_tibble_col("Variable") %>% 
-  mutate(Description = c("Unique route identifier",
-                         "Start date of the trip",
-                         "Unique vehicle identifier",
-                         "Timestamp of the real time update",
-                         "Unique trip identifier",
-                         "Order of stops for a particular trip",
-                         "Unique stop identifier",
-                         "The current schedule deviation for the trip. 
-                         The delay (in seconds) can be positive (meaning that the vehicle is late) 
-                         or negative (meaning that the vehicle is ahead of schedule)", 
-                         "Predicted arrival time for a stop on a particular trip")) %>% 
-  kable() %>% 
-  kable_styling()
-```
-
-## Notes
-
--   One `route_id` can have many `trip_id`s
-
--   One `trip_id` occurs a maximum of one time a day, the `trip_id` can occur on multiple days
-
--   Latest update per stop
-
--   Trip stops within segment only
-
--   Removed weekends and holidays
-
--   Many errors
-
--   Trip time is calculated as time between first stop and last stop arrival times
-:::
-
-::: notes
--   Unedited data according to the routes identified
-
--   Original method used delays. Changed to time to remove the possibility that we are measuring how accurately the schedule predicts and/or buffers for congestion.
-:::
 
 ## Trip Updates Cleaning
 
@@ -357,12 +255,10 @@ ggplot(updates_stop_times, aes(to_stop_time/60, delay/60)) +
 
 -   Cleaning took a long time. Insure no further errors, surgical, correct order, correct code
 
+-   8 different types of errors
+
 -   Percentage of errors: 3.83%
 :::
-
-## Multiple Stops Pairs
-
-Different pairs of start-end stops per direction lead to inconsistent travel times due to different distances
 
 ```{r}
 # Take top occurring stops pair for each direction
@@ -386,28 +282,7 @@ updates_trip_time <- updates_stop_times_x %>%
   ungroup() %>%
   distinct(start_date, trip_id, .keep_all = TRUE) %>% 
   mutate(stops_pair = paste0(first_stop, "-", last_stop))
-
-ggplot(updates_trip_time, aes(trip_time/60, fill = stops_pair)) +
-  geom_density(alpha = 0.5) +
-  scale_x_continuous(labels = label_comma()) +
-  labs(x = "Trip Time (Minutes)",
-       fill = "First-Last Stops",
-       title = "Trip Time Distribution per Stops Pair per Direction") +
-  facet_wrap(vars(direction)) +
-  theme_bw() +
-  theme(
-    axis.text.y = element_blank(),
-    axis.title.y = element_blank(),
-    axis.ticks.y = element_blank())
 ```
-
-::: notes
--   Explain how trip time is calculated (arrival time of last stop - first stop)
-
--   Different travel times are incomparable and can lead to issues in calculations later
-:::
-
-## Most Occurring Stops Pair
 
 ```{r}
 top_first_last_stops <- updates_stop_times %>%
@@ -416,12 +291,6 @@ top_first_last_stops <- updates_stop_times %>%
   count(first_stop, last_stop, sort = TRUE) %>%
   slice_max(order_by = n) %>%
   ungroup()
-
-stops_segment %>%
-  filter(stop_id %in% c(top_first_last_stops$first_stop, top_first_last_stops$last_stop)) %>% 
-  leaflet() %>% 
-  addTiles() %>% 
-  addCircles(lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, opacity = 1)
 ```
 
 ```{r}
@@ -457,7 +326,7 @@ trip_times <- updates_trip_time %>%
 rm(southrd_updates_raw)
 ```
 
-## Trip Times Segregation {.scrollable}
+## Trip Times Aggregation
 
 1.  Split data into five minute time periods using first stop arrival time
 
@@ -482,31 +351,21 @@ trip_times_agg <- trip_times %>%
     rush = factor(rush, levels = c("Morning", "Evening", "Neither"))) %>% 
   relocate(day:rush, .after = arrival_time) %>% 
   select(-arrival_time)
-
-trip_times_agg %>%
-  names() %>% 
-  as_tibble_col("Variable") %>% 
-  mutate(Description = c("Date of measurement",
-                         "Time of the day in hour:minute:seconds of the measurement",
-                         "The hour of the measurement",
-                         "Whether the measurement occurrs during rush hour.
-                          Morning rush hour occurrs between 6:30am and 10am,
-                          evening rush hour occurrs between 3:30pm and 7pm,
-                          neither otherwise",
-                         "The direction of travel",
-                         "The original number of trips during the five minute interval",
-                         "The bus trip travel time across the segment")) %>% 
-  kable() %>% 
-  kable_styling()
 ```
 
 ::: notes
 done to establish a one-to-one relationship with the vehicles travel time, which are also in five minute intervals
 :::
 
-## DIT - Links {.scrollable}
+## DIT - Links
 
-Segment links extracted using Tableau
+-   5 minute aggregated statistics per link
+
+-   Non-overlapping sequence of links to avoid double counting
+
+-   Approximately same length as stops pair length
+
+-   Impute statistics for disabled links
 
 ```{r}
 # Limit updates to end of period examined and get most recent update per link,
@@ -546,27 +405,6 @@ directions <- sort(unique(links_segment_unq$direction))
 
 rm(links_raw)
 rm(southrd_links_raw)
-
-links_segment %>%
-  relocate(name, .after = linkid) %>% 
-  names() %>% 
-  as_tibble_col("Variable") %>% 
-  mutate(Description = c("Unique link identifier",
-                         "Description of link",
-                         "Order of geometry coordinates",
-                         "Latitude",
-                         "Longitude",
-                         "Name of link start location. Created",
-                         "Name of link end location. Created",
-                         "Latitude of the link's first shape coordinate. Created",
-                         "Latitude of the link's last shape coordinate. Created",
-                         "The Bluetooth site ID that begins the link",
-                         "The Bluetooth site ID that ends the link", 
-                         "Boolean. Disabled links do not generate statistics",
-                         "The link length in metres",
-                         "Link direction of travel")) %>% 
-  kable() %>% 
-  kable_styling()
 ```
 
 ::: notes
@@ -575,41 +413,7 @@ links_segment %>%
 -   Need for vehicles travel time
 :::
 
-## Links Statistics
-
--   5 minute aggregated statistics per link
-
--   However, links extracted contain links that overlap. Need to identify non-overlapping sequence of links to avoid double counting
-
--   Total length of the sequence of links needs to be approximately the same as the length between the stops pairs
-
--   Retrieve statistics of identified links from AWS
-
--   Impute statistics for links with missing statistics
-
--   Multiple iterations trialed
-
--   Minimum manual input
-
-## Links Identification
-
-::: panel-tabset
-## Steps
-
-Use northbound direction for illustration
-
-1.  Order links from south to north
-
-2.  Only enabled links
-
-3.  Using stops map, enter names of start and stop locations. Filter links to exist within these locations
-
-4.  If two links have the same distance, choose the shorter one
-
-## Code
-
 ```{r}
-#| echo: true
 links_dir1 <- links_segment_unq %>%
   # Build map from south to north
   filter(direction == directions[1]) %>% 
@@ -668,7 +472,6 @@ dir1_stops <- stops_segment %>%
 
 
 ```
-:::
 
 ```{r}
 
@@ -759,27 +562,19 @@ map_both %>%
   addCircles(data = dir2_stops, lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, radius = 50, opacity = 1)
 ```
 
-## Impute Statistics for Links with No Statistics {.scrollable}
+## Impute Statistics for Disabled Links
 
-::: panel-tabset
-## Steps
+For link with missing statistics:
 
-1.  Identify linkid of link with no statistics
+1.  Identify closest links with stats before and after missing link
 
-2.  Identify closest enabled links before and after missing link
+2.  For preceding and proceeding links, calculate travel time divided by the length of the link per five minute period
 
-3.  Retrieve and clean link statistics
+3.  Average (3) between the preceding and proceeding links per five minute period
 
-4.  For preceding and proceeding links, calculate travel time divided by the length of the link per five minute period
-
-5.  Average (4) between the preceding and proceeding links per five minute period
-
-6.  Multiply (5) by the length of the missing link to obtain the travel time for each five minute period
-
-## Steps 1-2 Code
+4.  Multiply (4) by the length of the missing link to obtain the travel time for each five minute period
 
 ```{r}
-#| echo: true
 # DF for missing links imputation
 missing_links_impute <- tibble(from = character(),
                                to = character(),
@@ -833,7 +628,6 @@ for (i in 1:nrow(missing_links_dir1)) {
   }
 }
 ```
-:::
 
 ```{r}
 missing_links_dir2 <- tibble(from = character(),
@@ -880,8 +674,6 @@ links_all <- unique(c(links_dir1_enabled$linkid, links_dir2_enabled$linkid,
                 missing_links_impute$post_linkid))
 ```
 
-## Link Statistics
-
 ```{r}
 link_stats <- southrd_link_stats_raw %>% 
   select(logtime:avgdensity) %>%
@@ -898,55 +690,14 @@ link_stats <- link_stats %>%
   mutate(speed = round((length / 1000) / (tt / 3600)))
 
 rm(southrd_link_stats_raw)
-
-link_stats %>%
-  select(-avgdensity, -density) %>% 
-  names() %>% 
-  as_tibble_col("Variable") %>% 
-  mutate(Description = c("Current interval timestamp",
-                         "Unique link identifier",
-                         "Travel time in seconds",
-                         "The link direction of travel. From links dataset",
-                         "The link length in metres. From links dataset",
-                         "Calculated speed in km/h. Created"
-                         )) %>% 
-  kable() %>% 
-  kable_styling()
 ```
-
-::: notes
--   Link statistics for links on segment as well as links used for imputation
-:::
-
-## Links Statistics Cleaning
-
-::: panel-tabset
-## Pre-Cleaning
-
-```{r}
-ggplot(link_stats, aes(speed, tt/60, color = factor(linkid))) +
-  geom_point(alpha = 0.3, show.legend = FALSE) +
-  labs(x = "Speed (km/h)", 
-       y = "Vehicle Travel Time (minutes)", 
-       title = "Unedited Vehicle Travel Speed Vs Travel Time") +
-  theme_bw()
-```
-
-## Post-Cleaning
 
 ```{r}
 link_stats <- link_stats %>%
   # Remove speeds over 150 km/h as most likely errors
   filter(speed < 150)
 
-ggplot(link_stats, aes(speed, tt/60, color = factor(linkid))) +
-  geom_point(alpha = 0.3, show.legend = FALSE) +
-  labs(x = "Speed (km/h)", 
-       y = "Vechile Travel Time (Minutes)", 
-       title = "Vehicle Travel Speed Vs Travel Time") +
-  theme_bw()
 ```
-:::
 
 ## Maps of Links Before Imputation
 
@@ -1056,7 +807,7 @@ map_links_with_stats %>%
 
 ## Links Statistics {.scrollable}
 
-The travel time of all the links in the same five minute period will be summed, per direction, to give the travel time per the segment
+The travel time of all the links in the same five minute period will be summed, per direction, to give the total travel time on the segment
 
 ```{r}
 links_times <- link_stats %>%
@@ -1074,21 +825,6 @@ links_times <- link_stats %>%
     rush = factor(rush, levels = c("Morning", "Evening", "Neither"))) %>%
   relocate(day:rush, .after = logtime) %>% 
   select(-logtime)
-
-links_times %>%
-  names() %>% 
-  as_tibble_col("Variable") %>% 
-  mutate(Description = c("Date of measurement",
-                         "Time of the day in hour:minute:seconds of the measurement",
-                         "The hour of the measurement",
-                         "Whether the measurement occurrs during rush hour.
-                          Morning rush hour occurrs between 6:30am and 10am,
-                          evening rush hour occurrs between 3:30pm and 7pm,
-                          neither otherwise",
-                         "The direction of travel",
-                         "The total travel time across the segment")) %>% 
-  kable() %>% 
-  kable_styling()
 ```
 
 ## Travel Times Comparison
@@ -1117,11 +853,9 @@ travel_times_piv %>%
 ```
 
 ::: notes
--   For northbound travel to the city, vehicle travel time largely remains the same during both periods of rush hour, while bus travel time actually increases in the evening, a surprising result.
+-   For northbound travel to the city, vehicle travel time largely remains the same during both periods of rush hour, while bus travel times actually increase in the evening, a surprising result.
 
 -   For southbound travel away from the city, both travel times in the evening increase as expected and are more varied than the travel times in the morning.
-
--   The bus travel times are generally slower than vehicle travel times as expected, and both types exhibit general patterns overall.
 :::
 
 ## Travel Times Calendar
@@ -1185,13 +919,7 @@ travel_times_piv_dir2 %>%
 :::
 
 ::: notes
--   Client asked to validate the data
-
--   Similar patterns
-
--   Buses always slower
-
--   Towards the end of the day in both directions, the travel times seem to level off at a low value, this is likely due to less traffic being present on the road in the evening time, leading to a faster traversal through the segment, with only constant factors affecting the travel time such as the speed limit and traffic lights.
+Client asked to validate the DIT data by looking for similarity in the patterns from both data sets
 :::
 
 ## Average Day Travel Time
@@ -1253,55 +981,20 @@ theme_bw()
 ```
 
 ::: notes
--   30 minute aggregates across all days
+-   Calculated by averaging all the trips within the same 30 minute period across the entire month
 
 -   morning and evening rush hours highlighted
 
--   northbound travel towards the city, both rush hour times display a similar level of travel time for both types, and the travel time in the rush hours are not much greater than non-rush hour times. This is an unexpected result as it is expected that travel times northbound towards the city would be higher in the morning rush hour
+-   Travel times between both types largely similar
+
+-   northbound travel towards the city: travel times are the same for both rush hours, and the travel time in the rush hours are not much greater than non-rush hour times
 
 -   Southbound travel away from the city, however, follows expectations as the travel time for both types dramatically increases in the evening rush hour as workers leave the city.
 :::
 
-## Scatter Plot and Correlation
-
-::: panel-tabset
-## Plot
-
-```{r}
-travel_times %>% 
-  filter(rush != "Neither") %>% 
-  ggplot(aes(bus_time/60, links_time/60)) +
-  geom_point(alpha = 0.3) +
-  scale_x_continuous(labels = label_comma()) +
-  scale_y_continuous(labels = label_comma()) +
-  labs(x = "Bus Travel Times (Minutes)",
-       y = "Vehicles Travel Times (Minutes)",
-       title = "Bus Travel Times vs Vehicles Travel Times per Direction per Rush Hour") +
-  facet_grid(vars(direction), vars(rush), scales = "free") +
-  theme_bw()
-```
-
-## Correlation
-
-```{r}
-travel_times %>% 
-  filter(rush != "Neither") %>% 
-  group_by(rush, direction) %>% 
-  summarise(Correlation = round(cor(bus_time, links_time), 2)) %>% 
-  rename(Direction = direction,
-         Rush = rush) %>% 
-  kable(caption = "Correlation between travel times per direction per rush hour") %>% 
-  kable_styling(full_width = FALSE)
-```
-:::
-
-::: notes
-positive relationship, especially southbound evening
-:::
-
 ## Standardize Travel Times
 
--   Allows cross examination of variations from "normal"
+-   Allows examination of the relationship of variations from "normal"
 
 -   Function `standardizer` created to standardize both types of travel times with respect to one of:
 
@@ -1348,22 +1041,6 @@ standardiser <- function(basis = hour) {
 
 standardiser()
 ```
-
-::: notes
--   Travel time naturally changes across the day
-
--   Need to compare to "normal" per timeframe
-
--   if the vehicle travel time varies by a certain level relative to the usual travel time during the same time frame, can we observe a reflection of this variation in the bus travel time? If so, by how much?
-
--   if correlation is low, bus network more resilient
-
--   As the time frame widens, more data is available for standardization, but the standardization takes a wider time range, leading to bias
-
--   Remove observations more than 3 standard deviations away
-
--   Maximum 21 5 minute periods
-:::
 
 ## Standardized Travel Times
 
@@ -1485,7 +1162,7 @@ travel_times_std %>%
 strong correlation in the evening towards the city
 :::
 
-## Findings {.scrollable}
+## Findings {style="font-size: 31px;"}
 
 -   In the evening from the city, absolute travel times are greater and more varied than those in the morning towards the city
 
@@ -1495,7 +1172,7 @@ strong correlation in the evening towards the city
 
 -   The morning standardized travel times towards the city are more varied and the correlation is lower, implying the bus transportation is relatively more robust to congestion than evening bus travel from the city
 
-## Future Directions {.scrollable}
+## Future Directions {style="font-size: 36px;"}
 
 -   Analyze more roads on the network to create a ranking of bus network robustness to road congestion. More targeted allocation of resources
 

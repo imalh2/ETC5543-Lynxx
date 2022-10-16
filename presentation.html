@@ -378,8 +378,6 @@
     }
   </style>
   
-  <script src="presentation_files/libs/kePrint-0.0.1/kePrint.js"></script>
-  <link href="presentation_files/libs/lightable-0.0.1/lightable.css" rel="stylesheet">
   <script src="presentation_files/libs/htmlwidgets-1.5.4/htmlwidgets.js"></script>
   <script src="presentation_files/libs/jquery-1.12.4/jquery.min.js"></script>
   <link href="presentation_files/libs/leaflet-1.3.1/leaflet.css" rel="stylesheet">
@@ -389,6 +387,8 @@
   <script src="presentation_files/libs/Proj4Leaflet-1.0.1/proj4leaflet.js"></script>
   <link href="presentation_files/libs/rstudio_leaflet-1.3.1/rstudio_leaflet.css" rel="stylesheet">
   <script src="presentation_files/libs/leaflet-binding-2.1.1/leaflet.js"></script>
+  <script src="presentation_files/libs/kePrint-0.0.1/kePrint.js"></script>
+  <link href="presentation_files/libs/lightable-0.0.1/lightable.css" rel="stylesheet">
 </head>
 <body class="quarto-light">
   <div class="reveal">
@@ -397,38 +397,51 @@
 <section id="title-slide" class="center">
   <h1 class="title">The Relationship Between Bus Travel Times and Road Congestion</h1>
   <p class="author">Ibrahim Al-Hindi</p>
-  <p class="institute">Lynxx</p>
 </section>
 
-<section id="background" class="slide level2">
-<h2>Background</h2>
+<section id="internship-company-and-client" class="slide level2">
+<h2>Internship Company and Client</h2>
+<p><br></p>
+<h4 id="lynxx-asia-pacific">Lynxx Asia Pacific</h4>
 <ul>
-<li><p>Adelaide’s population increased from 1.1 to 1.3 million between 2006 and 2016, along with 66 million additional travel km’s</p></li>
-<li><p>Costly road congestion projected to increase in the coming years. $1.4 billion in 2016 to $2.6 billion in 2031</p></li>
-<li><p>Client is South Australia Department of Infrastructure and Transport (DIT)</p></li>
-<li><p>Client has a large collection of mostly unused traffic data</p></li>
+<li><p>Data science consulting company</p></li>
+<li><p>Specializing in public transport</p></li>
 </ul>
+<p><br></p>
+<h4 id="south-australia-department-for-infrastructure-and-transport-dit">South Australia Department for Infrastructure and Transport (DIT)</h4>
 </section>
 <section id="objectives" class="slide level2">
 <h2>Objectives</h2>
-<div class="r-fit-text">
-<h4 id="process-to-formulate">Process to formulate</h4>
-<ul>
-<li><p>Initial data exploration (lots of data)</p></li>
-<li><p>Client proposal created followed by discussion with the client</p></li>
-</ul>
 <p><br></p>
-<h4 id="objectives-1">Objectives</h4>
 <ol type="1">
-<li><p>Investigate the extent of the relationship between the <strong>variation</strong> in bus travel times vs the <strong>variation</strong> in motor vehicle travel time in a given segment of road. Provides an indication of road robustness to congestion</p></li>
-<li><p>Methodology and code as repeatable and automated as possible</p></li>
+<li>If vehicle travel times vary from “normal” relative to the time of day, how much of this variation do we see reflected in bus travel times? Provides an indication of bus network robustness to congestion. Especially during morning and evening rush hours</li>
 </ol>
 <p><br></p>
-<p>Analysis done on South Road during March 2022</p>
-</div>
+<ol start="2" type="1">
+<li>Methodology and code as repeatable and automated as possible</li>
+</ol>
 </section>
-<section id="south-road" class="slide level2">
-<h2>South Road</h2>
+<section id="data" class="slide level2" style="font-size: 30px;">
+<h2>Data</h2>
+<ol type="1">
+<li><p><strong>General Transit Feed Specification Realtime (GTFSR)</strong></p>
+<ul>
+<li><p>Created by Google. Open source. Used worldwide</p></li>
+<li><p>Real time updates at regular intervals that provide expected arrival times for the stops upcoming in the trip</p></li>
+</ul></li>
+</ol>
+<p><br></p>
+<ol start="2" type="1">
+<li><p><strong>DIT Addinsight</strong></p>
+<ul>
+<li><p>Traffic information collected by devices on the road that tag motor vehicles</p></li>
+<li><p>The location of a device is called a site, and a link is a segment of road between two sites, an origin site and a destination site</p></li>
+<li><p>Generates traffic flow metrics such as travel time</p></li>
+</ul></li>
+</ol>
+</section>
+<section id="south-road---march-2022" class="slide level2">
+<h2>South Road - March 2022</h2>
 <div class="quarto-figure quarto-figure-center">
 <figure>
 <p><img data-src="images/SouthRd_Map.png" style="width:100.0%"></p>
@@ -447,227 +460,39 @@
           overflow: hidden!important;
           display:block!important;
       }</style></aside>
-</section>
-<section id="south-road-1" class="slide level2">
-<h2>South Road</h2>
-
-<img data-src="images/southrd.jfif" style="width:100.0%" class="r-stretch quarto-figure-center"></section>
-<section id="data" class="slide level2">
-<h2>Data</h2>
-<div class="r-fit-text">
-<ol type="1">
-<li><p><strong>General Transit Feed Specification (GTFS)</strong></p>
-<p>Static or scheduled information about public transport services such as routes, stops, schedule and geographic transit information</p></li>
-</ol>
-<p><br></p>
-<ol start="2" type="1">
-<li><p><strong>General Transit Feed Specification Realtime (GTFSR)</strong></p>
-<p>Real time information consisting of</p>
-<ol type="i">
-<li><p>expected arrival times and delays</p></li>
-<li><p>geographic position and speed</p></li>
-</ol></li>
-</ol>
-<p><br></p>
-<ol start="3" type="1">
-<li><p><strong>DIT Addinsight</strong></p>
-<p>Traffic information collected by DIT using Bluetooth devices on the roads. The location of a Bluetooth device is called a site, and a link is a segment of road between two sites, an origin site and a destination site</p></li>
-</ol>
-</div>
-<aside class="notes">
-<ul>
-<li><p>GTFS developed by Google. Open source. Worldwide</p></li>
-<li><p>Explain GTFSR</p></li>
-<li><p>Explain DIT</p></li>
-<li><p>data is stored in AWS</p></li>
-</ul>
-<style type="text/css">
-        span.MJX_Assistive_MathML {
-          position:absolute!important;
-          clip: rect(1px, 1px, 1px, 1px);
-          padding: 1px 0 0 0!important;
-          border: 0!important;
-          height: 1px!important;
-          width: 1px!important;
-          overflow: hidden!important;
-          display:block!important;
-      }</style></aside>
-</section>
-<section id="gtfs" class="slide level2 scrollable">
-<h2>GTFS</h2>
-<div class="panel-tabset">
-<ul id="tabset-1" class="panel-tabset-tabby"><li><a data-tabby-default="" href="#tabset-1-1">Routes</a></li><li><a href="#tabset-1-2">Stops</a></li></ul>
-<div class="tab-content">
-<div id="tabset-1-1">
-<p>Segment route ID’s extracted through Tableau. Needed for trip updates data</p>
-</div>
-<div id="tabset-1-2">
-<p>Also extracted through Tableau</p>
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-2_8a561e42e64ed3fb0ce5cd144134045d">
-<div class="cell-output-display">
-
-<table class="table" style="margin-left: auto; margin-right: auto;">
- <thead>
-  <tr>
-   <th style="text-align:left;"> Variable </th>
-   <th style="text-align:left;"> Description </th>
-  </tr>
- </thead>
-<tbody>
-  <tr>
-   <td style="text-align:left;"> stop_id </td>
-   <td style="text-align:left;"> Unique stop identifier </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> stop_name </td>
-   <td style="text-align:left;"> Name of the location. Uses a name that people will understand </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> stop_desc </td>
-   <td style="text-align:left;"> Address of the stop </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> stop_lat </td>
-   <td style="text-align:left;"> Latitude of the stop </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> stop_lon </td>
-   <td style="text-align:left;"> Longitude of the stop </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> direction </td>
-   <td style="text-align:left;"> Road direction of the stop. Created </td>
-  </tr>
-</tbody>
-</table>
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-2_d8f19a3297bb664ba236d94b015ac0a0">
 
 </div>
-</div>
-</div>
-</div>
-</div>
 </section>
-<section id="stops-map" class="slide level2">
-<h2>Stops Map</h2>
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-3_cfc5f287e23540d3e846bc71a3ec4671">
-<div class="cell-output-display">
-<div id="htmlwidget-00f8cf6d41984b30b56b" style="width:960px;height:480px;" class="leaflet html-widget"></div>
-<script type="application/json" data-for="htmlwidget-00f8cf6d41984b30b56b">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"addTiles","args":["https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",null,null,{"minZoom":0,"maxZoom":18,"tileSize":256,"subdomains":"abc","errorTileUrl":"","tms":false,"noWrap":false,"zoomOffset":0,"zoomReverse":false,"opacity":1,"zIndex":1,"detectRetina":false,"attribution":"&copy; <a href=\"https://openstreetmap.org\">OpenStreetMap<\/a> contributors, <a href=\"https://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA<\/a>"}]},{"method":"addCircles","args":[[-34.951768484,-34.951871321,-34.9969771145502,-34.948752,-34.945875,-34.964705948206,-34.9812731319021,-35.0036629675021,-34.9975466667464,-34.96466,-34.944472068,-34.972840722363,-34.958361,-34.958671,-35.0045464845164,-34.9894582047615,-34.98385,-34.94667778,-34.9836843954792,-34.9547337400797,-34.9919651147003,-34.977408884447,-34.96807,-34.994152,-34.98666,-34.9945181624236,-34.96132,-34.944402868,-34.9689,-34.95407,-35.0000439910973,-34.9614434153598,-34.972901,-34.9812595150094,-34.9900637668092,-34.948500097,-34.9865030239212,-35.00024,-34.9774326654318],[138.571225832,138.571947313,138.575269865819,138.571411,138.571478,138.572950230953,138.573860957532,138.575786224096,138.575095455195,138.57257,138.571152011,138.573261859975,138.572401,138.572211,138.575629968428,138.574503535212,138.5743,138.571310173,138.57405771397,138.5721266186,138.574686074493,138.57357433208,138.57321,138.574857,138.57426,138.575092078856,138.57262,138.571363711,138.57285,138.57129,138.575508870676,138.572435410927,138.573486,138.574082394468,138.57478932119,138.571675083,138.574497554947,138.57533,138.573809351302],10,null,null,{"interactive":true,"className":"","stroke":true,"color":"#03F","weight":5,"opacity":1,"fill":true,"fillColor":"#03F","fillOpacity":0.2},null,null,["3998","3988","4799","100811","101013","4213","4548","4911","4811","4211","3875","4381","4095","4121","4916","4668","4580","100812","4575","4035","4708","4480","4296","4763","4627","4761","4156","3874","4320","100850","4852","4159","4390","4524","4674","3955","4626","4856","4475"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]}],"limits":{"lat":[-35.0045464845164,-34.944402868],"lng":[138.571152011,138.575786224096]}},"evals":[],"jsHooks":[]}</script>
-</div>
-</div>
-</section>
-<section id="gtfsr---trip-updates" class="slide level2 scrollable">
+<section id="gtfsr---trip-updates" class="slide level2">
 <h2>GTFSR - Trip Updates</h2>
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-4_72167dd3f4cb5effae63865b976d2f88">
-
-</div>
-<div class="panel-tabset">
-<ul id="tabset-2" class="panel-tabset-tabby"><li><a data-tabby-default="" href="#tabset-2-1">Data</a></li><li><a href="#tabset-2-2">Notes</a></li></ul>
-<div class="tab-content">
-<div id="tabset-2-1">
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-5_1dd09dd92fe9c5a9269f48666099faf8">
-<div class="cell-output-display">
-
-<table class="table" style="margin-left: auto; margin-right: auto;">
- <thead>
-  <tr>
-   <th style="text-align:left;"> Variable </th>
-   <th style="text-align:left;"> Description </th>
-  </tr>
- </thead>
-<tbody>
-  <tr>
-   <td style="text-align:left;"> route_id </td>
-   <td style="text-align:left;"> Unique route identifier </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> start_date </td>
-   <td style="text-align:left;"> Start date of the trip </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> vehicle_id </td>
-   <td style="text-align:left;"> Unique vehicle identifier </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> timestamp </td>
-   <td style="text-align:left;"> Timestamp of the real time update </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> trip_id </td>
-   <td style="text-align:left;"> Unique trip identifier </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> stop_sequence </td>
-   <td style="text-align:left;"> Order of stops for a particular trip </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> stop_id </td>
-   <td style="text-align:left;"> Unique stop identifier </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> delay </td>
-   <td style="text-align:left;"> The current schedule deviation for the trip. 
-                         The delay (in seconds) can be positive (meaning that the vehicle is late) 
-                         or negative (meaning that the vehicle is ahead of schedule) </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> arrival_time </td>
-   <td style="text-align:left;"> Predicted arrival time for a stop on a particular trip </td>
-  </tr>
-</tbody>
-</table>
-
-</div>
-</div>
-</div>
-<div id="tabset-2-2">
 <ul>
-<li><p>One <code>route_id</code> can have many <code>trip_id</code>s</p></li>
-<li><p>One <code>trip_id</code> occurs a maximum of one time a day, the <code>trip_id</code> can occur on multiple days</p></li>
-<li><p>Latest update per stop</p></li>
 <li><p>Trip stops within segment only</p></li>
-<li><p>Removed weekends and holidays</p></li>
+<li><p>Trip time is calculated as time between first stop and last stop on the segment</p></li>
 <li><p>Many errors</p></li>
-<li><p>Trip time is calculated as time between first stop and last stop arrival times</p></li>
 </ul>
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-3_86d37494102c3634933f30d1db6e1457">
+
 </div>
-</div>
-</div>
-<aside class="notes">
-<ul>
-<li><p>Unedited data according to the routes identified</p></li>
-<li><p>Original method used delays. Changed to time to remove the possibility that we are measuring how accurately the schedule predicts and/or buffers for congestion.</p></li>
-</ul>
-<style type="text/css">
-        span.MJX_Assistive_MathML {
-          position:absolute!important;
-          clip: rect(1px, 1px, 1px, 1px);
-          padding: 1px 0 0 0!important;
-          border: 0!important;
-          height: 1px!important;
-          width: 1px!important;
-          overflow: hidden!important;
-          display:block!important;
-      }</style></aside>
 </section>
 <section id="trip-updates-cleaning" class="slide level2">
 <h2>Trip Updates Cleaning</h2>
 <div class="panel-tabset">
-<ul id="tabset-3" class="panel-tabset-tabby"><li><a data-tabby-default="" href="#tabset-3-1">Pre-Cleaning</a></li><li><a href="#tabset-3-2">Cleaning Code</a></li><li><a href="#tabset-3-3">Post-Cleaning</a></li></ul>
+<ul id="tabset-1" class="panel-tabset-tabby"><li><a data-tabby-default="" href="#tabset-1-1">Pre-Cleaning</a></li><li><a href="#tabset-1-2">Cleaning Code</a></li><li><a href="#tabset-1-3">Post-Cleaning</a></li></ul>
 <div class="tab-content">
-<div id="tabset-3-1">
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-6_0dba2c46a9b499218da4e0dc28f85832">
+<div id="tabset-1-1">
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-4_b1fdc24de745e1f7b36f241d90333f79">
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure>
-<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-6-1.png" width="960"></p>
+<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-4-1.png" width="960"></p>
 </figure>
 </div>
 </div>
 </div>
 </div>
-<div id="tabset-3-2">
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-7_a3e148a9bb00417eb0f43d57954c39ab">
+<div id="tabset-1-2">
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-5_86020c9c9f565c80b33eb9c694b2da31">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1"></a><span class="co"># Clean updates and get time to each stop for error detection</span></span>
 <span id="cb1-2"><a href="#cb1-2"></a>updates_stop_times <span class="ot">&lt;-</span> updates <span class="sc">%&gt;%</span></span>
 <span id="cb1-3"><a href="#cb1-3"></a>  <span class="fu">group_by</span>(start_date, trip_id) <span class="sc">%&gt;%</span></span>
@@ -724,12 +549,12 @@
 <span id="cb1-54"><a href="#cb1-54"></a>  <span class="fu">mutate</span>(<span class="at">to_stop_time =</span> <span class="fu">replace_na</span>(to_stop_time, <span class="dv">0</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </div>
-<div id="tabset-3-3">
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-8_94a8b69150af1c9dac1825ba979a92fd">
+<div id="tabset-1-3">
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-6_4c1f4fbff3806613cb5de4565eb5abfb">
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure>
-<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-8-1.png" width="960"></p>
+<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-6-1.png" width="960"></p>
 </figure>
 </div>
 </div>
@@ -743,6 +568,7 @@
 <li><p>Negative values</p></li>
 <li><p>Very high delays (all stops delayed)</p></li>
 <li><p>Cleaning took a long time. Insure no further errors, surgical, correct order, correct code</p></li>
+<li><p>8 different types of errors</p></li>
 <li><p>Percentage of errors: 3.83%</p></li>
 </ul>
 <style type="text/css">
@@ -756,100 +582,24 @@
           overflow: hidden!important;
           display:block!important;
       }</style></aside>
-</section>
-<section id="multiple-stops-pairs" class="slide level2">
-<h2>Multiple Stops Pairs</h2>
-<p>Different pairs of start-end stops per direction lead to inconsistent travel times due to different distances</p>
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-9_2dcd5aa3ead751254957e95e35cde5b9">
-<div class="cell-output-display">
-<div class="quarto-figure quarto-figure-center">
-<figure>
-<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-9-1.png" width="960"></p>
-</figure>
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-7_bd55240489cd3953ae1bcfe2d81e4617">
+
 </div>
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-8_84ea816568ca37dc09cd87b193ab448a">
+
 </div>
-</div>
-<aside class="notes">
-<ul>
-<li><p>Explain how trip time is calculated (arrival time of last stop - first stop)</p></li>
-<li><p>Different travel times are incomparable and can lead to issues in calculations later</p></li>
-</ul>
-<style type="text/css">
-        span.MJX_Assistive_MathML {
-          position:absolute!important;
-          clip: rect(1px, 1px, 1px, 1px);
-          padding: 1px 0 0 0!important;
-          border: 0!important;
-          height: 1px!important;
-          width: 1px!important;
-          overflow: hidden!important;
-          display:block!important;
-      }</style></aside>
-</section>
-<section id="most-occurring-stops-pair" class="slide level2">
-<h2>Most Occurring Stops Pair</h2>
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-10_d3fa17954e6144b91f5266a1aa0bcb2d">
-<div class="cell-output-display">
-<div id="htmlwidget-77d4a9fcc392d5912411" style="width:960px;height:480px;" class="leaflet html-widget"></div>
-<script type="application/json" data-for="htmlwidget-77d4a9fcc392d5912411">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"addTiles","args":["https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",null,null,{"minZoom":0,"maxZoom":18,"tileSize":256,"subdomains":"abc","errorTileUrl":"","tms":false,"noWrap":false,"zoomOffset":0,"zoomReverse":false,"opacity":1,"zIndex":1,"detectRetina":false,"attribution":"&copy; <a href=\"https://openstreetmap.org\">OpenStreetMap<\/a> contributors, <a href=\"https://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA<\/a>"}]},{"method":"addCircles","args":[[-35.0036629675021,-35.0045464845164,-34.9547337400797,-34.95407],[138.575786224096,138.575629968428,138.5721266186,138.57129],10,null,null,{"interactive":true,"className":"","stroke":true,"color":"#03F","weight":5,"opacity":1,"fill":true,"fillColor":"#03F","fillOpacity":0.2},null,null,["4911","4916","4035","100850"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]}],"limits":{"lat":[-35.0045464845164,-34.95407],"lng":[138.57129,138.575786224096]}},"evals":[],"jsHooks":[]}</script>
-</div>
-</div>
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-11_25c40c560c4db3be198276a2ee149cb4">
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-9_402ce5dda9a20e501504f2261f8c6be2">
 
 </div>
 </section>
-<section id="trip-times-segregation" class="slide level2 scrollable">
-<h2>Trip Times Segregation</h2>
+<section id="trip-times-aggregation" class="slide level2">
+<h2>Trip Times Aggregation</h2>
 <ol type="1">
 <li><p>Split data into five minute time periods using first stop arrival time</p></li>
 <li><p>Average bus travel time per five minute period</p></li>
 </ol>
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-12_4f7a5536c77736794ed024d53fceb689">
-<div class="cell-output-display">
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-10_0355b50438a30d358755714b3a080dc4">
 
-<table class="table" style="margin-left: auto; margin-right: auto;">
- <thead>
-  <tr>
-   <th style="text-align:left;"> Variable </th>
-   <th style="text-align:left;"> Description </th>
-  </tr>
- </thead>
-<tbody>
-  <tr>
-   <td style="text-align:left;"> day </td>
-   <td style="text-align:left;"> Date of measurement </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> time </td>
-   <td style="text-align:left;"> Time of the day in hour:minute:seconds of the measurement </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> hour </td>
-   <td style="text-align:left;"> The hour of the measurement </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> rush </td>
-   <td style="text-align:left;"> Whether the measurement occurrs during rush hour.
-                          Morning rush hour occurrs between 6:30am and 10am,
-                          evening rush hour occurrs between 3:30pm and 7pm,
-                          neither otherwise </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> direction </td>
-   <td style="text-align:left;"> The direction of travel </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> number_buses </td>
-   <td style="text-align:left;"> The original number of trips during the five minute interval </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> bus_time </td>
-   <td style="text-align:left;"> The bus trip travel time across the segment </td>
-  </tr>
-</tbody>
-</table>
-
-</div>
 </div>
 <aside class="notes">
 <p>done to establish a one-to-one relationship with the vehicles travel time, which are also in five minute intervals</p>
@@ -865,80 +615,16 @@
           display:block!important;
       }</style></aside>
 </section>
-<section id="dit---links" class="slide level2 scrollable">
+<section id="dit---links" class="slide level2">
 <h2>DIT - Links</h2>
-<p>Segment links extracted using Tableau</p>
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-13_642814d5f0c0038ea15d6df8ee2a9d10">
-<div class="cell-output-display">
+<ul>
+<li><p>5 minute aggregated statistics per link</p></li>
+<li><p>Non-overlapping sequence of links to avoid double counting</p></li>
+<li><p>Approximately same length as stops pair length</p></li>
+<li><p>Impute statistics for disabled links</p></li>
+</ul>
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-11_a88c14879e7e64e199711560e2c74754">
 
-<table class="table" style="margin-left: auto; margin-right: auto;">
- <thead>
-  <tr>
-   <th style="text-align:left;"> Variable </th>
-   <th style="text-align:left;"> Description </th>
-  </tr>
- </thead>
-<tbody>
-  <tr>
-   <td style="text-align:left;"> linkid </td>
-   <td style="text-align:left;"> Unique link identifier </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> name </td>
-   <td style="text-align:left;"> Description of link </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> ordernumber </td>
-   <td style="text-align:left;"> Order of geometry coordinates </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> latitude </td>
-   <td style="text-align:left;"> Latitude </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> longitude </td>
-   <td style="text-align:left;"> Longitude </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> start_loc </td>
-   <td style="text-align:left;"> Name of link start location. Created </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> end_loc </td>
-   <td style="text-align:left;"> Name of link end location. Created </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> start_lat </td>
-   <td style="text-align:left;"> Latitude of the link's first shape coordinate. Created </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> end_lat </td>
-   <td style="text-align:left;"> Latitude of the link's last shape coordinate. Created </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> originid </td>
-   <td style="text-align:left;"> The Bluetooth site ID that begins the link </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> destid </td>
-   <td style="text-align:left;"> The Bluetooth site ID that ends the link </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> enabled </td>
-   <td style="text-align:left;"> Boolean. Disabled links do not generate statistics </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> length </td>
-   <td style="text-align:left;"> The link length in metres </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> direction </td>
-   <td style="text-align:left;"> Link direction of travel </td>
-  </tr>
-</tbody>
-</table>
-
-</div>
 </div>
 <aside class="notes">
 <ul>
@@ -956,344 +642,76 @@
           overflow: hidden!important;
           display:block!important;
       }</style></aside>
-</section>
-<section id="links-statistics" class="slide level2">
-<h2>Links Statistics</h2>
-<ul>
-<li><p>5 minute aggregated statistics per link</p></li>
-<li><p>However, links extracted contain links that overlap. Need to identify non-overlapping sequence of links to avoid double counting</p></li>
-<li><p>Total length of the sequence of links needs to be approximately the same as the length between the stops pairs</p></li>
-<li><p>Retrieve statistics of identified links from AWS</p></li>
-<li><p>Impute statistics for links with missing statistics</p></li>
-<li><p>Multiple iterations trialed</p></li>
-<li><p>Minimum manual input</p></li>
-</ul>
-</section>
-<section id="links-identification" class="slide level2">
-<h2>Links Identification</h2>
-<div class="panel-tabset">
-<ul id="tabset-4" class="panel-tabset-tabby"><li><a data-tabby-default="" href="#tabset-4-1">Steps</a></li><li><a href="#tabset-4-2">Code</a></li></ul>
-<div class="tab-content">
-<div id="tabset-4-1">
-<p>Use northbound direction for illustration</p>
-<ol type="1">
-<li><p>Order links from south to north</p></li>
-<li><p>Only enabled links</p></li>
-<li><p>Using stops map, enter names of start and stop locations. Filter links to exist within these locations</p></li>
-<li><p>If two links have the same distance, choose the shorter one</p></li>
-</ol>
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-12_36b78b253a2befda0823ab4f5ca9cec7">
+
 </div>
-<div id="tabset-4-2">
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-14_778068154e9b9ea89642b496f81640b8">
-<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1"></a>links_dir1 <span class="ot">&lt;-</span> links_segment_unq <span class="sc">%&gt;%</span></span>
-<span id="cb2-2"><a href="#cb2-2"></a>  <span class="co"># Build map from south to north</span></span>
-<span id="cb2-3"><a href="#cb2-3"></a>  <span class="fu">filter</span>(direction <span class="sc">==</span> directions[<span class="dv">1</span>]) <span class="sc">%&gt;%</span> </span>
-<span id="cb2-4"><a href="#cb2-4"></a>  <span class="fu">arrange</span>(start_lat)</span>
-<span id="cb2-5"><a href="#cb2-5"></a></span>
-<span id="cb2-6"><a href="#cb2-6"></a>links_dir1_enabled <span class="ot">&lt;-</span> links_dir1 <span class="sc">%&gt;%</span></span>
-<span id="cb2-7"><a href="#cb2-7"></a>  <span class="fu">filter</span>(enabled)</span>
-<span id="cb2-8"><a href="#cb2-8"></a></span>
-<span id="cb2-9"><a href="#cb2-9"></a><span class="co"># Start and end at same locations as bus stops by referencing map above</span></span>
-<span id="cb2-10"><a href="#cb2-10"></a>dir1_start_loc <span class="ot">&lt;-</span> <span class="st">"celtic"</span></span>
-<span id="cb2-11"><a href="#cb2-11"></a>dir1_end_loc <span class="ot">&lt;-</span> <span class="st">"anzac"</span></span>
-<span id="cb2-12"><a href="#cb2-12"></a></span>
-<span id="cb2-13"><a href="#cb2-13"></a><span class="co"># Retrieve sequence of links composing segment</span></span>
-<span id="cb2-14"><a href="#cb2-14"></a>links_dir1_enabled <span class="ot">&lt;-</span> links_dir1_enabled[<span class="fu">min</span>(<span class="fu">which</span>(<span class="fu">str_starts</span>(<span class="fu">tolower</span>(links_dir1_enabled<span class="sc">$</span>start_loc),</span>
-<span id="cb2-15"><a href="#cb2-15"></a>                                                                  <span class="fu">tolower</span>(dir1_start_loc))))<span class="sc">:</span></span>
-<span id="cb2-16"><a href="#cb2-16"></a>                                               <span class="fu">max</span>(<span class="fu">which</span>(<span class="fu">str_starts</span>(<span class="fu">tolower</span>(links_dir1_enabled<span class="sc">$</span>end_loc),</span>
-<span id="cb2-17"><a href="#cb2-17"></a>                                                                    <span class="fu">tolower</span>(dir1_end_loc)))),] <span class="sc">%&gt;%</span> </span>
-<span id="cb2-18"><a href="#cb2-18"></a>  <span class="fu">group_by</span>(start_loc) <span class="sc">%&gt;%</span></span>
-<span id="cb2-19"><a href="#cb2-19"></a>  <span class="fu">filter</span>(length <span class="sc">==</span> <span class="fu">min</span>(length)) <span class="sc">%&gt;%</span></span>
-<span id="cb2-20"><a href="#cb2-20"></a>  <span class="fu">ungroup</span>()</span>
-<span id="cb2-21"><a href="#cb2-21"></a></span>
-<span id="cb2-22"><a href="#cb2-22"></a><span class="co"># Obtain shape for each link</span></span>
-<span id="cb2-23"><a href="#cb2-23"></a>links_dir1_map <span class="ot">&lt;-</span> links_segment <span class="sc">%&gt;%</span> </span>
-<span id="cb2-24"><a href="#cb2-24"></a>  <span class="fu">semi_join</span>(links_dir1_enabled, <span class="at">by =</span> <span class="st">"linkid"</span>) <span class="sc">%&gt;%</span> </span>
-<span id="cb2-25"><a href="#cb2-25"></a>  <span class="fu">arrange</span>(start_lat, ordernumber)</span>
-<span id="cb2-26"><a href="#cb2-26"></a></span>
-<span id="cb2-27"><a href="#cb2-27"></a><span class="co"># Create map</span></span>
-<span id="cb2-28"><a href="#cb2-28"></a></span>
-<span id="cb2-29"><a href="#cb2-29"></a>links_colors <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"green"</span>,<span class="st">"red"</span>)</span>
-<span id="cb2-30"><a href="#cb2-30"></a></span>
-<span id="cb2-31"><a href="#cb2-31"></a>n <span class="ot">&lt;-</span> <span class="dv">1</span></span>
-<span id="cb2-32"><a href="#cb2-32"></a></span>
-<span id="cb2-33"><a href="#cb2-33"></a>map_dir1 <span class="ot">&lt;-</span> <span class="fu">leaflet</span>() <span class="sc">%&gt;%</span> </span>
-<span id="cb2-34"><a href="#cb2-34"></a>  <span class="fu">addTiles</span>()</span>
-<span id="cb2-35"><a href="#cb2-35"></a></span>
-<span id="cb2-36"><a href="#cb2-36"></a><span class="co"># Iterate over links to add polyline of each link to the map</span></span>
-<span id="cb2-37"><a href="#cb2-37"></a><span class="cf">for</span> (link <span class="cf">in</span> <span class="fu">unique</span>(links_dir1_map<span class="sc">$</span>linkid)) {</span>
-<span id="cb2-38"><a href="#cb2-38"></a>  map_df <span class="ot">&lt;-</span> links_dir1_map <span class="sc">%&gt;%</span> </span>
-<span id="cb2-39"><a href="#cb2-39"></a>    <span class="fu">filter</span>(linkid <span class="sc">==</span> link)</span>
-<span id="cb2-40"><a href="#cb2-40"></a>  </span>
-<span id="cb2-41"><a href="#cb2-41"></a>  map_dir1 <span class="ot">&lt;-</span> map_dir1 <span class="sc">%&gt;%</span> </span>
-<span id="cb2-42"><a href="#cb2-42"></a>    <span class="fu">addPolylines</span>(<span class="at">data =</span> map_df, <span class="at">lng =</span> <span class="sc">~</span>longitude, <span class="at">lat =</span> <span class="sc">~</span>latitude, <span class="at">color =</span> links_colors[n],</span>
-<span id="cb2-43"><a href="#cb2-43"></a>                 <span class="at">label =</span> <span class="sc">~</span>linkid, <span class="at">opacity =</span> <span class="fl">0.3</span>)</span>
-<span id="cb2-44"><a href="#cb2-44"></a>  </span>
-<span id="cb2-45"><a href="#cb2-45"></a>  <span class="co"># Switch colors</span></span>
-<span id="cb2-46"><a href="#cb2-46"></a>  <span class="cf">if</span> (n <span class="sc">==</span> <span class="dv">1</span>) {</span>
-<span id="cb2-47"><a href="#cb2-47"></a>    n <span class="ot">&lt;-</span> <span class="dv">2</span></span>
-<span id="cb2-48"><a href="#cb2-48"></a>  } <span class="cf">else</span> {</span>
-<span id="cb2-49"><a href="#cb2-49"></a>    n <span class="ot">&lt;-</span> <span class="dv">1</span></span>
-<span id="cb2-50"><a href="#cb2-50"></a>  }</span>
-<span id="cb2-51"><a href="#cb2-51"></a>}</span>
-<span id="cb2-52"><a href="#cb2-52"></a></span>
-<span id="cb2-53"><a href="#cb2-53"></a>dir1_stops <span class="ot">&lt;-</span> stops_segment <span class="sc">%&gt;%</span></span>
-<span id="cb2-54"><a href="#cb2-54"></a>  <span class="fu">filter</span>(stop_id <span class="sc">%in%</span> <span class="fu">c</span>(top_first_last_stops[top_first_last_stops[<span class="st">"direction"</span>] <span class="sc">==</span> directions[<span class="dv">1</span>],]<span class="sc">$</span>first_stop,</span>
-<span id="cb2-55"><a href="#cb2-55"></a>                        top_first_last_stops[top_first_last_stops[<span class="st">"direction"</span>] <span class="sc">==</span> directions[<span class="dv">1</span>],]<span class="sc">$</span>last_stop))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
-</div>
-</div>
-</div>
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-15_f7e3e861a878bec5586713aa61f5778a">
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-13_865330d814086535353a1c8c7d295c43">
 
 </div>
 </section>
 <section id="northbound-links-map" class="slide level2">
 <h2>Northbound Links Map</h2>
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-16_485517e128fe2a0cab296d46090d7ff5">
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-14_f1de86b1c44227462ff4befcbb20fb64">
 <div class="cell-output-display">
-<div id="htmlwidget-b401abf6d47dcde783f3" style="width:960px;height:480px;" class="leaflet html-widget"></div>
-<script type="application/json" data-for="htmlwidget-b401abf6d47dcde783f3">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"addTiles","args":["https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",null,null,{"minZoom":0,"maxZoom":18,"tileSize":256,"subdomains":"abc","errorTileUrl":"","tms":false,"noWrap":false,"zoomOffset":0,"zoomReverse":false,"opacity":1,"zIndex":1,"detectRetina":false,"attribution":"&copy; <a href=\"https://openstreetmap.org\">OpenStreetMap<\/a> contributors, <a href=\"https://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA<\/a>"}]},{"method":"addPolylines","args":[[[[{"lng":[138.57516,138.57483],"lat":[-34.99974,-34.99524]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1608","1608"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.5748,138.57468],"lat":[-34.99486,-34.9928]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1610","1610"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57468,138.57407],"lat":[-34.99282,-34.985]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["695","695"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57407,138.57394],"lat":[-34.985,-34.98318]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1966","1966"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57394,138.57375],"lat":[-34.98318,-34.98099]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["2871","2871"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57374,138.57363],"lat":[-34.98096,-34.97964]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["2869","2869"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57363,138.57353],"lat":[-34.97963,-34.97819]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1962","1962"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57353,138.57328],"lat":[-34.97817,-34.97457]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1970","1970"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57328,138.57295,138.57279,138.57254],"lat":[-34.97457,-34.97005,-34.96965,-34.9673]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1974","1974","1974","1974"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57254,138.57237,138.57249,138.57229],"lat":[-34.9673,-34.96503,-34.96397,-34.9612]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["175","175","175","175"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57224,138.5719,138.5713,138.57109],"lat":[-34.96102,-34.95693,-34.95493,-34.95341]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["3573","3573","3573","3573"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addCircles","args":[[-35.0045464845164,-34.95407],[138.575629968428,138.57129],50,null,null,{"interactive":true,"className":"","stroke":true,"color":"#03F","weight":5,"opacity":1,"fill":true,"fillColor":"#03F","fillOpacity":0.2},null,null,["4916","100850"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]}],"limits":{"lat":[-35.0045464845164,-34.95341],"lng":[138.57109,138.575629968428]}},"evals":[],"jsHooks":[]}</script>
+<div id="htmlwidget-1d9934809a090dd657d7" style="width:960px;height:480px;" class="leaflet html-widget"></div>
+<script type="application/json" data-for="htmlwidget-1d9934809a090dd657d7">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"addTiles","args":["https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",null,null,{"minZoom":0,"maxZoom":18,"tileSize":256,"subdomains":"abc","errorTileUrl":"","tms":false,"noWrap":false,"zoomOffset":0,"zoomReverse":false,"opacity":1,"zIndex":1,"detectRetina":false,"attribution":"&copy; <a href=\"https://openstreetmap.org\">OpenStreetMap<\/a> contributors, <a href=\"https://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA<\/a>"}]},{"method":"addPolylines","args":[[[[{"lng":[138.57516,138.57483],"lat":[-34.99974,-34.99524]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1608","1608"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.5748,138.57468],"lat":[-34.99486,-34.9928]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1610","1610"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57468,138.57407],"lat":[-34.99282,-34.985]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["695","695"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57407,138.57394],"lat":[-34.985,-34.98318]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1966","1966"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57394,138.57375],"lat":[-34.98318,-34.98099]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["2871","2871"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57374,138.57363],"lat":[-34.98096,-34.97964]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["2869","2869"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57363,138.57353],"lat":[-34.97963,-34.97819]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1962","1962"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57353,138.57328],"lat":[-34.97817,-34.97457]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1970","1970"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57328,138.57295,138.57279,138.57254],"lat":[-34.97457,-34.97005,-34.96965,-34.9673]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1974","1974","1974","1974"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57254,138.57237,138.57249,138.57229],"lat":[-34.9673,-34.96503,-34.96397,-34.9612]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["175","175","175","175"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57224,138.5719,138.5713,138.57109],"lat":[-34.96102,-34.95693,-34.95493,-34.95341]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["3573","3573","3573","3573"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addCircles","args":[[-35.0045464845164,-34.95407],[138.575629968428,138.57129],50,null,null,{"interactive":true,"className":"","stroke":true,"color":"#03F","weight":5,"opacity":1,"fill":true,"fillColor":"#03F","fillOpacity":0.2},null,null,["4916","100850"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]}],"limits":{"lat":[-35.0045464845164,-34.95341],"lng":[138.57109,138.575629968428]}},"evals":[],"jsHooks":[]}</script>
 </div>
 </div>
 </section>
 <section id="both-directions-links-map" class="slide level2">
 <h2>Both Directions Links Map</h2>
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-17_11ae9b61e6a5ae57f3b4b638970dae83">
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-15_c25c6be02aa69f08e3150e7ee9a9e131">
 <div class="cell-output-display">
-<div id="htmlwidget-2e447a8fa79372113d12" style="width:960px;height:480px;" class="leaflet html-widget"></div>
-<script type="application/json" data-for="htmlwidget-2e447a8fa79372113d12">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"addTiles","args":["https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",null,null,{"minZoom":0,"maxZoom":18,"tileSize":256,"subdomains":"abc","errorTileUrl":"","tms":false,"noWrap":false,"zoomOffset":0,"zoomReverse":false,"opacity":1,"zIndex":1,"detectRetina":false,"attribution":"&copy; <a href=\"https://openstreetmap.org\">OpenStreetMap<\/a> contributors, <a href=\"https://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA<\/a>"}]},{"method":"addPolylines","args":[[[[{"lng":[138.57516,138.57483],"lat":[-34.99974,-34.99524]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1608","1608"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.5748,138.57468],"lat":[-34.99486,-34.9928]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1610","1610"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57468,138.57407],"lat":[-34.99282,-34.985]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["695","695"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57407,138.57394],"lat":[-34.985,-34.98318]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1966","1966"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57394,138.57375],"lat":[-34.98318,-34.98099]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["2871","2871"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57374,138.57363],"lat":[-34.98096,-34.97964]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["2869","2869"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57363,138.57353],"lat":[-34.97963,-34.97819]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1962","1962"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57353,138.57328],"lat":[-34.97817,-34.97457]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1970","1970"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57328,138.57295,138.57279,138.57254],"lat":[-34.97457,-34.97005,-34.96965,-34.9673]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1974","1974","1974","1974"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57254,138.57237,138.57249,138.57229],"lat":[-34.9673,-34.96503,-34.96397,-34.9612]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["175","175","175","175"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57224,138.5719,138.5713,138.57109],"lat":[-34.96102,-34.95693,-34.95493,-34.95341]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["3573","3573","3573","3573"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57214,138.57228,138.57269],"lat":[-34.95298,-34.9562,-34.96095]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["178","178","178"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57272,138.57292,138.57315,138.57329],"lat":[-34.96118,-34.96387,-34.96496,-34.96726]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["352","352","352","352"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.5733,138.57344,138.57347,138.57343,138.5737],"lat":[-34.96725,-34.96906,-34.97024,-34.97053,-34.97455]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1975","1975","1975","1975","1975"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.5737,138.57397],"lat":[-34.97455,-34.97818]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1971","1971"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57396,138.57406],"lat":[-34.97817,-34.97962]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1963","1963"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57406,138.57417],"lat":[-34.97961,-34.98093]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["2870","2870"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57418,138.57437],"lat":[-34.98094,-34.98316]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["2872","2872"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57437,138.5745],"lat":[-34.98316,-34.98498]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1967","1967"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.5745,138.5751],"lat":[-34.98498,-34.9928]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["696","696"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57511,138.57523],"lat":[-34.99281,-34.99484]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1611","1611"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57526,138.57559],"lat":[-34.99522,-34.99972]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1609","1609"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addCircles","args":[[-35.0045464845164,-34.95407],[138.575629968428,138.57129],50,null,null,{"interactive":true,"className":"","stroke":true,"color":"#03F","weight":5,"opacity":1,"fill":true,"fillColor":"#03F","fillOpacity":0.2},null,null,["4916","100850"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]},{"method":"addCircles","args":[[-35.0036629675021,-34.9547337400797],[138.575786224096,138.5721266186],50,null,null,{"interactive":true,"className":"","stroke":true,"color":"#03F","weight":5,"opacity":1,"fill":true,"fillColor":"#03F","fillOpacity":0.2},null,null,["4911","4035"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]}],"limits":{"lat":[-35.0045464845164,-34.95298],"lng":[138.57109,138.575786224096]}},"evals":[],"jsHooks":[]}</script>
+<div id="htmlwidget-f8893ee8286832ff4de6" style="width:960px;height:480px;" class="leaflet html-widget"></div>
+<script type="application/json" data-for="htmlwidget-f8893ee8286832ff4de6">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"addTiles","args":["https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",null,null,{"minZoom":0,"maxZoom":18,"tileSize":256,"subdomains":"abc","errorTileUrl":"","tms":false,"noWrap":false,"zoomOffset":0,"zoomReverse":false,"opacity":1,"zIndex":1,"detectRetina":false,"attribution":"&copy; <a href=\"https://openstreetmap.org\">OpenStreetMap<\/a> contributors, <a href=\"https://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA<\/a>"}]},{"method":"addPolylines","args":[[[[{"lng":[138.57516,138.57483],"lat":[-34.99974,-34.99524]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1608","1608"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.5748,138.57468],"lat":[-34.99486,-34.9928]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1610","1610"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57468,138.57407],"lat":[-34.99282,-34.985]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["695","695"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57407,138.57394],"lat":[-34.985,-34.98318]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1966","1966"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57394,138.57375],"lat":[-34.98318,-34.98099]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["2871","2871"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57374,138.57363],"lat":[-34.98096,-34.97964]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["2869","2869"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57363,138.57353],"lat":[-34.97963,-34.97819]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1962","1962"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57353,138.57328],"lat":[-34.97817,-34.97457]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1970","1970"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57328,138.57295,138.57279,138.57254],"lat":[-34.97457,-34.97005,-34.96965,-34.9673]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1974","1974","1974","1974"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57254,138.57237,138.57249,138.57229],"lat":[-34.9673,-34.96503,-34.96397,-34.9612]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["175","175","175","175"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57224,138.5719,138.5713,138.57109],"lat":[-34.96102,-34.95693,-34.95493,-34.95341]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":0.3,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["3573","3573","3573","3573"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57214,138.57228,138.57269],"lat":[-34.95298,-34.9562,-34.96095]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["178","178","178"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57272,138.57292,138.57315,138.57329],"lat":[-34.96118,-34.96387,-34.96496,-34.96726]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["352","352","352","352"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.5733,138.57344,138.57347,138.57343,138.5737],"lat":[-34.96725,-34.96906,-34.97024,-34.97053,-34.97455]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1975","1975","1975","1975","1975"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.5737,138.57397],"lat":[-34.97455,-34.97818]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1971","1971"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57396,138.57406],"lat":[-34.97817,-34.97962]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1963","1963"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57406,138.57417],"lat":[-34.97961,-34.98093]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["2870","2870"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57418,138.57437],"lat":[-34.98094,-34.98316]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["2872","2872"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57437,138.5745],"lat":[-34.98316,-34.98498]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1967","1967"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.5745,138.5751],"lat":[-34.98498,-34.9928]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["696","696"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57511,138.57523],"lat":[-34.99281,-34.99484]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1611","1611"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57526,138.57559],"lat":[-34.99522,-34.99972]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":0.3,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1609","1609"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addCircles","args":[[-35.0045464845164,-34.95407],[138.575629968428,138.57129],50,null,null,{"interactive":true,"className":"","stroke":true,"color":"#03F","weight":5,"opacity":1,"fill":true,"fillColor":"#03F","fillOpacity":0.2},null,null,["4916","100850"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]},{"method":"addCircles","args":[[-35.0036629675021,-34.9547337400797],[138.575786224096,138.5721266186],50,null,null,{"interactive":true,"className":"","stroke":true,"color":"#03F","weight":5,"opacity":1,"fill":true,"fillColor":"#03F","fillOpacity":0.2},null,null,["4911","4035"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]}],"limits":{"lat":[-35.0045464845164,-34.95298],"lng":[138.57109,138.575786224096]}},"evals":[],"jsHooks":[]}</script>
 </div>
 </div>
 </section>
-<section id="impute-statistics-for-links-with-no-statistics" class="slide level2 scrollable">
-<h2>Impute Statistics for Links with No Statistics</h2>
-<div class="panel-tabset">
-<ul id="tabset-5" class="panel-tabset-tabby"><li><a data-tabby-default="" href="#tabset-5-1">Steps</a></li><li><a href="#tabset-5-2">Steps 1-2 Code</a></li></ul>
-<div class="tab-content">
-<div id="tabset-5-1">
+<section id="impute-statistics-for-disabled-links" class="slide level2">
+<h2>Impute Statistics for Disabled Links</h2>
+<p>For link with missing statistics:</p>
 <ol type="1">
-<li><p>Identify linkid of link with no statistics</p></li>
-<li><p>Identify closest enabled links before and after missing link</p></li>
-<li><p>Retrieve and clean link statistics</p></li>
+<li><p>Identify closest links with stats before and after missing link</p></li>
 <li><p>For preceding and proceeding links, calculate travel time divided by the length of the link per five minute period</p></li>
-<li><p>Average (4) between the preceding and proceeding links per five minute period</p></li>
-<li><p>Multiply (5) by the length of the missing link to obtain the travel time for each five minute period</p></li>
+<li><p>Average (3) between the preceding and proceeding links per five minute period</p></li>
+<li><p>Multiply (4) by the length of the missing link to obtain the travel time for each five minute period</p></li>
 </ol>
-</div>
-<div id="tabset-5-2">
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-18_1ad7090917e9db538b4264ebe479224b">
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1"></a><span class="co"># DF for missing links imputation</span></span>
-<span id="cb3-2"><a href="#cb3-2"></a>missing_links_impute <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">from =</span> <span class="fu">character</span>(),</span>
-<span id="cb3-3"><a href="#cb3-3"></a>                               <span class="at">to =</span> <span class="fu">character</span>(),</span>
-<span id="cb3-4"><a href="#cb3-4"></a>                               <span class="at">linkid =</span> <span class="fu">numeric</span>(),</span>
-<span id="cb3-5"><a href="#cb3-5"></a>                               <span class="at">prior_linkid =</span> <span class="fu">numeric</span>(),</span>
-<span id="cb3-6"><a href="#cb3-6"></a>                               <span class="at">post_linkid =</span> <span class="fu">numeric</span>(),</span>
-<span id="cb3-7"><a href="#cb3-7"></a>                               <span class="at">direction =</span> <span class="fu">character</span>())</span>
-<span id="cb3-8"><a href="#cb3-8"></a></span>
-<span id="cb3-9"><a href="#cb3-9"></a><span class="co"># For the missing link, retrieve the link as well closest enabled previous and </span></span>
-<span id="cb3-10"><a href="#cb3-10"></a><span class="co"># proceeding links for imputation later</span></span>
-<span id="cb3-11"><a href="#cb3-11"></a>missing_links_dir1 <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">from =</span> <span class="fu">character</span>(),</span>
-<span id="cb3-12"><a href="#cb3-12"></a>                        <span class="at">to =</span> <span class="fu">character</span>())</span>
-<span id="cb3-13"><a href="#cb3-13"></a></span>
-<span id="cb3-14"><a href="#cb3-14"></a><span class="co"># Add start and end locations of missing links</span></span>
-<span id="cb3-15"><a href="#cb3-15"></a>missing_links_dir1 <span class="ot">&lt;-</span> missing_links_dir1 <span class="sc">%&gt;%</span> </span>
-<span id="cb3-16"><a href="#cb3-16"></a>  <span class="fu">add_row</span>(<span class="at">from =</span> <span class="st">"walsh"</span>,</span>
-<span id="cb3-17"><a href="#cb3-17"></a>          <span class="at">to =</span> <span class="st">"celtic"</span>)</span>
-<span id="cb3-18"><a href="#cb3-18"></a></span>
-<span id="cb3-19"><a href="#cb3-19"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">nrow</span>(missing_links_dir1)) {</span>
-<span id="cb3-20"><a href="#cb3-20"></a>  </span>
-<span id="cb3-21"><a href="#cb3-21"></a>  from <span class="ot">&lt;-</span> <span class="fu">tolower</span>(missing_links_dir1<span class="sc">$</span>from[i])</span>
-<span id="cb3-22"><a href="#cb3-22"></a>  to <span class="ot">&lt;-</span> <span class="fu">tolower</span>(missing_links_dir1<span class="sc">$</span>to[i])</span>
-<span id="cb3-23"><a href="#cb3-23"></a>  </span>
-<span id="cb3-24"><a href="#cb3-24"></a>  <span class="cf">for</span> (a <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="fu">nrow</span>(links_dir1)) {</span>
-<span id="cb3-25"><a href="#cb3-25"></a>    <span class="co"># Get linkid for missing link</span></span>
-<span id="cb3-26"><a href="#cb3-26"></a>    <span class="cf">if</span> (<span class="fu">str_starts</span>(<span class="fu">tolower</span>(links_dir1<span class="sc">$</span>start_loc[a]), from) <span class="sc">&amp;&amp;</span> <span class="fu">str_starts</span>(<span class="fu">tolower</span>(links_dir1<span class="sc">$</span>end_loc[a]), to)) {</span>
-<span id="cb3-27"><a href="#cb3-27"></a>      </span>
-<span id="cb3-28"><a href="#cb3-28"></a>      linkid <span class="ot">&lt;-</span> links_dir1<span class="sc">$</span>linkid[a]</span>
-<span id="cb3-29"><a href="#cb3-29"></a></span>
-<span id="cb3-30"><a href="#cb3-30"></a>      <span class="co"># Retrieve last prior link that is enabled</span></span>
-<span id="cb3-31"><a href="#cb3-31"></a>      prior_linkid <span class="ot">&lt;-</span> links_dir1[<span class="dv">1</span><span class="sc">:</span>a<span class="dv">-1</span>,] <span class="sc">%&gt;%</span></span>
-<span id="cb3-32"><a href="#cb3-32"></a>        <span class="fu">filter</span>(enabled) <span class="sc">%&gt;%</span></span>
-<span id="cb3-33"><a href="#cb3-33"></a>        <span class="fu">slice_tail</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb3-34"><a href="#cb3-34"></a>        <span class="fu">pull</span>(linkid)</span>
-<span id="cb3-35"><a href="#cb3-35"></a></span>
-<span id="cb3-36"><a href="#cb3-36"></a>      <span class="co"># Retrieve first proceeding link that is enabled</span></span>
-<span id="cb3-37"><a href="#cb3-37"></a>      post_linkid <span class="ot">&lt;-</span> links_dir1[a<span class="sc">+</span><span class="dv">1</span><span class="sc">:</span><span class="fu">nrow</span>(links_dir1),] <span class="sc">%&gt;%</span></span>
-<span id="cb3-38"><a href="#cb3-38"></a>        <span class="fu">filter</span>(enabled) <span class="sc">%&gt;%</span></span>
-<span id="cb3-39"><a href="#cb3-39"></a>        <span class="fu">slice_head</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb3-40"><a href="#cb3-40"></a>        <span class="fu">pull</span>(linkid)</span>
-<span id="cb3-41"><a href="#cb3-41"></a></span>
-<span id="cb3-42"><a href="#cb3-42"></a>      missing_links_impute <span class="ot">&lt;-</span> missing_links_impute <span class="sc">%&gt;%</span></span>
-<span id="cb3-43"><a href="#cb3-43"></a>        <span class="fu">add_row</span>(<span class="at">from =</span> from,</span>
-<span id="cb3-44"><a href="#cb3-44"></a>                <span class="at">to =</span> to,</span>
-<span id="cb3-45"><a href="#cb3-45"></a>                <span class="at">linkid =</span> linkid,</span>
-<span id="cb3-46"><a href="#cb3-46"></a>                <span class="at">prior_linkid =</span> prior_linkid,</span>
-<span id="cb3-47"><a href="#cb3-47"></a>                <span class="at">post_linkid =</span> post_linkid,</span>
-<span id="cb3-48"><a href="#cb3-48"></a>                <span class="at">direction =</span> directions[<span class="dv">1</span>])</span>
-<span id="cb3-49"><a href="#cb3-49"></a>      <span class="cf">break</span></span>
-<span id="cb3-50"><a href="#cb3-50"></a>    }</span>
-<span id="cb3-51"><a href="#cb3-51"></a>  }</span>
-<span id="cb3-52"><a href="#cb3-52"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
-</div>
-</div>
-</div>
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-19_846136079e9b7b31c687f8e98da02219">
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-16_08622f27e859395b43f54deda4df4016">
 
 </div>
-</section>
-<section id="link-statistics" class="slide level2">
-<h2>Link Statistics</h2>
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-20_be63d48ebaf42a7448ca55b58c6baf76">
-<div class="cell-output-display">
-
-<table class="table" style="margin-left: auto; margin-right: auto;">
- <thead>
-  <tr>
-   <th style="text-align:left;"> Variable </th>
-   <th style="text-align:left;"> Description </th>
-  </tr>
- </thead>
-<tbody>
-  <tr>
-   <td style="text-align:left;"> logtime </td>
-   <td style="text-align:left;"> Current interval timestamp </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> linkid </td>
-   <td style="text-align:left;"> Unique link identifier </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> tt </td>
-   <td style="text-align:left;"> Travel time in seconds </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> direction </td>
-   <td style="text-align:left;"> The link direction of travel. From links dataset </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> length </td>
-   <td style="text-align:left;"> The link length in metres. From links dataset </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> speed </td>
-   <td style="text-align:left;"> Calculated speed in km/h. Created </td>
-  </tr>
-</tbody>
-</table>
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-17_dfe0b2ee5cc284761023d2d9c95d965e">
 
 </div>
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-18_4d0834e5691386f78fc93967f89faff3">
+
 </div>
-<aside class="notes">
-<ul>
-<li>Link statistics for links on segment as well as links used for imputation</li>
-</ul>
-<style type="text/css">
-        span.MJX_Assistive_MathML {
-          position:absolute!important;
-          clip: rect(1px, 1px, 1px, 1px);
-          padding: 1px 0 0 0!important;
-          border: 0!important;
-          height: 1px!important;
-          width: 1px!important;
-          overflow: hidden!important;
-          display:block!important;
-      }</style></aside>
-</section>
-<section id="links-statistics-cleaning" class="slide level2">
-<h2>Links Statistics Cleaning</h2>
-<div class="panel-tabset">
-<ul id="tabset-6" class="panel-tabset-tabby"><li><a data-tabby-default="" href="#tabset-6-1">Pre-Cleaning</a></li><li><a href="#tabset-6-2">Post-Cleaning</a></li></ul>
-<div class="tab-content">
-<div id="tabset-6-1">
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-21_3ce2c4d3c26eea7d69720fb4e7859fb4">
-<div class="cell-output-display">
-<div class="quarto-figure quarto-figure-center">
-<figure>
-<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-21-1.png" width="960"></p>
-</figure>
-</div>
-</div>
-</div>
-</div>
-<div id="tabset-6-2">
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-22_52808f1859027c712d6babc9d8d5d0bb">
-<div class="cell-output-display">
-<div class="quarto-figure quarto-figure-center">
-<figure>
-<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-22-1.png" width="960"></p>
-</figure>
-</div>
-</div>
-</div>
-</div>
-</div>
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-19_78159c4167c6214a26d17901a60fd064">
+
 </div>
 </section>
 <section id="maps-of-links-before-imputation" class="slide level2">
 <h2>Maps of Links Before Imputation</h2>
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-23_80a8bc931455e82eadb7406d198057c6">
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-20_7049486693ded1cfece4922877743041">
 <div class="cell-output-display">
-<div id="htmlwidget-0035fa8e4faa7acf44ba" style="width:960px;height:480px;" class="leaflet html-widget"></div>
-<script type="application/json" data-for="htmlwidget-0035fa8e4faa7acf44ba">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"addTiles","args":["https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",null,null,{"minZoom":0,"maxZoom":18,"tileSize":256,"subdomains":"abc","errorTileUrl":"","tms":false,"noWrap":false,"zoomOffset":0,"zoomReverse":false,"opacity":1,"zIndex":1,"detectRetina":false,"attribution":"&copy; <a href=\"https://openstreetmap.org\">OpenStreetMap<\/a> contributors, <a href=\"https://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA<\/a>"}]},{"method":"addPolylines","args":[[[[{"lng":[138.57224,138.5719,138.5713,138.57109],"lat":[-34.96102,-34.95693,-34.95493,-34.95341]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["3573","3573","3573","3573"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57418,138.57437],"lat":[-34.98094,-34.98316]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["2872","2872"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57394,138.57375],"lat":[-34.98318,-34.98099]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["2871","2871"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57406,138.57417],"lat":[-34.97961,-34.98093]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["2870","2870"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57374,138.57363],"lat":[-34.98096,-34.97964]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["2869","2869"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.5733,138.57344,138.57347,138.57343,138.5737],"lat":[-34.96725,-34.96906,-34.97024,-34.97053,-34.97455]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1975","1975","1975","1975","1975"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57328,138.57295,138.57279,138.57254],"lat":[-34.97457,-34.97005,-34.96965,-34.9673]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1974","1974","1974","1974"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.5737,138.57397],"lat":[-34.97455,-34.97818]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1971","1971"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57353,138.57328],"lat":[-34.97817,-34.97457]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1970","1970"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57437,138.5745],"lat":[-34.98316,-34.98498]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1967","1967"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57407,138.57394],"lat":[-34.985,-34.98318]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1966","1966"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57396,138.57406],"lat":[-34.97817,-34.97962]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1963","1963"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57363,138.57353],"lat":[-34.97963,-34.97819]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1962","1962"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57511,138.57523],"lat":[-34.99281,-34.99484]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1611","1611"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.5748,138.57468],"lat":[-34.99486,-34.9928]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1610","1610"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57526,138.57559],"lat":[-34.99522,-34.99972]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1609","1609"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57516,138.57483],"lat":[-34.99974,-34.99524]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1608","1608"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.5745,138.5751],"lat":[-34.98498,-34.9928]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["696","696"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57468,138.57407],"lat":[-34.99282,-34.985]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["695","695"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57272,138.57292,138.57315,138.57329],"lat":[-34.96118,-34.96387,-34.96496,-34.96726]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["352","352","352","352"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57214,138.57228,138.57269],"lat":[-34.95298,-34.9562,-34.96095]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["178","178","178"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57254,138.57237,138.57249,138.57229],"lat":[-34.9673,-34.96503,-34.96397,-34.9612]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["175","175","175","175"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57559,138.57581],"lat":[-34.99972,-35.0031]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":1,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1607","1607"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57538,138.57516],"lat":[-35.00312,-34.99974]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":1,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1606","1606"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addCircles","args":[[-35.0045464845164,-34.95407],[138.575629968428,138.57129],50,null,null,{"interactive":true,"className":"","stroke":true,"color":"#03F","weight":5,"opacity":1,"fill":true,"fillColor":"#03F","fillOpacity":0.2},null,null,["4916","100850"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]},{"method":"addCircles","args":[[-35.0036629675021,-34.9547337400797],[138.575786224096,138.5721266186],50,null,null,{"interactive":true,"className":"","stroke":true,"color":"#03F","weight":5,"opacity":1,"fill":true,"fillColor":"#03F","fillOpacity":0.2},null,null,["4911","4035"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]}],"limits":{"lat":[-35.0045464845164,-34.95298],"lng":[138.57109,138.57581]}},"evals":[],"jsHooks":[]}</script>
+<div id="htmlwidget-b73ce5883f78adfa6493" style="width:960px;height:480px;" class="leaflet html-widget"></div>
+<script type="application/json" data-for="htmlwidget-b73ce5883f78adfa6493">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"addTiles","args":["https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",null,null,{"minZoom":0,"maxZoom":18,"tileSize":256,"subdomains":"abc","errorTileUrl":"","tms":false,"noWrap":false,"zoomOffset":0,"zoomReverse":false,"opacity":1,"zIndex":1,"detectRetina":false,"attribution":"&copy; <a href=\"https://openstreetmap.org\">OpenStreetMap<\/a> contributors, <a href=\"https://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA<\/a>"}]},{"method":"addPolylines","args":[[[[{"lng":[138.57224,138.5719,138.5713,138.57109],"lat":[-34.96102,-34.95693,-34.95493,-34.95341]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["3573","3573","3573","3573"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57418,138.57437],"lat":[-34.98094,-34.98316]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["2872","2872"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57394,138.57375],"lat":[-34.98318,-34.98099]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["2871","2871"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57406,138.57417],"lat":[-34.97961,-34.98093]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["2870","2870"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57374,138.57363],"lat":[-34.98096,-34.97964]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["2869","2869"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.5733,138.57344,138.57347,138.57343,138.5737],"lat":[-34.96725,-34.96906,-34.97024,-34.97053,-34.97455]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1975","1975","1975","1975","1975"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57328,138.57295,138.57279,138.57254],"lat":[-34.97457,-34.97005,-34.96965,-34.9673]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1974","1974","1974","1974"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.5737,138.57397],"lat":[-34.97455,-34.97818]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1971","1971"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57353,138.57328],"lat":[-34.97817,-34.97457]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1970","1970"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57437,138.5745],"lat":[-34.98316,-34.98498]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1967","1967"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57407,138.57394],"lat":[-34.985,-34.98318]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1966","1966"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57396,138.57406],"lat":[-34.97817,-34.97962]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1963","1963"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57363,138.57353],"lat":[-34.97963,-34.97819]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1962","1962"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57511,138.57523],"lat":[-34.99281,-34.99484]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1611","1611"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.5748,138.57468],"lat":[-34.99486,-34.9928]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1610","1610"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57526,138.57559],"lat":[-34.99522,-34.99972]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1609","1609"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57516,138.57483],"lat":[-34.99974,-34.99524]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1608","1608"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.5745,138.5751],"lat":[-34.98498,-34.9928]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["696","696"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57468,138.57407],"lat":[-34.99282,-34.985]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["695","695"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57272,138.57292,138.57315,138.57329],"lat":[-34.96118,-34.96387,-34.96496,-34.96726]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["352","352","352","352"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57214,138.57228,138.57269],"lat":[-34.95298,-34.9562,-34.96095]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["178","178","178"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57254,138.57237,138.57249,138.57229],"lat":[-34.9673,-34.96503,-34.96397,-34.9612]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["175","175","175","175"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57559,138.57581],"lat":[-34.99972,-35.0031]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":1,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1607","1607"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57538,138.57516],"lat":[-35.00312,-34.99974]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"red","weight":5,"opacity":1,"fill":false,"fillColor":"red","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1606","1606"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addCircles","args":[[-35.0045464845164,-34.95407],[138.575629968428,138.57129],50,null,null,{"interactive":true,"className":"","stroke":true,"color":"#03F","weight":5,"opacity":1,"fill":true,"fillColor":"#03F","fillOpacity":0.2},null,null,["4916","100850"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]},{"method":"addCircles","args":[[-35.0036629675021,-34.9547337400797],[138.575786224096,138.5721266186],50,null,null,{"interactive":true,"className":"","stroke":true,"color":"#03F","weight":5,"opacity":1,"fill":true,"fillColor":"#03F","fillOpacity":0.2},null,null,["4911","4035"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]}],"limits":{"lat":[-35.0045464845164,-34.95298],"lng":[138.57109,138.57581]}},"evals":[],"jsHooks":[]}</script>
 </div>
 </div>
 </section>
 <section id="maps-of-links-after-imputation" class="slide level2">
 <h2>Maps of Links After Imputation</h2>
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-24_83aa3488b62994eefbd1d03e0ea76bb7">
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-21_dde31fbb7eef285c7251d225a1696669">
 <div class="cell-output-display">
-<div id="htmlwidget-df4be29b557065affc88" style="width:960px;height:480px;" class="leaflet html-widget"></div>
-<script type="application/json" data-for="htmlwidget-df4be29b557065affc88">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"addTiles","args":["https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",null,null,{"minZoom":0,"maxZoom":18,"tileSize":256,"subdomains":"abc","errorTileUrl":"","tms":false,"noWrap":false,"zoomOffset":0,"zoomReverse":false,"opacity":1,"zIndex":1,"detectRetina":false,"attribution":"&copy; <a href=\"https://openstreetmap.org\">OpenStreetMap<\/a> contributors, <a href=\"https://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA<\/a>"}]},{"method":"addPolylines","args":[[[[{"lng":[138.57224,138.5719,138.5713,138.57109],"lat":[-34.96102,-34.95693,-34.95493,-34.95341]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["3573","3573","3573","3573"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57418,138.57437],"lat":[-34.98094,-34.98316]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["2872","2872"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57394,138.57375],"lat":[-34.98318,-34.98099]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["2871","2871"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57406,138.57417],"lat":[-34.97961,-34.98093]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["2870","2870"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57374,138.57363],"lat":[-34.98096,-34.97964]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["2869","2869"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.5733,138.57344,138.57347,138.57343,138.5737],"lat":[-34.96725,-34.96906,-34.97024,-34.97053,-34.97455]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1975","1975","1975","1975","1975"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57328,138.57295,138.57279,138.57254],"lat":[-34.97457,-34.97005,-34.96965,-34.9673]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1974","1974","1974","1974"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.5737,138.57397],"lat":[-34.97455,-34.97818]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1971","1971"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57353,138.57328],"lat":[-34.97817,-34.97457]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1970","1970"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57437,138.5745],"lat":[-34.98316,-34.98498]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1967","1967"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57407,138.57394],"lat":[-34.985,-34.98318]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1966","1966"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57396,138.57406],"lat":[-34.97817,-34.97962]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1963","1963"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57363,138.57353],"lat":[-34.97963,-34.97819]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1962","1962"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57511,138.57523],"lat":[-34.99281,-34.99484]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1611","1611"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.5748,138.57468],"lat":[-34.99486,-34.9928]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1610","1610"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57526,138.57559],"lat":[-34.99522,-34.99972]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1609","1609"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57516,138.57483],"lat":[-34.99974,-34.99524]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1608","1608"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57559,138.57581],"lat":[-34.99972,-35.0031]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1607","1607"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57538,138.57516],"lat":[-35.00312,-34.99974]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1606","1606"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.5745,138.5751],"lat":[-34.98498,-34.9928]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["696","696"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57468,138.57407],"lat":[-34.99282,-34.985]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["695","695"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57272,138.57292,138.57315,138.57329],"lat":[-34.96118,-34.96387,-34.96496,-34.96726]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["352","352","352","352"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57214,138.57228,138.57269],"lat":[-34.95298,-34.9562,-34.96095]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["178","178","178"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57254,138.57237,138.57249,138.57229],"lat":[-34.9673,-34.96503,-34.96397,-34.9612]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["175","175","175","175"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addCircles","args":[[-35.0045464845164,-34.95407],[138.575629968428,138.57129],50,null,null,{"interactive":true,"className":"","stroke":true,"color":"#03F","weight":5,"opacity":1,"fill":true,"fillColor":"#03F","fillOpacity":0.2},null,null,["4916","100850"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]},{"method":"addCircles","args":[[-35.0036629675021,-34.9547337400797],[138.575786224096,138.5721266186],50,null,null,{"interactive":true,"className":"","stroke":true,"color":"#03F","weight":5,"opacity":1,"fill":true,"fillColor":"#03F","fillOpacity":0.2},null,null,["4911","4035"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]}],"limits":{"lat":[-35.0045464845164,-34.95298],"lng":[138.57109,138.57581]}},"evals":[],"jsHooks":[]}</script>
+<div id="htmlwidget-e316645313b74228c7db" style="width:960px;height:480px;" class="leaflet html-widget"></div>
+<script type="application/json" data-for="htmlwidget-e316645313b74228c7db">{"x":{"options":{"crs":{"crsClass":"L.CRS.EPSG3857","code":null,"proj4def":null,"projectedBounds":null,"options":{}}},"calls":[{"method":"addTiles","args":["https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",null,null,{"minZoom":0,"maxZoom":18,"tileSize":256,"subdomains":"abc","errorTileUrl":"","tms":false,"noWrap":false,"zoomOffset":0,"zoomReverse":false,"opacity":1,"zIndex":1,"detectRetina":false,"attribution":"&copy; <a href=\"https://openstreetmap.org\">OpenStreetMap<\/a> contributors, <a href=\"https://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA<\/a>"}]},{"method":"addPolylines","args":[[[[{"lng":[138.57224,138.5719,138.5713,138.57109],"lat":[-34.96102,-34.95693,-34.95493,-34.95341]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["3573","3573","3573","3573"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57418,138.57437],"lat":[-34.98094,-34.98316]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["2872","2872"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57394,138.57375],"lat":[-34.98318,-34.98099]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["2871","2871"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57406,138.57417],"lat":[-34.97961,-34.98093]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["2870","2870"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57374,138.57363],"lat":[-34.98096,-34.97964]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["2869","2869"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.5733,138.57344,138.57347,138.57343,138.5737],"lat":[-34.96725,-34.96906,-34.97024,-34.97053,-34.97455]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1975","1975","1975","1975","1975"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57328,138.57295,138.57279,138.57254],"lat":[-34.97457,-34.97005,-34.96965,-34.9673]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1974","1974","1974","1974"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.5737,138.57397],"lat":[-34.97455,-34.97818]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1971","1971"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57353,138.57328],"lat":[-34.97817,-34.97457]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1970","1970"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57437,138.5745],"lat":[-34.98316,-34.98498]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1967","1967"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57407,138.57394],"lat":[-34.985,-34.98318]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1966","1966"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57396,138.57406],"lat":[-34.97817,-34.97962]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1963","1963"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57363,138.57353],"lat":[-34.97963,-34.97819]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1962","1962"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57511,138.57523],"lat":[-34.99281,-34.99484]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1611","1611"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.5748,138.57468],"lat":[-34.99486,-34.9928]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1610","1610"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57526,138.57559],"lat":[-34.99522,-34.99972]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1609","1609"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57516,138.57483],"lat":[-34.99974,-34.99524]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1608","1608"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57559,138.57581],"lat":[-34.99972,-35.0031]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1607","1607"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57538,138.57516],"lat":[-35.00312,-34.99974]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["1606","1606"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.5745,138.5751],"lat":[-34.98498,-34.9928]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["696","696"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57468,138.57407],"lat":[-34.99282,-34.985]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["695","695"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57272,138.57292,138.57315,138.57329],"lat":[-34.96118,-34.96387,-34.96496,-34.96726]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["352","352","352","352"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57214,138.57228,138.57269],"lat":[-34.95298,-34.9562,-34.96095]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["178","178","178"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addPolylines","args":[[[[{"lng":[138.57254,138.57237,138.57249,138.57229],"lat":[-34.9673,-34.96503,-34.96397,-34.9612]}]]],null,null,{"interactive":true,"className":"","stroke":true,"color":"green","weight":5,"opacity":1,"fill":false,"fillColor":"green","fillOpacity":0.2,"smoothFactor":1,"noClip":false},null,null,["175","175","175","175"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null]},{"method":"addCircles","args":[[-35.0045464845164,-34.95407],[138.575629968428,138.57129],50,null,null,{"interactive":true,"className":"","stroke":true,"color":"#03F","weight":5,"opacity":1,"fill":true,"fillColor":"#03F","fillOpacity":0.2},null,null,["4916","100850"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]},{"method":"addCircles","args":[[-35.0036629675021,-34.9547337400797],[138.575786224096,138.5721266186],50,null,null,{"interactive":true,"className":"","stroke":true,"color":"#03F","weight":5,"opacity":1,"fill":true,"fillColor":"#03F","fillOpacity":0.2},null,null,["4911","4035"],{"interactive":false,"permanent":false,"direction":"auto","opacity":1,"offset":[0,0],"textsize":"10px","textOnly":false,"className":"","sticky":true},null,null]}],"limits":{"lat":[-35.0045464845164,-34.95298],"lng":[138.57109,138.57581]}},"evals":[],"jsHooks":[]}</script>
 </div>
 </div>
 </section>
-<section id="links-statistics-1" class="slide level2 scrollable">
+<section id="links-statistics" class="slide level2 scrollable">
 <h2>Links Statistics</h2>
-<p>The travel time of all the links in the same five minute period will be summed, per direction, to give the travel time per the segment</p>
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-25_6391302e1c4ab07758504135e35bc63e">
-<div class="cell-output-display">
+<p>The travel time of all the links in the same five minute period will be summed, per direction, to give the total travel time on the segment</p>
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-22_921519de329f74b1578ef33d0c7376d6">
 
-<table class="table" style="margin-left: auto; margin-right: auto;">
- <thead>
-  <tr>
-   <th style="text-align:left;"> Variable </th>
-   <th style="text-align:left;"> Description </th>
-  </tr>
- </thead>
-<tbody>
-  <tr>
-   <td style="text-align:left;"> day </td>
-   <td style="text-align:left;"> Date of measurement </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> time </td>
-   <td style="text-align:left;"> Time of the day in hour:minute:seconds of the measurement </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> hour </td>
-   <td style="text-align:left;"> The hour of the measurement </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> rush </td>
-   <td style="text-align:left;"> Whether the measurement occurrs during rush hour.
-                          Morning rush hour occurrs between 6:30am and 10am,
-                          evening rush hour occurrs between 3:30pm and 7pm,
-                          neither otherwise </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> direction </td>
-   <td style="text-align:left;"> The direction of travel </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> links_time </td>
-   <td style="text-align:left;"> The total travel time across the segment </td>
-  </tr>
-</tbody>
-</table>
-
-</div>
 </div>
 </section>
 <section id="travel-times-comparison" class="slide level2">
@@ -1302,20 +720,19 @@
 <li><p>General understanding of the relationship</p></li>
 <li><p>Validate data</p></li>
 </ul>
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-26_50c7954b12cebdc7f73879112ba162f1">
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-23_246d16d047def9847929c0c7007b503f">
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure>
-<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-26-1.png" width="960"></p>
+<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-23-1.png" width="960"></p>
 </figure>
 </div>
 </div>
 </div>
 <aside class="notes">
 <ul>
-<li><p>For northbound travel to the city, vehicle travel time largely remains the same during both periods of rush hour, while bus travel time actually increases in the evening, a surprising result.</p></li>
+<li><p>For northbound travel to the city, vehicle travel time largely remains the same during both periods of rush hour, while bus travel times actually increase in the evening, a surprising result.</p></li>
 <li><p>For southbound travel away from the city, both travel times in the evening increase as expected and are more varied than the travel times in the morning.</p></li>
-<li><p>The bus travel times are generally slower than vehicle travel times as expected, and both types exhibit general patterns overall.</p></li>
 </ul>
 <style type="text/css">
         span.MJX_Assistive_MathML {
@@ -1332,25 +749,25 @@
 <section id="travel-times-calendar" class="slide level2">
 <h2>Travel Times Calendar</h2>
 <div class="panel-tabset">
-<ul id="tabset-7" class="panel-tabset-tabby"><li><a data-tabby-default="" href="#tabset-7-1">Northbound</a></li><li><a href="#tabset-7-2">Southbound</a></li></ul>
+<ul id="tabset-2" class="panel-tabset-tabby"><li><a data-tabby-default="" href="#tabset-2-1">Northbound</a></li><li><a href="#tabset-2-2">Southbound</a></li></ul>
 <div class="tab-content">
-<div id="tabset-7-1">
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-27_f934eeed6f3de3a62e23a271aee01e1e">
+<div id="tabset-2-1">
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-24_ca5233d9ba2e2d5286d2384241dbae11">
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure>
-<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-27-1.png" width="960"></p>
+<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-24-1.png" width="960"></p>
 </figure>
 </div>
 </div>
 </div>
 </div>
-<div id="tabset-7-2">
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-28_e2140bacfa067f4af5f0896d11c2c5a9">
+<div id="tabset-2-2">
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-25_0692a09c8836631685b4a62e579f0e87">
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure>
-<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-28-1.png" width="960"></p>
+<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-25-1.png" width="960"></p>
 </figure>
 </div>
 </div>
@@ -1359,12 +776,7 @@
 </div>
 </div>
 <aside class="notes">
-<ul>
-<li><p>Client asked to validate the data</p></li>
-<li><p>Similar patterns</p></li>
-<li><p>Buses always slower</p></li>
-<li><p>Towards the end of the day in both directions, the travel times seem to level off at a low value, this is likely due to less traffic being present on the road in the evening time, leading to a faster traversal through the segment, with only constant factors affecting the travel time such as the speed limit and traffic lights.</p></li>
-</ul>
+<p>Client asked to validate the DIT data by looking for similarity in the patterns from both data sets</p>
 <style type="text/css">
         span.MJX_Assistive_MathML {
           position:absolute!important;
@@ -1379,94 +791,23 @@
 </section>
 <section id="average-day-travel-time" class="slide level2">
 <h2>Average Day Travel Time</h2>
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-29_e27dfbf07bc9ea56879a0db6febfcb29">
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-26_432edab258480d39b6613bc366e13c13">
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure>
-<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-29-1.png" width="960"></p>
+<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-26-1.png" width="960"></p>
 </figure>
 </div>
 </div>
 </div>
 <aside class="notes">
 <ul>
-<li><p>30 minute aggregates across all days</p></li>
+<li><p>Calculated by averaging all the trips within the same 30 minute period across the entire month</p></li>
 <li><p>morning and evening rush hours highlighted</p></li>
-<li><p>northbound travel towards the city, both rush hour times display a similar level of travel time for both types, and the travel time in the rush hours are not much greater than non-rush hour times. This is an unexpected result as it is expected that travel times northbound towards the city would be higher in the morning rush hour</p></li>
+<li><p>Travel times between both types largely similar</p></li>
+<li><p>northbound travel towards the city: travel times are the same for both rush hours, and the travel time in the rush hours are not much greater than non-rush hour times</p></li>
 <li><p>Southbound travel away from the city, however, follows expectations as the travel time for both types dramatically increases in the evening rush hour as workers leave the city.</p></li>
 </ul>
-<style type="text/css">
-        span.MJX_Assistive_MathML {
-          position:absolute!important;
-          clip: rect(1px, 1px, 1px, 1px);
-          padding: 1px 0 0 0!important;
-          border: 0!important;
-          height: 1px!important;
-          width: 1px!important;
-          overflow: hidden!important;
-          display:block!important;
-      }</style></aside>
-</section>
-<section id="scatter-plot-and-correlation" class="slide level2">
-<h2>Scatter Plot and Correlation</h2>
-<div class="panel-tabset">
-<ul id="tabset-8" class="panel-tabset-tabby"><li><a data-tabby-default="" href="#tabset-8-1">Plot</a></li><li><a href="#tabset-8-2">Correlation</a></li></ul>
-<div class="tab-content">
-<div id="tabset-8-1">
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-30_9b8e17801d18d064f95e6a48281fdee6">
-<div class="cell-output-display">
-<div class="quarto-figure quarto-figure-center">
-<figure>
-<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-30-1.png" width="960"></p>
-</figure>
-</div>
-</div>
-</div>
-</div>
-<div id="tabset-8-2">
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-31_35442a443315ccf1da0ad460791bd686">
-<div class="cell-output-display">
-
-<table class="table" style="width: auto !important; margin-left: auto; margin-right: auto;">
-<caption>Correlation between travel times per direction per rush hour</caption>
- <thead>
-  <tr>
-   <th style="text-align:left;"> Rush </th>
-   <th style="text-align:left;"> Direction </th>
-   <th style="text-align:right;"> Correlation </th>
-  </tr>
- </thead>
-<tbody>
-  <tr>
-   <td style="text-align:left;"> Morning </td>
-   <td style="text-align:left;"> NB </td>
-   <td style="text-align:right;"> 0.79 </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> Morning </td>
-   <td style="text-align:left;"> SB </td>
-   <td style="text-align:right;"> 0.49 </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> Evening </td>
-   <td style="text-align:left;"> NB </td>
-   <td style="text-align:right;"> 0.67 </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> Evening </td>
-   <td style="text-align:left;"> SB </td>
-   <td style="text-align:right;"> 0.87 </td>
-  </tr>
-</tbody>
-</table>
-
-</div>
-</div>
-</div>
-</div>
-</div>
-<aside class="notes">
-<p>positive relationship, especially southbound evening</p>
 <style type="text/css">
         span.MJX_Assistive_MathML {
           position:absolute!important;
@@ -1482,7 +823,7 @@
 <section id="standardize-travel-times" class="slide level2">
 <h2>Standardize Travel Times</h2>
 <ul>
-<li><p>Allows cross examination of variations from “normal”</p></li>
+<li><p>Allows examination of the relationship of variations from “normal”</p></li>
 <li><p>Function <code>standardizer</code> created to standardize both types of travel times with respect to one of:</p>
 <ul>
 <li><p>five minute period across the month</p></li>
@@ -1491,53 +832,32 @@
 </ul></li>
 </ul>
 <p>Function default is hour</p>
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-32_224ce62da7de03eae0aaf25ed2f49e2c">
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-27_b706f1f70855ff11a69c2e1df3445f2e">
 
 </div>
-<aside class="notes">
-<ul>
-<li><p>Travel time naturally changes across the day</p></li>
-<li><p>Need to compare to “normal” per timeframe</p></li>
-<li><p>if the vehicle travel time varies by a certain level relative to the usual travel time during the same time frame, can we observe a reflection of this variation in the bus travel time? If so, by how much?</p></li>
-<li><p>if correlation is low, bus network more resilient</p></li>
-<li><p>As the time frame widens, more data is available for standardization, but the standardization takes a wider time range, leading to bias</p></li>
-<li><p>Remove observations more than 3 standard deviations away</p></li>
-<li><p>Maximum 21 5 minute periods</p></li>
-</ul>
-<style type="text/css">
-        span.MJX_Assistive_MathML {
-          position:absolute!important;
-          clip: rect(1px, 1px, 1px, 1px);
-          padding: 1px 0 0 0!important;
-          border: 0!important;
-          height: 1px!important;
-          width: 1px!important;
-          overflow: hidden!important;
-          display:block!important;
-      }</style></aside>
 </section>
 <section id="standardized-travel-times" class="slide level2">
 <h2>Standardized Travel Times</h2>
 <div class="panel-tabset">
-<ul id="tabset-9" class="panel-tabset-tabby"><li><a data-tabby-default="" href="#tabset-9-1">Northbound - Morning</a></li><li><a href="#tabset-9-2">Southbound - Evening</a></li></ul>
+<ul id="tabset-3" class="panel-tabset-tabby"><li><a data-tabby-default="" href="#tabset-3-1">Northbound - Morning</a></li><li><a href="#tabset-3-2">Southbound - Evening</a></li></ul>
 <div class="tab-content">
-<div id="tabset-9-1">
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-33_1294f4fff1d974c2d9cbce7ecf799f35">
+<div id="tabset-3-1">
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-28_c851c61610f390773b0322637d22dcc0">
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure>
-<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-33-1.png" width="960"></p>
+<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-28-1.png" width="960"></p>
 </figure>
 </div>
 </div>
 </div>
 </div>
-<div id="tabset-9-2">
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-34_d8c942eb1f8fc9153642bbb3867a8953">
+<div id="tabset-3-2">
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-29_e482196fc346ccc06166a562c2ee01fe">
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure>
-<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-34-1.png" width="960"></p>
+<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-29-1.png" width="960"></p>
 </figure>
 </div>
 </div>
@@ -1561,11 +881,11 @@
 </section>
 <section id="standardized-travel-times-distributions" class="slide level2">
 <h2>Standardized Travel Times Distributions</h2>
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-35_622f03571c621c5a42435036d08cdc6b">
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-30_520aba984bd824e1ceb0f5021a75a226">
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure>
-<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-35-1.png" width="960"></p>
+<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-30-1.png" width="960"></p>
 </figure>
 </div>
 </div>
@@ -1587,21 +907,21 @@
 <section id="scatter-plots-and-correlation" class="slide level2">
 <h2>Scatter Plots and Correlation</h2>
 <div class="panel-tabset">
-<ul id="tabset-10" class="panel-tabset-tabby"><li><a data-tabby-default="" href="#tabset-10-1">Scatter Plots</a></li><li><a href="#tabset-10-2">Correlation</a></li></ul>
+<ul id="tabset-4" class="panel-tabset-tabby"><li><a data-tabby-default="" href="#tabset-4-1">Scatter Plots</a></li><li><a href="#tabset-4-2">Correlation</a></li></ul>
 <div class="tab-content">
-<div id="tabset-10-1">
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-36_3ffcf6cb8684f7404dc72e9ab2e4cd8a">
+<div id="tabset-4-1">
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-31_836879a10e0ca4aa19826c56469d41c4">
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure>
-<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-36-1.png" width="960"></p>
+<p><img data-src="presentation_files/figure-revealjs/unnamed-chunk-31-1.png" width="960"></p>
 </figure>
 </div>
 </div>
 </div>
 </div>
-<div id="tabset-10-2">
-<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-37_ed8ccee4799603202537b15b2eb563d5">
+<div id="tabset-4-2">
+<div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-32_b228d1ce804b4bdc98a5b1f120062463">
 <div class="cell-output-display">
 
 <table class="table" style="margin-left: auto; margin-right: auto;">
@@ -1655,19 +975,19 @@
           display:block!important;
       }</style></aside>
 </section>
-<section id="findings" class="slide level2 scrollable">
+<section id="findings" class="slide level2" style="font-size: 31px;">
 <h2>Findings</h2>
 <ul>
-<li><p>In the evening from the city, travel time is greater and more varied than travel time in the morning to the city across the entire peak time and period</p></li>
-<li><p>The standardization with respect to time of day shows that morning travel times to the city vary to a greater extent than evening travel times from the city</p></li>
-<li><p>The evening southbound correlation is strong between the standardized travel times, however the variations are relatively small, therefore it’s difficult to infer the bus transportation robustness to congestion</p></li>
-<li><p>The morning standardized travel times towards the city are more varied and the correlation is lower, implying the bus transportation is relatively more robust to congestion</p></li>
+<li><p>In the evening from the city, absolute travel times are greater and more varied than those in the morning towards the city</p></li>
+<li><p>The standardization of the the travel times with respect to the time of day indicates that while evening travel times from the city are greater in absolute terms, they are consistently so. Whereas the variation of the morning travel time towards the city is more varied while taking less time in absolute terms</p></li>
+<li><p>The evening southbound correlation is strong between the standardized travel times, however the variations are relatively small, therefore it’s difficult to infer the bus transportation robustness to congestion as larger variation magnitudes would have to be observed and examined</p></li>
+<li><p>The morning standardized travel times towards the city are more varied and the correlation is lower, implying the bus transportation is relatively more robust to congestion than evening bus travel from the city</p></li>
 </ul>
 </section>
-<section id="future-directions" class="slide level2 scrollable">
+<section id="future-directions" class="slide level2" style="font-size: 36px;">
 <h2>Future Directions</h2>
 <ul>
-<li><p>Analyze more roads on the network to create a hierarchy of road robustness. More targeted allocation of resources</p></li>
+<li><p>Analyze more roads on the network to create a ranking of bus network robustness to road congestion. More targeted allocation of resources</p></li>
 <li><p>Analyze previous periods to provide rate of decline of robustness</p></li>
 <li><p>Use average speed as congestion measure. More versatile: more stops pairs, bottlenecks identification</p></li>
 <li><p>Include other factors for comparison, such as bus lanes, number of cars, number of stops, traffic lights…</p></li>
