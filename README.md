@@ -9,7 +9,7 @@ The data used was publicly available GTFS and GTFSR, as well as traffic informat
 
 The report for the purposes of fulfilling the assessment requirements is the report titled 'report'.
 
-The report titled 'report_client' is the report modified for and delivered to the client.
+The report modified and created for the client can be found in the folder 'report-client'
 
 The presentation is the document titled 'presentation'.
 
