@@ -78,7 +78,7 @@ A proposal outlining the analysis, the objectives, and the methodology was creat
 
 In fulfilling the first objective, the segment of road analysed is South Road in Adelaide. The period of time chosen is March 2022.
 
-Regarding the second objective, the methodology and the code created aim to ensure the as little manual input and edits as possible when applied to different road segments.
+Regarding the second objective, the methodology and the code created aim to ensure as little manual input and edits as possible when applied to different road segments.
 
 The analysis undertaken in this report will form the basis of future analysis into:
 
@@ -88,7 +88,7 @@ The analysis undertaken in this report will form the basis of future analysis in
 
 -   the impact of road works on bus performance by conducting and comparing the results of both pre- and post-works analysis
 
--   identifying the factors that can effect bus travel times such as the use of bus lanes, number of bus stops, traffic lights, etc.
+-   identifying the factors that can affect bus travel times such as the use of bus lanes, number of bus stops, traffic lights, etc.
 
 -   creating a model predicting bus travel times using identified features.
 
@@ -115,7 +115,7 @@ This is a common format developed by Google and used by public transport agencie
 
 ### Routes
 
-These are the bus routes that go through South Road. The routes were identified by overlaying all the network routes on a map in Tableau and the routes on South Road were manually highlighted and exported to a list. The dataset simply contains the unique collection of route_id on the segment.
+These are the bus routes that go through South Road. The routes were identified by overlaying all the network routes on a map in Tableau and the routes on South Road were manually highlighted and exported to a list. The dataset simply contains the unique collection of `route_id`s on the segment.
 
 ```{r}
 segment_route_stops <- clean_names(southrd_routes_stops_raw)
@@ -223,7 +223,7 @@ It is important to note the following:
 
 -   One `trip_id` occurs a maximum of one time a day, the `trip_id` can occur on multiple days
 
-As a bus trip is occurring, at a certain timestamp a real time prediction of the arrival times of the remaining stops on the trip are updated.
+As a bus trip is occurring, at certain time intervals a real time prediction of the arrival times of the upcoming stops on the trip are updated.
 
 Cleaning and wrangling this dataset proved to be the most challenging and time consuming section of this analysis, with many methodologies, cleaning iterations, and code trialed to arrive at the optimal treatment. This is due to the complex relationships between the observations in the dataset, and the variety of errors and inconsistencies encountered.
 
@@ -453,11 +453,11 @@ ggplot(updates_trip_time, aes(trip_time/60)) +
 
 <br>
 
-As figure \@ref(fig:large-trip-times) shows, excessive trip times occur. It is difficult to determine whether these are errors or genuine trip times without using further information. A variable called `delay_diff` is created which calculates the size of the difference between the delay of the first stop and the delay of the last stop per trip. Excessive values of this variable indicates the large travel time is due to an error as either of the stops has an artificially large delay or early arrival. A histogram of `delay_diff` is shown below:
+As figure \@ref(fig:large-trip-times) shows, excessive trip times occur. It is difficult to determine whether these are errors or genuine trip times without using further information. A variable called `delay_diff` is created which calculates the size of the difference between the delay of the first stop and the delay of the last stop per trip. Excessive values of this variable indicate the large travel time is due to an error as either of the stops has an artificially large delay or early arrival. A histogram of `delay_diff` is shown below:
 
 <br>
 
-```{r delay-diff, fig.cap="Size of difference between first and last stop delays. Southbound is more problematic"}
+```{r delay-diff, fig.cap="Size of difference between first and last stop delays"}
 # One row per trip corresponding to highest delay in the trip. For error detection using plots
 trip_time_delay <- updates_trip_time %>%
   group_by(start_date, trip_id) %>%
@@ -565,13 +565,13 @@ The DIT Addinsight database is very large and contains many tables, each recordi
 
 This dataset contains holidays dates, which is the only variable used.
 
-### Links
-
 <br>
+
+### Links
 
 #### All Links
 
-This dataset lists all the links present in the network, not just the segments of interest. A link is a one-way section of road between two adjacent sites. Addinsight will measure statistics for every link in real time. The variables present and used from this dataset are
+This dataset lists all the links present in the network, not just the segment of interest. A link is a one-way section of road between two adjacent sites. Addinsight will measure statistics for every link in real time. The variables present and used from this dataset are
 
 ```{r links-desc}
 links_raw %>%
@@ -1423,11 +1423,11 @@ The goal of the analysis is to ascertain the extent of the relationship between 
 
 In order to assess the variation, the travel times will be standardized. The function `standardiser` is created which separately standardizes both the bus travel times and the vehicle travel times according to the total data in the entire period based on either:
 
--   the five minute time frame. For example, a bus/vehicle travel time on 2022-03-01 7:05am would be standardized against all the other travel times that occur on 7:05am in the period
+-   the five minute time frame. For example, a bus/vehicle travel time on 2022-03-01 between 7am and 7:05am would be standardized against all the other travel times that occur between 7am and 7:05am in the period
 
 -   the hour of travel. For example, a bus/vehicle travel time that occurs on 2022-03-01 between 7am and 8am would be standardized against all the other bus trips in the period that occur between 7am and 8am
 
--   the rush hour of travel. For example, a bus/vehicle travel time that occurs on 2022-03-01 during the morning rush hour would be standardized against all the other bus trips in the period that occur during morning rush hour
+-   the rush hour of travel. For example, a bus/vehicle travel time that occurs on 2022-03-01 during the morning rush hour would be standardized against all the other bus trips in the period that occur during the morning rush hour
 
 These options are provided to the function as an argument (time, hour, rush). As the time frame widens, more data is available for standardization, but the standardization takes a wider time range, leading to bias. This is why in addition to standardizing the data, the `standardiser` function also stores the total number of data points present in each time frame according to the method chosen. The function also removes observations greater than three standard deviations away as these are considered outliers that can affect the analysis.
 
@@ -1597,9 +1597,9 @@ Table \@ref(tab:std-corr) shows that strong correlation exists between the stand
 
 # Conclusion, Findings, and Future Directions
 
-The report examined the relationship between the bus travel times and motor vehicle travel times, and the robustness of the bus network to road congestion, particularly during rush hour periods. A major takeaway from the project was the recognition of the extensive workload incurred in cleaning and wrangling the data, a common theme in many data analysis projects, as well as in creating the methodology to perform the analysis. A couple of limitations exist in the analysis. The first is that the trip updates dataset provides the anticipated arrival times of the bus stops, whereas the actual arrival times can provide greater accuracy. A further limitation is the period of the analysis is constrained to one month only due to file size limitations, where a longer time frame can provide greater certainty in the results.
+The report examined the relationship between the bus travel times and motor vehicle travel times, and the robustness of the bus network to road congestion, particularly during rush hour periods. A major takeaway from the project was the recognition of the extensive workload incurred in cleaning and wrangling the data, a common theme in many data analysis projects, as well as in creating the methodology to perform the analysis. A couple of limitations exist in the data The first is that the trip updates dataset provides the predicted arrival times of the bus stops, whereas the actual arrival times can provide greater accuracy. Another limitation is that the period of the analysis is constrained to one month only due to file size limitations, where a longer time frame can provide greater certainty in the results.
 
-An additional objective of the project was to create the analysis code in such a way as to allow reproducibility with minimal manual input across different road segments and time periods; in fact, the analysis was conducted on an additional road in Adelaide (Marion Road) to enable comparison with South Road and to highlight any possible enhancements in the code. The result of that analysis was not included in this report due to report length limitations, however a modified report that includes and compares both roads was created and provided to the client.
+An additional objective of the project was to create the analysis code in such a way as to allow reproducibility with minimal manual input across different road segments and time periods; in fact, the analysis was conducted on an additional road in Adelaide (Marion Road) to enable comparison with South Road and to highlight any possible enhancements to the code. The result of that analysis was not included in this report due to report length limitations, however a modified report that includes and compares both roads was created and provided to the client.
 
 The results from the analysis on South Road show the following:
 
@@ -1609,7 +1609,7 @@ The results from the analysis on South Road show the following:
 
 -   The evening southbound correlation is strong between the standardized travel times, however the variations are relatively small, therefore it is difficult to infer the bus transportation robustness to congestion as larger variation magnitudes would have to be observed and examined
 
--   The morning standardized travel times towards the city are more varied and the correlation is lower, implying the bus transportation network is relatively more robust to congestion than evening bus travel from the city
+-   The morning standardized travel times towards the city are more varied and the correlation is lower, implying the bus transportation network is relatively more robust to congestion than the evening bus travel from the city
 
 Possible future directions stemming from this analysis include:
 
