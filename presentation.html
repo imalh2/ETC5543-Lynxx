@@ -618,10 +618,10 @@
 <section id="dit---links" class="slide level2">
 <h2>DIT - Links</h2>
 <ul>
-<li><p>5 minute aggregated statistics per link</p></li>
-<li><p>Non-overlapping sequence of links to avoid double counting</p></li>
-<li><p>Approximately same length as stops pair length</p></li>
-<li><p>Impute statistics for disabled links</p></li>
+<li><p>5 minute aggregated travel time statistics per link</p></li>
+<li><p>Sequence of links needs to be non-overlapping to avoid double counting</p></li>
+<li><p>Approximately same length as the length between the start and end stops of the bus trips</p></li>
+<li><p>Impute travel time statistics for disabled links</p></li>
 </ul>
 <div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-11_a88c14879e7e64e199711560e2c74754">
 
@@ -823,15 +823,10 @@
 <section id="standardize-travel-times" class="slide level2">
 <h2>Standardize Travel Times</h2>
 <ul>
-<li><p>Allows examination of the relationship of variations from “normal”</p></li>
-<li><p>Function <code>standardizer</code> created to standardize both types of travel times with respect to one of:</p>
-<ul>
-<li><p>five minute period across the month</p></li>
-<li><p>hour across the month</p></li>
-<li><p>rush hour across the month</p></li>
-</ul></li>
+<li><p>Travel times naturally change throughout the day</p></li>
+<li><p>Travel times need to be standardized to allow examination of the relationship of variations from “normal”</p></li>
+<li><p>Function <code>standardizer</code> created to standardize both types of travel times with respect to the time of day</p></li>
 </ul>
-<p>Function default is hour</p>
 <div class="cell" data-layout-align="center" data-hash="presentation_cache/revealjs/unnamed-chunk-27_b706f1f70855ff11a69c2e1df3445f2e">
 
 </div>
@@ -979,7 +974,7 @@
 <h2>Findings</h2>
 <ul>
 <li><p>In the evening from the city, absolute travel times are greater and more varied than those in the morning towards the city</p></li>
-<li><p>The standardization of the the travel times with respect to the time of day indicates that while evening travel times from the city are greater in absolute terms, they are consistently so. Whereas the variation of the morning travel time towards the city is more varied while taking less time in absolute terms</p></li>
+<li><p>The standardization of the travel times indicates that while evening travel times from the city are greater in absolute terms, they are consistently so. Whereas the variation of the morning travel time towards the city is more varied while taking less time in absolute terms</p></li>
 <li><p>The evening southbound correlation is strong between the standardized travel times, however the variations are relatively small, therefore it’s difficult to infer the bus transportation robustness to congestion as larger variation magnitudes would have to be observed and examined</p></li>
 <li><p>The morning standardized travel times towards the city are more varied and the correlation is lower, implying the bus transportation is relatively more robust to congestion than evening bus travel from the city</p></li>
 </ul>

@@ -1,4 +1,5 @@
 # ETC5543-Lynxx
+
 ETC5543 MBAT Lynxx Internship Project Semester 2, 2022
 
 This repository contains the analysis, report, and presentation as part of the internship project.
@@ -7,14 +8,14 @@ The project is concerned with examining the relationship between bus travel time
 
 The data used was publicly available GTFS and GTFSR, as well as traffic information collected and provided by DIT. The data can be found in the 'data' folder
 
-The report for the purposes of fulfilling the assessment requirements is the report titled 'report'.
+-   The report for the purposes of fulfilling the assessment requirements is the report titled 'report'.
 
-The report modified and created for the client can be found in the folder 'report-client'
+-   The report modified and created for the client can be found in the folder 'report-client'
 
-The presentation is the document titled 'presentation'.
+-   The presentation is the document titled 'presentation'.
 
-The client proposal created can be found in the folder 'proposal'.
+-   The client proposal created can be found in the folder 'proposal'.
 
-Preliminary and extra analysis can be found in the folder 'other-analysis'
+-   Preliminary and extra analysis can be found in the folder 'other-analysis'
 
-The bare code to conduct the analysis can be found in the file 'standalone_code'
+-   The bare code to conduct the analysis can be found in the file 'standalone_code'

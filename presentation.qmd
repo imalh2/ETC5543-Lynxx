@@ -359,13 +359,13 @@ done to establish a one-to-one relationship with the vehicles travel time, which
 
 ## DIT - Links
 
--   5 minute aggregated statistics per link
+-   5 minute aggregated travel time statistics per link
 
--   Non-overlapping sequence of links to avoid double counting
+-   Sequence of links needs to be non-overlapping to avoid double counting
 
--   Approximately same length as stops pair length
+-   Approximately same length as the length between the start and end stops of the bus trips
 
--   Impute statistics for disabled links
+-   Impute travel time statistics for disabled links
 
 ```{r}
 # Limit updates to end of period examined and get most recent update per link,
@@ -994,17 +994,11 @@ theme_bw()
 
 ## Standardize Travel Times
 
--   Allows examination of the relationship of variations from "normal"
+-   Travel times naturally change throughout the day
 
--   Function `standardizer` created to standardize both types of travel times with respect to one of:
+-   Travel times need to be standardized to allow examination of the relationship of variations from "normal"
 
-    -   five minute period across the month
-
-    -   hour across the month
-
-    -   rush hour across the month
-
-Function default is hour
+-   Function `standardizer` created to standardize both types of travel times with respect to the time of day
 
 ```{r}
 standardiser <- function(basis = hour) {
@@ -1166,7 +1160,7 @@ strong correlation in the evening towards the city
 
 -   In the evening from the city, absolute travel times are greater and more varied than those in the morning towards the city
 
--   The standardization of the the travel times with respect to the time of day indicates that while evening travel times from the city are greater in absolute terms, they are consistently so. Whereas the variation of the morning travel time towards the city is more varied while taking less time in absolute terms
+-   The standardization of the travel times indicates that while evening travel times from the city are greater in absolute terms, they are consistently so. Whereas the variation of the morning travel time towards the city is more varied while taking less time in absolute terms
 
 -   The evening southbound correlation is strong between the standardized travel times, however the variations are relatively small, therefore it's difficult to infer the bus transportation robustness to congestion as larger variation magnitudes would have to be observed and examined
 
