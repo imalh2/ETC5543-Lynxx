@@ -33,6 +33,7 @@ vignettes/*.pdf
 
 # cache files folder
 *_files/
+/files/
 
 # Temporary files created by R markdown
 *.utf8.md

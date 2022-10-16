@@ -115,7 +115,7 @@ The methodology will be illustrated on South Road, which is one of Adelaide's mo
 <br>
 
 ```{r, fig.cap="South Rd on map. Source: Google Maps"}
-knitr::include_graphics("images/SouthRd_Map.png")
+knitr::include_graphics(here("images/SouthRd_Map.png"))
 ```
 
 <br>
@@ -1607,7 +1607,7 @@ Table \@ref(tab:std-corr) shows that strong correlation exists between the stand
 <br>
 
 ```{r, fig.cap="Marion Rd on map. Source: Google Maps"}
-knitr::include_graphics("images/MarionRd_Map.png")
+knitr::include_graphics(here("images/MarionRd_Map.png"))
 ```
 
 <br>
@@ -2228,43 +2228,43 @@ Possible future directions stemming from this analysis include:
 
 1.  All stops for the trip have very large, or very small, similar delays. This means that the entire trip is very delayed or very early. This is most likely due to errors when retrospectively entering the information at a later time. By examining \@ref(fig:unedited-to-stops), the threshold was set at 2,400 seconds (40 minutes) delay and 900 seconds (15 minutes) early. These trips were removed to prevent incorrect analysis since they will be in the wrong time period. These trips were removed as they will be in the wrong timeframe when analyzed against the vehicle travel time.
 
-![](images/all_large_delays.png)
+![](here(images/all_large_delays.png))
 
 <br>
 
 2.  A stop has a sudden large predicted delay resulting in a much larger arrival time than that of the following stop. These stops were removed
 
-![](images/suddent_large_delay.png)
+![](here(images/suddent_large_delay.png))
 
 <br>
 
 3.  A stop has an arrival time later than any following stops and the timestamp is earlier than any following stops. These stops were removed to ensure the most recent timestamp is preferred when discrepancy occurs
 
-![](images/arrive_later_stamp_earlier.png)
+![](here(images/arrive_later_stamp_earlier.png))
 
 <br>
 
 4.  A stop's arrival time is earlier than previous stops and the timestamp is older
 
-![](images/arrive_earlier_stamp_older.png)
+![](here(images/arrive_earlier_stamp_older.png))
 
 <br>
 
 5.  A stop's arrival time is earlier than prior stops but they both have the same timestamp. In this case it is not possible to know which is correct. We assume the stop with the earlier stop sequence is correct since it is closer to the bus when the update is made
 
-![](images/same_timestamp_still_error.png)
+![](here(images/same_timestamp_still_error.png))
 
 <br>
 
 6.  Two consecutive stops have identical arrival times but with different timestamps. The stop with the older timestamp was removed
 
-![](images/same_arrival_different_stamps.png)
+![](here(images/same_arrival_different_stamps.png))
 
 <br>
 
 7.  Two consecutive stops have identical arrival times and timestamps. Remove the stop with a higher stop sequence
 
-![](images/same_arrival_same_stamp.png)
+![](here(images/same_arrival_same_stamp.png))
 
 <br>
 
