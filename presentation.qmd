@@ -987,9 +987,9 @@ theme_bw()
 
 -   Travel times between both types largely similar
 
--   northbound travel towards the city: travel times are the same for both rush hours, and the travel time in the rush hours are not much greater than non-rush hour times
+-   For northbound travel towards the city, travel times are the same for both rush hours, and the travel time in the rush hours are not much greater than non-rush hour times
 
--   Southbound travel away from the city, however, follows expectations as the travel time for both types dramatically increases in the evening rush hour as workers leave the city.
+-   Southbound travel away from the city follows expectations as the travel time for both types dramatically increases in the evening rush hour as workers leave the city.
 :::
 
 ## Standardize Travel Times
