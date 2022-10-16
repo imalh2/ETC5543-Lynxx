@@ -1,0 +1,1373 @@
+```{r libraries}
+# Libraries
+library(tidyverse)
+library(here)
+library(lubridate)
+library(leaflet)
+library(hms)
+library(janitor)
+library(broom)
+```
+
+```{r data}
+# Data
+
+## Holidays dates
+holidays_raw <- read_csv(here("data/DIT/specialdays.csv"))
+
+## Links information
+links_raw <- read_csv(here("data/DIT/links.csv"))
+
+## List of links on segment and their geometries
+links_segment_raw <- read_csv(here("data/South-Rd/Links - South Rd.csv"))
+
+## Stops information
+full_stops_raw <- read_csv(here("data/GTFS/stops.csv"))
+
+## Routes, trips, and stops on segment
+segment_route_stops_raw <- read_csv(here("data/South-Rd/South Rd Routes and Trips gtfs 1157.csv"))
+
+## GTFS-R Trip Updates
+updates_raw <- read_csv(here("data/South-Rd/trip_updates_SouthRd_Mar.csv"))
+
+## Link 5 minute statistics
+link_stats_raw <- read_csv(here("data/South-Rd/link_stats_Mar.csv"))
+```
+
+# Data Wrangling and Exploration
+
+## Holidays
+
+```{r}
+holidays <- unique(holidays_raw$date)
+rm(holidays_raw)
+```
+
+## Links Segment
+
+```{r}
+# Limit updates to end of period examined and get most recent update per link,
+# this is done to get the most recent enabled status for each link
+links <- links_raw %>%
+  filter(date(dms_update_ts) < "2022-04-01") %>%
+  group_by(id) %>%
+  filter(dms_update_ts == max(dms_update_ts)) %>%
+  ungroup() %>%
+  select(id, originid:length, direction) %>%
+  distinct()
+
+links_segment <- links_segment_raw %>%
+  rename_with(tolower) %>%
+  mutate(
+    latitude = round(latitude, 5),
+    longitude = round(longitude, 5),
+    # Extract name of locations where link starts and ends
+    start_loc = str_extract(name, "(?<=- ).*(?= to)"),
+    end_loc = str_extract(name, "(?<=to ).*")) %>%
+  # Extract the latitudes of where the link starts and ends
+  group_by(linkid) %>%
+  mutate(
+    start_lat = first(latitude, order_by = ordernumber),
+    end_lat = last(latitude, order_by = ordernumber)) %>%
+  ungroup() %>%
+  # Length in links_segment_raw is not correct, join with links to get correct lengths and direction
+  select(-length) %>%
+  left_join(links, by = c("linkid" = "id"))
+
+# Get only first entry per link
+links_segment_unq <- links_segment %>%
+  arrange(linkid, ordernumber) %>%
+  distinct(linkid, .keep_all = TRUE)
+
+directions <- sort(unique(links_segment_unq$direction))
+
+rm(links_raw)
+rm(links_segment_raw)
+```
+
+## Full Stops and Route-Trips-Stops
+
+```{r}
+segment_route_stops <- clean_names(segment_route_stops_raw)
+  
+segment_routes <- segment_route_stops %>% 
+  pull(route_id) %>% 
+  unique()
+
+segment_stops <- segment_route_stops %>% 
+  pull(stop_id_gtfs_history_prod_stops_csv) %>% 
+  unique()
+
+# Join stops information to stops on the segment
+stops_segment <- full_stops_raw %>%
+  filter(stop_id %in% segment_stops) %>%
+  select(stop_id, stop_name, stop_desc, stop_lat, stop_lon) %>%
+  distinct(stop_id, .keep_all = TRUE) %>%
+  # If stop is on East side, that means trip SB, and vice versa
+  mutate(direction = if_else(str_detect(stop_name, "East"), "SB", "NB"))
+
+rm(segment_route_stops_raw)
+rm(full_stops_raw)
+```
+
+## Updates
+
+```{r}
+# Keep only updates for stops on segment and remove weekends and public holidays
+updates <- updates_raw %>%
+  rename(
+    trip_id = id,
+    vehicle_id = label) %>%
+  mutate(
+    start_date = ymd(start_date),
+    timestamp = as_datetime(timestamp, tz = "Australia/Adelaide"),
+    arrival_time = as_datetime(arrival_time, tz = "Australia/Adelaide")) %>%
+  select(-direction_id, -wheelchair_accessible) %>% 
+  inner_join(select(stops_segment, stop_id, direction), by = "stop_id") %>%
+  filter(
+    !start_date %in% holidays,
+    !wday(start_date, label = TRUE) %in% c("Sat", "Sun"))
+
+# Clean updates and get time to each stop for error detection
+updates_stop_times <- updates %>% 
+  group_by(start_date, trip_id) %>%
+  arrange(stop_sequence, .by_group = TRUE) %>%
+  # Remove trips where all the stops have a delay over 2400 (40 minutes) or
+  # early by more than 900 (15 minutes), ie entire trip is delayed or early.
+  # Most likely error due to entering the information later. This is done to prevent
+  # incorrect analysis since they will be in the wrong time period
+  filter(!(all(delay > 2400) |
+           all(delay < -900))) %>%
+  # Remove one-off large jumps in between two observations
+  filter(!(delay - lag(delay, order_by = stop_sequence, default = 0) > 1000 &
+             delay - lead(delay, order_by = stop_sequence, default = 0) > 1000)) %>%
+  # Remove any observations that have an arrival_time later than any following
+  # arrival_time in the trip AND the timestamp is earlier than any following timestamps in the trip.
+  # This ensures the most recent timestamp is preferred when discrepancy occurs
+  filter(!(as.numeric(arrival_time) > order_by(-stop_sequence, cummin(as.numeric(arrival_time))) &
+             as.numeric(timestamp) == order_by(-stop_sequence, cummin(as.numeric(timestamp))))) %>%
+  # Remove if the arrival_time is less than the previous arrival_times AND the timestamp
+  # is older than the previous timestamps
+  filter(!(arrival_time < order_by(stop_sequence, cummax(as.numeric(arrival_time))) &
+             timestamp < order_by(stop_sequence, cummax(as.numeric(timestamp))))) %>%
+  # If arrival_time of a stop is less than prior stops but they all have the same
+  # timestamp, it's not possible to know which is correct. Assume earlier stop_sequence
+  # is correct since it is closer when the update is made
+  filter(!(timestamp == order_by(stop_sequence, cummax(as.numeric(timestamp))) &
+             arrival_time < order_by(stop_sequence, cummax(as.numeric(arrival_time))))) %>%
+  # If after the above, two consecutive stops have the same arrival_time, remove
+  # the one with an older timestamp
+  filter(!(arrival_time == lead(arrival_time, 
+                                order_by = stop_sequence,
+                                default = ymd("9999-01-01")) &
+             timestamp < lead(timestamp, 
+                              order_by = stop_sequence,
+                              default = ymd("9999-01-01")))) %>%
+  # If two stops have the same arrival_time and same time_stamp, remove the one
+  # with a higher stop sequence. Make sure only 2 stops and not more
+  filter(!(arrival_time != lead(arrival_time, 
+                                order_by = stop_sequence,
+                                default = ymd("9999-01-01")) &
+             arrival_time == lag(arrival_time, 
+                                 order_by = stop_sequence,
+                                 default = ymd("0000-01-01")) &
+             timestamp == lag(timestamp, 
+                              order_by = stop_sequence,
+                              default = ymd("0000-01-01")))) %>%
+  # Remove trips with multiple repeating arrival_times
+  filter(!n_distinct(arrival_time) < n()) %>%
+  mutate(
+    to_stop_time = as.numeric(arrival_time - lag(arrival_time), units = "secs"),
+    first_stop = first(stop_id, order_by = stop_sequence),
+    last_stop = last(stop_id, order_by = stop_sequence)) %>% 
+  ungroup() %>%
+  mutate(to_stop_time = replace_na(to_stop_time, 0))
+
+paste0("Percentage of errors: ", round((nrow(updates) - nrow(updates_stop_times)) / nrow(updates) * 100, 2), "%")
+
+# Take top occurring stops pair for each direction
+top_first_last_stops <- updates_stop_times %>% 
+  distinct(start_date, trip_id, direction, first_stop, last_stop) %>%
+  group_by(direction) %>% 
+  count(first_stop, last_stop, sort = TRUE) %>% 
+  slice_max(order_by = n) %>% 
+  ungroup()
+
+# Get trips with only most occurring stops pair per direction identified
+updates_stop_times <- updates_stop_times %>%
+  semi_join(top_first_last_stops, by = c("direction", "first_stop", "last_stop"))
+
+# Get total time per trip within segment
+updates_trip_time <- updates_stop_times %>% 
+  group_by(start_date, trip_id) %>%
+  arrange(stop_sequence, .by_group = TRUE) %>%
+  mutate(
+    trip_time = as.numeric((last(arrival_time) -first(arrival_time)), units = "secs"),
+    delay_diff = abs(last(delay) - first(delay))) %>% 
+  ungroup() %>%
+  # If the delay_diff is greater than 600 (10 minutes), most likely an error. Remove
+  filter(delay_diff < 600) %>% 
+  arrange(start_date, trip_id, stop_sequence)
+
+
+# For further analysis, take first stop only from each trip because the arrival_time
+# of the first stop will be considered as the trip start time used as basis for aggregation later.
+# Also add whether each trip occurrs during either of the peak times
+trip_times <- updates_trip_time %>%
+  group_by(start_date, trip_id) %>%
+  filter(stop_sequence == first(stop_sequence, order_by = stop_sequence)) %>%
+  ungroup() %>%
+  distinct(start_date, trip_id, .keep_all = TRUE) %>% 
+  mutate(
+    rush = case_when(
+      as_hms("06:30:00") <= as_hms(arrival_time) & as_hms(arrival_time) < as_hms("10:00:00") ~ "Morning",
+      as_hms("15:30:00") <= as_hms(arrival_time) & as_hms(arrival_time) < as_hms("19:00:00") ~ "Evening",
+      TRUE ~ "Neither"),
+    rush = factor(rush, levels = c("Morning", "Evening", "Neither"))) %>% 
+  select(-delay_diff)
+
+rm(updates_raw)
+```
+
+```{r}
+# Split trips into 5 minute intervals average the trips times per interval
+trip_times_agg <- trip_times %>% 
+  mutate(arrival_time = ceiling_date(arrival_time, "5 minutes")) %>% 
+  group_by(arrival_time, direction) %>% 
+  summarise(
+    number_buses = n(),
+    bus_time = round(mean(trip_time))) %>%
+  ungroup() %>% 
+  mutate(
+    day = date(arrival_time),
+    time = as_hms(arrival_time),
+    hour = hour(time),
+    rush = case_when(
+      between(time, as_hms("06:30:00"), as_hms("09:59:00")) ~ "Morning",
+      between(time, as_hms("15:30:00"), as_hms("18:59:00")) ~ "Evening",
+      TRUE ~ "Neither"),
+    rush = factor(rush, levels = c("Morning", "Evening", "Neither"))) %>% 
+  relocate(day:rush, .after = arrival_time) %>% 
+  select(-arrival_time)
+```
+
+## Data Validation
+
+```{r}
+ggplot(updates_stop_times, aes(to_stop_time)) +
+  geom_histogram() +
+  theme_bw()
+
+ggplot(updates_stop_times, aes(to_stop_time)) +
+  geom_boxplot() +
+  theme_bw()
+
+ggplot(updates_stop_times, aes(delay)) +
+  geom_histogram() +
+  theme_bw()
+
+ggplot(updates_stop_times, aes(delay)) +
+  geom_boxplot() +
+  theme_bw()
+
+ggplot(updates_stop_times, aes(to_stop_time, delay)) +
+  geom_point() +
+  theme_bw()
+
+ggplot(updates_trip_time, aes(trip_time)) +
+  geom_histogram() +
+  theme_bw()
+
+ggplot(updates_trip_time, aes(trip_time)) +
+  geom_boxplot() +
+  theme_bw()
+
+ggplot(trip_time_delay, aes(trip_time, delay)) +
+  geom_point() +
+  facet_wrap(vars(direction)) +
+  theme_bw()
+
+ggplot(trip_time_stop, aes(trip_time, to_stop_time)) +
+  geom_point() +
+  facet_wrap(vars(direction)) +
+  theme_bw()
+
+ggplot(trip_time_delay, aes(trip_time, delay_diff)) +
+  geom_point() +
+  facet_wrap(vars(direction)) +
+  theme_bw()
+
+ggplot(trip_time_delay, aes(delay_diff, color = direction)) +
+  geom_boxplot() +
+  theme_bw()
+
+ggplot(trip_time_delay, aes(trip_time, delay_diff, color = direction)) +
+  geom_point() +
+  theme_bw()
+
+ggplot(trip_time_stop, aes(trip_time, to_stop_time, color = direction)) +
+  geom_point() +
+  theme_bw()
+
+ggplot(stop_times, aes(to_stop_time)) +
+  geom_histogram() +
+  theme_bw()
+
+ggplot(stop_times, aes(to_stop_time)) +
+  geom_boxplot() +
+  theme_bw()
+
+ggplot(stop_times, aes(delay)) +
+  geom_histogram() +
+  theme_bw()
+
+ggplot(stop_times, aes(delay)) +
+  geom_boxplot() +
+  theme_bw()
+
+ggplot(stop_times, aes(to_stop_time, delay)) +
+  geom_point() +
+  theme_bw()
+
+ggplot(trip_times_peaks, aes(direction, trip_time)) +
+  geom_boxplot() +
+  facet_wrap(vars(rush)) +
+  theme_bw()
+
+ggplot(trip_times_peaks, aes(trip_time, color = direction)) +
+  geom_density() +
+  facet_wrap(vars(rush)) +
+  theme_bw()
+```
+
+# Getting Information for Analysis
+
+## Identify Routes
+
+Routes were identified by examining the [network map](https://www.adelaidemetro.com.au/__data/assets/pdf_file/0009/824247/Adelaide-Metro-network-map.pdf).
+
+All the routes were overlayed on a map on Tableau and routes on the segment were selected and exported.
+
+## Identify Stops
+
+Same as above
+
+```{r}
+# Plot on map to check the stops are all on South Rd
+stops_segment %>%
+    leaflet() %>% 
+    addTiles() %>% 
+    addCircles(lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id)
+```
+
+## Identify Links
+
+### Direction 1
+
+```{r}
+# The going back and forth between links_dir process is for the purpose of
+# producing links_disabled 
+
+links_dir1 <- links_segment_unq %>%
+  # Build map from south to north
+  filter(direction == directions[1]) %>% 
+  arrange(start_lat)
+
+links_dir1_enabled <- links_dir1 %>%
+  filter(enabled)
+
+# Start and end at same locations as bus stops by referencing map above
+dir1_start_loc <- "celtic"
+dir1_end_loc <- "anzac"
+
+# Retrieve sequence of links composing segment
+links_dir1_enabled <- links_dir1_enabled[min(which(str_starts(tolower(links_dir1_enabled$start_loc),
+                                                                  tolower(dir1_start_loc)))):
+                                               max(which(str_starts(tolower(links_dir1_enabled$end_loc),
+                                                                    tolower(dir1_end_loc)))),] %>% 
+  group_by(start_loc) %>%
+  filter(length == min(length)) %>%
+  ungroup()
+
+# Obtain shape for each link
+links_dir1_map <- links_segment %>% 
+  semi_join(links_dir1_enabled, by = "linkid") %>% 
+  arrange(start_lat, ordernumber)
+
+# Create map
+
+links_colors <- c("green","red")
+
+n <- 1
+
+map_dir1 <- leaflet() %>% 
+  addTiles()
+
+# Iterate over links to add polyline of each link to the map
+for (link in unique(links_dir1_map$linkid)) {
+  map_df <- links_dir1_map %>% 
+    filter(linkid == link)
+  
+  map_dir1 <- map_dir1 %>% 
+    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = links_colors[n],
+                 label = ~linkid, opacity = 0.3)
+  
+  # Switch colors
+  if (n == 1) {
+    n <- 2
+  } else {
+    n <- 1
+  }
+}
+
+dir1_stops <- stops_segment %>%
+  filter(stop_id %in% c(top_first_last_stops[top_first_last_stops["direction"] == directions[1],]$first_stop,
+                        top_first_last_stops[top_first_last_stops["direction"] == directions[1],]$last_stop))
+
+map_dir1 %>% 
+  addCircles(data = dir1_stops, lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, radius = 50, opacity = 1)
+```
+
+### Direction 2
+
+```{r}
+# Same process as direction 1
+
+links_dir2 <- links_segment_unq %>%
+  filter(direction == directions[2]) %>% 
+  arrange(-start_lat)
+
+links_dir2_enabled <- links_dir2 %>%
+  filter(enabled)
+
+dir2_start_loc <- "anzac"
+dir2_end_loc <- "celtic"
+
+links_dir2_enabled <- links_dir2_enabled[min(which(str_starts(tolower(links_dir2_enabled$start_loc),
+                                                                  tolower(dir2_start_loc)))):
+                                               max(which(str_starts(tolower(links_dir2_enabled$end_loc),
+                                                                    tolower(dir2_end_loc)))),] %>% 
+  group_by(start_loc) %>%
+  filter(length == min(length)) %>%
+  ungroup()
+
+links_dir2_map <- links_segment %>% 
+  semi_join(links_dir2_enabled, by = "linkid") %>% 
+  arrange(-start_lat, ordernumber)
+
+links_colors <- c("green","red")
+
+n <- 1
+
+map_dir2 <- leaflet() %>% 
+  addTiles()
+
+for (link in unique(links_dir2_map$linkid)) {
+  map_df <- links_dir2_map %>% 
+    filter(linkid == link)
+  
+  map_dir2 <- map_dir2 %>% 
+    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = links_colors[n],
+                 label = ~linkid, opacity = 0.3)
+
+  if (n == 1) {
+    n <- 2
+  } else {
+    n <- 1
+  }
+}
+
+dir2_stops <- stops_segment %>%
+  filter(stop_id %in% c(top_first_last_stops[top_first_last_stops["direction"] == directions[2],]$first_stop,
+                        top_first_last_stops[top_first_last_stops["direction"] == directions[2],]$last_stop))
+
+map_dir2 %>% 
+  addCircles(data = dir2_stops, lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, radius = 50, opacity = 1)
+```
+
+#### Both directions together
+
+```{r}
+# Plot links from both directions
+map_both <- leaflet() %>% 
+  addTiles()
+
+# Add links first direction
+for (link in unique(links_dir1_map$linkid)) {
+  map_df <- links_dir1_map %>% 
+    filter(linkid == link)
+  
+  map_both <- map_both %>% 
+    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = "green", 
+                 opacity = 0.3, label = ~linkid)
+}
+
+# Add links second direction
+for (link in unique(links_dir2_map$linkid)) {
+  map_df <- links_dir2_map %>% 
+    filter(linkid == link)
+  
+  map_both <- map_both %>% 
+    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = "red",
+                 opacity = 0.3, label = ~linkid)
+}
+
+map_both %>% 
+  addCircles(data = dir1_stops, lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, radius = 50, opacity = 1) %>%
+  addCircles(data = dir2_stops, lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, radius = 50, opacity = 1)
+```
+
+### Missing Links
+
+```{r}
+# DF for missing links imputation
+missing_links_impute <- tibble(from = character(),
+                               to = character(),
+                               linkid = numeric(),
+                               prior_linkid = numeric(),
+                               post_linkid = numeric(),
+                               direction = character())
+```
+
+#### Direction 1 Missing Links
+
+```{r}
+# For the missing link, retrieve the link as well closest enabled previous and 
+# proceeding links for imputation later
+missing_links_dir1 <- tibble(from = character(),
+                        to = character())
+
+# Add start and end locations of missing links
+missing_links_dir1 <- missing_links_dir1 %>% 
+  add_row(from = "walsh",
+          to = "celtic")
+
+for (i in 1:nrow(missing_links_dir1)) {
+  
+  from <- tolower(missing_links_dir1$from[i])
+  to <- tolower(missing_links_dir1$to[i])
+  
+  for (a in 1:nrow(links_dir1)) {
+    # Get linkid for missing link
+    if (str_starts(tolower(links_dir1$start_loc[a]), from) && str_starts(tolower(links_dir1$end_loc[a]), to)) {
+      
+      linkid <- links_dir1$linkid[a]
+
+      # Retrieve last prior link that is enabled
+      prior_linkid <- links_dir1[1:a-1,] %>%
+        filter(enabled) %>%
+        slice_tail() %>%
+        pull(linkid)
+
+      # Retrieve first proceeding link that is enabled
+      post_linkid <- links_dir1[a+1:nrow(links_dir1),] %>%
+        filter(enabled) %>%
+        slice_head() %>%
+        pull(linkid)
+
+      missing_links_impute <- missing_links_impute %>%
+        add_row(from = from,
+                to = to,
+                linkid = linkid,
+                prior_linkid = prior_linkid,
+                post_linkid = post_linkid,
+                direction = directions[1])
+      break
+    }
+  }
+}
+```
+
+#### Direction 2 Missing Links
+
+```{r}
+missing_links_dir2 <- tibble(from = character(),
+                        to = character())
+
+missing_links_dir2 <- missing_links_dir2 %>% 
+  add_row(from = "celtic",
+          to = "walsh")
+
+for (i in 1:nrow(missing_links_dir2)) {
+  
+  from <- tolower(missing_links_dir2$from[i])
+  to <- tolower(missing_links_dir2$to[i])
+  
+  for (a in 1:nrow(links_dir2)) {
+    if (str_starts(tolower(links_dir2$start_loc[a]), from) && str_starts(tolower(links_dir2$end_loc[a]), to)) {
+      
+      linkid <- links_dir2$linkid[a]
+      
+      prior_linkid <- links_dir2[1:a-1,] %>%
+        filter(enabled) %>%
+        slice_tail() %>%
+        pull(linkid)
+
+      post_linkid <- links_dir2[a+1:nrow(links_dir1),] %>%
+        filter(enabled) %>%
+        slice_head() %>%
+        pull(linkid)
+
+      missing_links_impute <- missing_links_impute %>%
+        add_row(from = from,
+                to = to,
+                linkid = linkid,
+                prior_linkid = prior_linkid,
+                post_linkid = post_linkid,
+                direction = directions[2])
+      break
+    }
+  }
+}
+```
+
+```{r}
+# Plot links from both directions
+map_both <- leaflet() %>% 
+  addTiles()
+
+# Add links first direction
+for (link in unique(links_dir1_map$linkid)) {
+  map_df <- links_dir1_map %>% 
+    filter(linkid == link)
+  
+  map_both <- map_both %>% 
+    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = "green", 
+                 opacity = 0.3, label = ~linkid)
+}
+
+# Add links second direction
+for (link in unique(links_dir2_map$linkid)) {
+  map_df <- links_dir2_map %>% 
+    filter(linkid == link)
+  
+  map_both <- map_both %>% 
+    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = "red",
+                 opacity = 0.3, label = ~linkid)
+}
+
+map_both
+
+# Save linkid's for both directions, the missing links, and extra links needed to impute missing links
+links_all <- unique(c(links_dir1_enabled$linkid, links_dir2_enabled$linkid,
+                missing_links_impute$linkid,missing_links_impute$prior_linkid, 
+                missing_links_impute$post_linkid))
+```
+
+### Link Stats
+
+Links stats are retrieved from AWS Athena database using the links identified to construct the segments and the links needed to impute missing links stats
+
+```{r}
+link_stats <- link_stats_raw %>% 
+  select(logtime:avgdensity) %>%
+  mutate(logtime = ymd_hms(str_remove(logtime, " \\+10:30"), tz = "Australia/Adelaide")) %>%
+  filter(
+    !as_date(logtime) %in% holidays,
+    !wday(logtime, label = TRUE) %in% c("Sat", "Sun")) %>% 
+  distinct()
+
+# Join link_stats with links_segment to get direction and length
+link_stats <- link_stats %>%
+  left_join(select(links_segment_unq, linkid, direction, length)) %>%
+  # Calculate speed km/h
+  mutate(speed = round((length / 1000) / (tt / 3600))) %>% 
+  # Remove speeds over 150 km/h as most likely errors
+  filter(speed < 150)
+
+summary(link_stats)
+
+rm(link_stats_raw)
+```
+
+#### Data Validation
+
+```{r}
+ggplot(link_stats, aes(tt)) +
+  geom_histogram() +
+  theme_bw()
+
+ggplot(link_stats, aes(tt)) +
+  geom_boxplot() +
+  theme_bw()
+
+ggplot(link_stats, aes(speed)) +
+  geom_histogram() +
+  theme_bw()
+
+ggplot(link_stats, aes(speed)) +
+  geom_boxplot() +
+  theme_bw()
+
+ggplot(link_stats, aes(factor(length), tt)) +
+  geom_boxplot() +
+  theme_bw()
+
+ggplot(link_stats, aes(speed, tt)) +
+  geom_point() +
+  theme_bw()
+
+ggplot(link_stats, aes(factor(length), speed)) +
+  geom_boxplot() +
+  theme_bw()
+```
+
+### Check for links with no stats
+
+```{r}
+links_with_stats <- links_segment %>% 
+  filter(linkid %in% c(links_dir1_enabled$linkid, links_dir2_enabled$linkid,
+                       missing_links_impute$linkid)) %>% 
+  semi_join(link_stats, by = "linkid")
+
+links_no_stats <- links_segment %>% 
+  filter(linkid %in% missing_links_impute$linkid) %>%  
+  anti_join(link_stats, by = "linkid")
+  
+map_links_with_stats <- leaflet() %>% 
+  addTiles()
+
+# Draw links with stats in green
+for (link in unique(links_with_stats$linkid)) {
+  map_df <- links_with_stats %>% 
+    filter(linkid == link)
+  
+  map_links_with_stats <- map_links_with_stats %>% 
+    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = "green",
+                 opacity = 1, label = ~linkid)
+}
+
+# Draw links with no stats in red
+for (link in unique(links_no_stats$linkid)) {
+  map_df <- links_no_stats %>% 
+    filter(linkid == link)
+  
+  map_links_with_stats <- map_links_with_stats %>% 
+    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = "red",
+                 opacity = 1, label = ~linkid)
+}
+
+map_links_with_stats %>% 
+  addCircles(data = dir1_stops, lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, radius = 50, opacity = 1) %>%
+  addCircles(data = dir2_stops, lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, radius = 50, opacity = 1)
+```
+
+### Generate stats for missing links
+
+This will be done by taking the average time/distance between the prior and post links per aggregate time, then multiplying by the distance of the missing links to get the estimated time on that link
+
+```{r}
+for(i in 1:nrow(missing_links_impute)) {
+  link_length <- links %>% 
+    filter(id == missing_links_impute$linkid[i]) %>% 
+    pull(length)
+  
+  link_estimates <- link_stats %>% 
+  filter(linkid %in% c(missing_links_impute$prior_linkid[i], missing_links_impute$post_linkid[i])) %>% 
+  mutate(time_len = tt / length) %>% 
+  group_by(logtime) %>% 
+  summarise(
+    avg_time_len = mean(time_len),
+    direction = unique(direction)) %>% 
+  ungroup() %>% 
+  mutate(
+    linkid = missing_links_impute$linkid[i],
+    tt = round(avg_time_len * link_length),
+    length = link_length) %>% 
+  select(-avg_time_len)
+  
+  link_stats <- link_stats %>% 
+  full_join(link_estimates, by = names(link_estimates))
+}
+
+# Remove estimator links not in segment
+link_stats <- link_stats %>% 
+  filter(linkid %in% c(links_dir1_enabled$linkid, links_dir2_enabled$linkid,
+                       missing_links_impute$linkid))
+```
+
+Check
+
+```{r}
+links_with_stats <- links_segment %>% 
+  filter(linkid %in% c(links_dir1_enabled$linkid, links_dir2_enabled$linkid,
+                       missing_links_impute$linkid)) %>% 
+  semi_join(link_stats, by = "linkid")
+
+links_no_stats <- links_segment %>% 
+  filter(linkid %in% missing_links_impute$linkid) %>%  
+  anti_join(link_stats, by = "linkid")
+  
+map_links_with_stats <- leaflet() %>% 
+  addTiles()
+
+for (link in unique(links_with_stats$linkid)) {
+  map_df <- links_with_stats %>% 
+    filter(linkid == link)
+  
+  map_links_with_stats <- map_links_with_stats %>% 
+    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = "green",
+                 opacity = 1, label = ~linkid)
+}
+
+for (link in unique(links_no_stats$linkid)) {
+  map_df <- links_no_stats %>% 
+    filter(linkid == link)
+  
+  map_links_with_stats <- map_links_with_stats %>% 
+    addPolylines(data = map_df, lng = ~longitude, lat = ~latitude, color = "red",
+                 opacity = 1, label = ~linkid)
+}
+
+map_links_with_stats %>% 
+  addCircles(data = dir1_stops, lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, radius = 50, opacity = 1) %>%
+  addCircles(data = dir2_stops, lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, radius = 50, opacity = 1)
+```
+
+```{r}
+# Calculate total links travel time per logtime and direction
+links_times <- link_stats %>%
+  group_by(logtime, direction) %>%
+  summarise(links_time = sum(tt)) %>%
+  ungroup() %>%
+  mutate(
+    day = date(logtime),
+    time = as_hms(logtime),
+    hour = hour(logtime),
+    rush = case_when(
+      between(hour, 6, 9) ~ "morning",
+      between(hour, 15, 18) ~ "evening",
+      TRUE ~ "neither"),
+    rush = factor(rush, levels = c("morning", "evening", "neither"))) %>%
+  relocate(day:rush, .after = logtime) %>% 
+  select(-logtime)
+```
+
+```{r}
+ggplot(links_times, aes(links_time)) +
+  geom_histogram() +
+  theme_bw()
+
+ggplot(links_times, aes(links_time)) +
+  geom_boxplot() +
+  theme_bw()
+```
+
+# Analysis
+
+```{r}
+# Split trips into 5 minute intervals average the trips times per interval
+trip_times_agg <- trip_times %>% 
+  mutate(arrival_time = ceiling_date(arrival_time, "5 minutes")) %>% 
+  group_by(arrival_time, direction) %>% 
+  summarise(
+    number_trips = n(),
+    bus_time = round(mean(trip_time))) %>%
+  ungroup() %>% 
+  mutate(
+    day = date(arrival_time),
+    time = as_hms(arrival_time),
+    hour = hour(time),
+    rush = case_when(
+      between(hour, 6, 9) ~ "morning",
+      between(hour, 15, 18) ~ "evening",
+      TRUE ~ "neither"),
+    rush = factor(rush, levels = c("morning", "evening", "neither"))) %>% 
+  relocate(day:rush, .after = arrival_time) %>% 
+  select(-arrival_time)
+```
+
+## Compare bus travel times to links travel times to validate each other
+
+```{r}
+# Combine links times and bus trip times
+travel_times <- trip_times_agg %>%
+  inner_join(links_times) %>% 
+  mutate(travel_diff = bus_time - links_time)
+
+travel_times_piv <- travel_times %>% 
+  pivot_longer(cols = bus_time:links_time, names_to = "type", values_to = "travel_time")
+```
+
+```{r}
+# Travel time distributions
+travel_times_piv %>%
+  ggplot(aes(travel_time, fill = type)) +
+  geom_density(alpha = 0.5) +
+  theme_bw() +
+  theme(
+    axis.text.y = element_blank(),
+    axis.title.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    legend.title = element_blank())
+
+travel_times_piv %>% 
+  ggplot(aes(travel_time, fill = type)) +
+  geom_density(alpha = 0.5) +
+  facet_wrap(vars(direction)) +
+  theme_bw() +
+  theme(
+    axis.text.y = element_blank(),
+    axis.title.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    legend.title = element_blank())
+
+# Travel difference distributions
+travel_times %>% 
+  ggplot(aes(travel_diff)) +
+  geom_histogram() +
+  theme_bw()
+
+travel_times %>% 
+  ggplot(aes(travel_diff)) +
+  geom_histogram() +
+  facet_wrap(vars(direction)) +
+  theme_bw()
+
+# Direction 1
+travel_times_dir1 <- travel_times %>% 
+  filter(direction == directions[1])
+
+travel_times_piv_dir1 <- travel_times_piv %>% 
+  filter(direction == directions[1])
+
+travel_times_piv_dir1 %>%
+  ggplot(aes(time, travel_time, color = type)) +
+  geom_line() +
+  facet_wrap(vars(day)) +
+  ggtitle(directions[1]) +
+  theme_bw() +
+  theme(
+    legend.title = element_blank(),
+    legend.justification = "bottom",
+    legend.position = c(0.5, 0))
+
+travel_times_dir1 %>%
+  ggplot(aes(time, travel_diff)) +
+  geom_line() +
+  facet_wrap(vars(day)) +
+  ggtitle(directions[1]) +
+  theme_bw()
+
+# Direction 2
+travel_times_dir2 <- travel_times %>% 
+  filter(direction == directions[2])
+
+travel_times_piv_dir2 <- travel_times_piv %>% 
+  filter(direction == directions[2])
+
+travel_times_piv_dir2 %>%
+  ggplot(aes(time, travel_time, color = type)) +
+  geom_line() +
+  facet_wrap(vars(day)) +
+  ggtitle(directions[2]) +
+  theme_bw() +
+  theme(
+  legend.title = element_blank(),
+  legend.justification = "bottom",
+  legend.position = c(0.5, 0))
+
+travel_times_dir2 %>%
+  ggplot(aes(time, travel_diff)) +
+  geom_line() +
+  facet_wrap(vars(day)) +
+  ggtitle(directions[2]) +
+  theme_bw()
+
+# Scatter plots
+travel_times %>% 
+  ggplot(aes(bus_time, links_time)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(se = FALSE) +
+  theme_bw()
+
+travel_times %>% 
+  ggplot(aes(bus_time, links_time)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(se = FALSE) +
+  facet_wrap(vars(direction), scales = "free") +
+  theme_bw()
+```
+
+### Correlation between bus travel time and links travel time
+
+```{r}
+paste("Correlation:", round(with(travel_times, cor(bus_time, links_time)), 2))
+
+travel_times %>% 
+  group_by(direction) %>% 
+  summarise(correlation = round(cor(bus_time, links_time), 2))
+```
+
+## Average pattern of links time and bus trips time
+
+```{r}
+# Average total links time in each 30 minute bin
+links_30min <- link_stats %>%
+  group_by(logtime, direction) %>%
+  summarise(links_time = sum(tt)) %>%
+  ungroup() %>% 
+  mutate(logtime = ceiling_date(logtime, "30 mins"),
+         time = as_hms(logtime)) %>% 
+  group_by(time, direction) %>% 
+  summarise(links_time = mean(links_time)) %>% 
+  ungroup() %>% 
+  mutate(rush = case_when(
+           between(time, as_hms("06:00:00"), as_hms("10:00:00")) ~ "morning",
+           between(time, as_hms("15:00:00"), as_hms("19:00:00")) ~ "evening",
+           TRUE ~ "neither"),
+         rush = factor(rush, levels = c("morning", "evening", "neither"))) %>% 
+  relocate(links_time, .after = everything())
+
+# Average bus trip times in each 30 minute bin
+trip_times_30min <- trip_times %>% 
+  mutate(arrival_time = ceiling_date(arrival_time, "30 minutes"),
+         time = as_hms(arrival_time)) %>% 
+  group_by(time, direction) %>% 
+  summarise(bus_time = round(mean(trip_time))) %>%
+  ungroup() %>% 
+  mutate(rush = case_when(
+           between(time, as_hms("06:00:00"), as_hms("10:00:00")) ~ "morning",
+           between(time, as_hms("15:00:00"), as_hms("19:00:00")) ~ "evening",
+           TRUE ~ "neither"),
+         rush = factor(rush, levels = c("morning", "evening", "neither"))) %>% 
+  relocate(bus_time, .after = everything())
+
+links_trips_30min <- links_30min %>% 
+  inner_join(trip_times_30min) %>% 
+  pivot_longer(cols = links_time:bus_time, names_to = "type", values_to = "value")
+
+ggplot(links_trips_30min, aes(time, value)) +
+  geom_line(alpha = 0.2) +
+  geom_line(data = filter(links_trips_30min, rush == "morning"), color = "blue", size = 0.5) +
+  geom_line(data = filter(links_trips_30min, rush == "evening"), color = "blue", size = 0.5) +
+  facet_grid(rows = vars(type), cols = vars(direction), scales = "free_y") +
+  annotate("rect", xmin = as_hms("06:00:00"), xmax = as_hms("10:00:00"), ymin = -Inf, ymax = Inf,
+           fill = "red", alpha = .1) +
+  annotate("rect", xmin = as_hms("15:00:00"), xmax = as_hms("19:00:00"), ymin = -Inf, ymax = Inf,
+           fill = "red", alpha = .1) +
+  scale_x_time(limits = as_hms(c("06:00:00", "23:59:59")),
+               breaks = as_hms(c("06:00:00", "08:00:00", "10:00:00",
+                                 "15:00:00", "17:00:00", "19:00:00")),
+               labels = c("6", "8", "10", "15", "17", "19")) +
+  labs(x = "Time", y = "") +
+  theme_bw()
+```
+
+## Correlations
+
+```{r}
+standardiser <- function(basis = hour) {
+  if (!deparse(substitute(basis)) %in% c("time", "hour", "rush")) {
+    stop("basis must be either time, hour, or rush")
+  }
+  
+  trip_times_std <- trip_times_agg %>%
+    group_by({{basis}}, direction) %>% 
+    mutate(
+      period_buses_no = n(),
+      bus_time_std = as.vector(scale(bus_time))) %>% 
+    ungroup() %>% 
+    mutate(bus_time_std = if_else(is.nan(bus_time_std), 0, bus_time_std)) %>%
+    filter(abs(bus_time_std) < 3) %>%
+    select(-bus_time)
+    
+  links_times_std <- links_times %>% 
+    group_by({{basis}}, direction) %>% 
+    mutate(links_time_std = as.vector(scale(links_time))) %>% 
+    ungroup() %>% 
+    filter(abs(links_time_std) < 3) %>%
+    select(-links_time)
+  
+  # Combine
+  travel_times_std <<- trip_times_std %>%
+    inner_join(links_times_std) %>%
+    mutate(std_travel_diff = bus_time_std - links_time_std)
+  
+  travel_times_std_piv <<- travel_times_std %>% 
+    pivot_longer(cols = bus_time_std:links_time_std, names_to = "type", values_to = "std_travel_time")
+}
+
+standardiser()
+```
+
+#### Visualise bus time and links time
+
+```{r}
+travel_times_std %>% 
+  ggplot(aes(bus_time_std)) +
+  geom_histogram() +
+  theme_bw()
+
+travel_times_std %>% 
+  filter(rush != "neither") %>% 
+  ggplot(aes(bus_time_std)) +
+  geom_histogram() +
+  facet_grid(vars(rush), vars(direction), scales = "free_y") +
+  theme_bw()
+
+travel_times_std %>% 
+  ggplot(aes(bus_time_std)) +
+  geom_boxplot() +
+  theme_bw()
+
+travel_times_std %>% 
+  filter(rush != "neither") %>% 
+  ggplot(aes(bus_time_std)) +
+  geom_boxplot() +
+  facet_grid(vars(rush), vars(direction)) +
+  theme_bw()
+
+travel_times_std %>% 
+  ggplot(aes(links_time_std)) +
+  geom_histogram() +
+  theme_bw()
+
+travel_times_std %>% 
+  filter(rush != "neither") %>% 
+  ggplot(aes(links_time_std)) +
+  geom_histogram() +
+  facet_grid(vars(rush), vars(direction), scales = "free_y") +
+  theme_bw()
+
+travel_times_std %>% 
+  ggplot(aes(links_time_std)) +
+  geom_boxplot() +
+  theme_bw()
+
+travel_times_std %>% 
+  filter(rush != "neither") %>% 
+  ggplot(aes(links_time_std)) +
+  geom_boxplot() +
+  facet_grid(vars(rush), vars(direction)) +
+  theme_bw()
+```
+
+```{r}
+# Morning Northbound
+travel_times_std_NB_morn <- travel_times_std %>% 
+  filter(direction == "NB",
+         rush == "morning")
+
+travel_times_std_piv_NB_morn <- travel_times_std_piv %>% 
+  filter(direction == "NB",
+         rush == "morning")
+
+travel_times_std_piv_NB_morn %>%
+  ggplot(aes(time, std_travel_time, color = type)) +
+  geom_line() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  ylim(c(-3,3)) +
+  facet_wrap(vars(day)) +
+  ggtitle("Northbound") +
+  theme_bw() +
+  theme(
+    legend.title = element_blank(),
+    legend.justification = "bottom",
+    legend.position = c(0.5, 0))
+
+travel_times_std_NB_morn %>%
+  ggplot(aes(time, std_travel_diff)) +
+  geom_line() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(vars(day)) +
+  ggtitle("Northbound") +
+  theme_bw()
+
+# Evening Southbound
+travel_times_std_SB_eve <- travel_times_std %>% 
+  filter(direction == "SB",
+         rush == "evening")
+
+travel_times_std_piv_SB_eve <- travel_times_std_piv %>% 
+  filter(direction == "SB",
+         rush == "evening")
+
+travel_times_std_piv_SB_eve %>%
+  ggplot(aes(time, std_travel_time, color = type)) +
+  geom_line() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  ylim(c(-3,3)) +
+  facet_wrap(vars(day)) +
+  ggtitle("Southbound") +
+  theme_bw() +
+  theme(
+    legend.title = element_blank(),
+    legend.justification = "bottom",
+    legend.position = c(0.5, 0))
+
+travel_times_std_SB_eve %>%
+  ggplot(aes(time, std_travel_diff)) +
+  geom_line() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(vars(day)) +
+  ggtitle("Southbound") +
+  theme_bw()
+```
+
+#### Scatter plots
+
+```{r}
+travel_times_std %>% 
+  ggplot(aes(links_time_std, bus_time_std)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(se = FALSE) +
+  ggtitle("All Times") +
+  theme_bw()
+
+travel_times_std %>% 
+  filter(rush != "neither") %>% 
+  ggplot(aes(links_time_std, bus_time_std)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(se = FALSE) +
+  ggtitle("Peak Times") +
+  theme_bw()
+
+travel_times_std %>% 
+  filter(rush != "neither") %>% 
+  ggplot(aes(links_time_std, bus_time_std)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(se = FALSE) +
+  facet_grid(vars(rush), vars(direction)) +
+  theme_bw()
+```
+
+#### Correlation coefficients
+
+```{r}
+paste("All times correlation:", round(with(travel_times_std, cor(bus_time_std, links_time_std)), 2))
+
+paste("Peak times correlation:", round(with(filter(travel_times_std, rush != "neither"), 
+                                            cor(bus_time_std, links_time_std)), 2))
+
+# Peak times and direction correlation
+travel_times_std %>% 
+  filter(rush != "neither") %>% 
+  group_by(rush, direction) %>% 
+  summarise(correlation = round(cor(bus_time_std, links_time_std), 2)) %>% 
+  ungroup()
+
+# Time period correlation
+travel_times_std_cor <- travel_times_std %>%
+  filter(rush != "neither") %>%
+  group_by(time, rush, direction) %>% 
+  summarise(
+    correlation = cor(bus_time_std, links_time_std),
+    sample_size = n()) %>% 
+  ungroup() %>% 
+  na.omit()
+
+travel_times_std_cor %>% 
+  ggplot(aes(time, correlation)) +
+  geom_line() +
+  facet_grid(vars(direction), vars(rush), scales = "free_x") +
+  theme_bw()
+
+# Hourly correlation
+travel_times_std_hr_cor <- travel_times_std %>%
+  filter(rush != "neither") %>%
+  group_by(hour, rush, direction) %>% 
+  summarise(
+    correlation = cor(bus_time_std, links_time_std),
+    sample_size = n()) %>% 
+  ungroup() %>% 
+  na.omit()
+
+travel_times_std_hr_cor %>% 
+  ggplot(aes(hour, correlation, label = round(correlation, 2))) +
+  geom_line() +
+  geom_label() +
+  facet_grid(vars(direction), vars(rush), scales = "free_x") +
+  theme_bw()
+```
+
+#### Linear Regression
+
+##### All times
+
+```{r}
+# Try all variables
+all_lm <- lm(bus_time_std ~ links_time_std + rush*direction, travel_times_std)
+summary(all_lm)
+drop1(all_lm)
+step(all_lm, trace = FALSE)
+
+# Only links_time_std is needed
+all_lm <- lm(bus_time_std ~ links_time_std, travel_times_std)
+summary(all_lm)
+tidy(all_lm)
+glance(all_lm)
+
+# Residual diagnostics
+augment(all_lm) %>% 
+  ggplot(aes(.fitted, .resid)) +
+  geom_point() +
+  geom_smooth(se = FALSE) +
+  theme_bw()
+
+augment(all_lm) %>% 
+  ggplot(aes(.resid)) +
+  geom_histogram() +
+  theme_bw()
+
+all_lm %>%
+  ggplot(aes(sample=.resid)) +
+  geom_qq() + 
+  geom_qq_line() +
+  theme_bw()
+```
+
+##### Peak Times
+
+```{r}
+# Morning Northbound
+mor_NB_lm <- lm(bus_time_std ~ links_time_std, travel_times_std_NB_morn)
+summary(mor_NB_lm)
+tidy(mor_NB_lm)
+glance(mor_NB_lm)
+
+# Residual diagnostics
+augment(mor_NB_lm) %>% 
+  ggplot(aes(.fitted, .resid)) +
+  geom_point() +
+  geom_smooth(se = FALSE) +
+  theme_bw()
+
+augment(mor_NB_lm) %>% 
+  ggplot(aes(.resid)) +
+  geom_histogram() +
+  theme_bw()
+
+mor_NB_lm %>%
+  ggplot(aes(sample=.resid)) +
+  geom_qq() + 
+  geom_qq_line() +
+  theme_bw()
+
+# Evening Southbound
+eve_SB_lm <- lm(bus_time_std ~ links_time_std, travel_times_std_SB_eve)
+summary(eve_SB_lm)
+tidy(eve_SB_lm)
+glance(eve_SB_lm)
+
+# Residual diagnostics
+augment(eve_SB_lm) %>% 
+  ggplot(aes(.fitted, .resid)) +
+  geom_point() +
+  geom_smooth(se = FALSE) +
+  theme_bw()
+
+augment(eve_SB_lm) %>% 
+  ggplot(aes(.resid)) +
+  geom_histogram() +
+  theme_bw()
+
+eve_SB_lm %>%
+  ggplot(aes(sample=.resid)) +
+  geom_qq() + 
+  geom_qq_line() +
+  theme_bw()
+```
+
+
+

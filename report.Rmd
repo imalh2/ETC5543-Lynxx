@@ -1250,6 +1250,10 @@ From figure \@ref(fig:bus-vehicles-time) we learn the following:
 
 -   For southbound travel away from the city, both travel times in the evening increase as expected and are more varied than the travel times in the morning
 
+-   During the morning rush hour, vehicle travel times take longer towards the city, while bus travel times are roughly the same between both directions
+
+-   During the evening rush hour, both travel types takes longer towards away from the city as expected
+
 -   The bus travel times are generally slower than vehicle travel times as expected, and both types exhibit similar patterns overall
 
 <br>

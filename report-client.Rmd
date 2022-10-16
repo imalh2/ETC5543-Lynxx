@@ -1,9 +1,11 @@
 ---
-title: "Report"
+title: "The Relationship Between Bus Travel Times and Road Congestion"
 author: "Ibrahim Al-Hindi"
-date: "`r Sys.Date()`"
+subtitle: "Lynxx Asia Pacific"
+date: "October 2022"
 output:
-  bookdown::html_document2
+  bookdown::html_document2:
+    theme: cerulean
 ---
 
 ```{r setup, include=FALSE}
@@ -17,7 +19,6 @@ library(lubridate)
 library(leaflet)
 library(hms)
 library(janitor)
-library(broom)
 library(kableExtra)
 library(scales)
 ```
@@ -57,59 +58,77 @@ southrd_link_stats_raw <- read_csv(here("data/South-Rd/link_stats_Mar.csv"))
 marionrd_link_stats_raw <- read_csv(here("data/Marion-Rd/link_stats_Mar.csv"))
 ```
 
+<br>
+
 # Abstract
+
+The continual increase of Adelaide's population results in an increase in road congestion and its associated costs. As the residents of Adelaide are becoming more reliant on public transport, it is critical to quantify the resilience of the public bus network to the aforementioned rise in road congestion. The analyses contained in this report seeks to provide the South Australia Department for Infrastructure and Transport (DIT) such an estimate by examining the relationship between the travel times of both motor vehicles and bus trips, especially during morning and evening rush hours. The core objective of the analysis is to determine for a specified road segment: the extent to which the variation of motor vehicles travel times from normal relative to the same time frame, is matched with such a variation in bus travel times, where a lower correlation indicates a more resilient bus network to increasing road congestion. Bus travel times are calculated using trip updates data obtained from the open source General Transit Feed Specification Realtime (GTFSR) by calculating the time taken between the first and last stops of the trips on the segment, while the motor vehicle travel times are calculated using links metrics available through DIT's Addinsight data lake. Upon completing the descriptive analysis of the travel times relationship, the travel times were standardized relative to the time of day to better examine the response of the bus travel times to variations in the motor vehicles travel times. The analysis was performed on South Road for the period of March 2022, for both the northbound direction towards the city, and the southbound direction away from the city. The analysis shows that the evening southbound correlation is strong between the standardized travel times, however the variations are relatively small, therefore it is difficult to infer the bus transportation robustness to congestion as larger variation magnitudes would have to be observed and examined. It also finds that the morning standardized travel times towards the city are more varied and the correlation is lower, implying the bus transportation is relatively more robust to congestion than evening bus travel from the city.
+
+<br>
 
 # Background
 
 Adelaide's population increased from 1.1 million to 1.3 million residents between 2006 and 2016, with 66 million more kilometers traveled on the road network during that time. Infrastructure Australia paints a dire picture of the level of road congestion in Adelaide and its continued worsening in the coming years in line with both an increasing population and an increasing reliance on public transport in comparison to cars. The report estimated the annualized cost of road congestion for Greater Adelaide to be approximately \$1.4 billion in 2016 and is projected to rise to \$2.6 billion in 2031 (Infrastructure Australia, 2019).
 
-With this backdrop in mind, the client (the South Australia Department for Infrastructure and Transport (DIT)) has in its possession an untapped wealth of data relating to traffic information collected through Bluetooth probes, which take count of passing motor vehicles in a particular time and location, therefore producing a metric for road congestion.
+With this backdrop in mind, the client - DIT - has in its possession an untapped wealth of data relating to traffic information collected through Bluetooth probes, which take count of passing motor vehicles in a particular time and location, therefore producing a metric for road congestion.
 
-This data will be examined in conjunction with publicly available, historical real time bus trip updates collected by General Transit Feed Specification Realtime (GTFSr), which provides the arrival time for each stop on a bus's trip. The analysis aims to identify the relationship and robustness of bus travel times to road congestion on road segments of interest.
+This data will be examined in conjunction with publicly available, historical real time bus trip updates collected by GTFSR, which provide the predicted arrival time for each stop on a bus's trip. The analysis aims to identify the relationship and robustness of bus travel times to road congestion on road segments of interest, especially during peak times.
+
+<br>
 
 # Objectives
 
 The aim of the proposed analysis is to investigate the extent of the relationship between bus travel times and road congestion - as measured by motor vehicle travel times - on identified road segments, where a strong relationship indicates a road segment where the bus travel times are less robust to congestion.
 
-Initially, the bus performance metric to be used and applied was the average delay experienced by a bus trip on the segment of interest, as measured by a stop's predicted arrival time versus the scheduled arrival time. However, this was later revised to measuring the bus travel time between the first and last stops of a segment, removing the possibility that we are measuring how accurately the schedule predicts and/or buffers for congestion. The road congestion metric used is the average travel time of the vehicles across the segment.
+Initially, the bus performance metric to be used and applied was the average delay experienced by a bus trip on the segment of interest, as measured by a stop's predicted arrival time versus the scheduled arrival time. However, the metric was later revised to the bus travel time between the first and last stops of a segment, removing the possibility that we are measuring how accurately the schedule predicts and/or buffers for congestion.
 
-A proposal outlining the analysis, the objectives, and the methodology was created and sent to the client, this was followed by a discussion with the client to provide more information regarding the analysis and clarify any points raised by the client. Ultimately, an agreement was reached for the analysis to fulfill the following objectives:
+A proposal outlining the analysis, the objectives, and the methodology was created and sent to the client (found [here](https://github.com/imalh2/ETC5543-Lynxx/raw/main/proposal/Monash%20University%20Intern%20Project%20-%20Congestion%20vs%20Bus%20Performance%20Investigation%20Proposal.pdf)), this was followed by a discussion with the client to provide more information regarding the analysis and clarify any points raised by them. An agreement was reached for the analysis to fulfill the following objectives:
 
-1.  Detailed travel time or congestion analysis comparing public transport response to road traffic on selected sections of road over a given period of time
+1.  Detailed travel time or congestion analysis comparing public transport response to road traffic on selected sections of road over a given period of time, especially during peak hours
 
 2.  Repeatable methodology, code, functions, and visuals that produce detailed analysis on other segments of interest
 
-In fulfilling the first objective, the segments of road analysed are South Road and Marion Road in Adelaide. This report uses the former to illustrate the methodology, while the latter is used for comparison. The period of time chosen is March 2022.
+In fulfilling the first objective, the segment of road analysed is South Road in Adelaide. The period of time chosen is March 2022.
 
-Regarding the second objective, the methodology and the code created aim to ensure the requirement of as little manual input and edits as possible when applied to different road segments.
+Regarding the second objective, the methodology and the code created aim to ensure as little manual input and edits as possible when applied to different road segments.
 
 The analysis undertaken in this report will form the basis of future analysis into:
 
 -   additional road segments of interest to generate a ranking of bus network robustness which can help inform the allocation of resources
 
--   analysing the factors that can effect bus travel times such as the use of bus lanes, number of bus stops, traffic lights, etc.
+-   the rate of decline of bus resilience to congestion by examining prior periods of the same road segment
+
+-   the impact of road works on bus performance by conducting and comparing the results of both pre- and post-works analysis
+
+-   identifying the factors that can affect bus travel times such as the use of bus lanes, number of bus stops, traffic lights, etc.
 
 -   creating a model predicting bus travel times using identified features.
 
+<br>
+
 # Data Sources, Description, and Wrangling
 
-Three main data sources are used: DIT Addinsight, GTFS, and GTFSR. These data sources and their associated sub-sources will be outlined below. All the data is stored in the cloud using Amazon Web Services (AWS) and is accessed through Athena which uses regular SQL syntax.
+Three main data sources are used: DIT Addinsight, General Transit Feed Specification (GTFS), and GTFSR. These data sources and their associated sub-sources will be outlined below. All the data is stored in the cloud using Amazon Web Services (AWS), and is accessed and retrieved through Athena which uses regular SQL syntax.
 
 The data cleaning and wrangling will be discussed as it was the part of the analysis that required the highest workload.
 
 As mentioned above, the methodology will be illustrated on South Road, which is one of Adelaide's most important and major roads, and regularly suffers from congestion (Infrastructure Australia, 2019).
 
+<br>
+
 ```{r, fig.cap="South Rd on map. Source: Google Maps"}
 knitr::include_graphics("images/SouthRd_Map.png")
 ```
 
-## General Transit Feed Specification (GTFS)
+<br>
+
+## GTFS
 
 This is a common format developed by Google and used by public transport agencies around the world and contains static or scheduled information about public transport services such as routes, stops, schedule and geographic transit information. For the purposes of this analysis, only the bus routes and bus stops datasets will be used.
 
 ### Routes
 
-These are the bus routes that go through South Road. These were identified by overlaying all the network routes on a map in Tableau and the routes on South Road were highlighted and exported to a list. The dataset contains simply the unique collection of route_id on the segment.
+These are the bus routes that go through South Road. The routes were identified by overlaying all the network routes on a map in Tableau and the routes on South Road were manually highlighted and exported to a list. The dataset simply contains the unique collection of `route_id`s on the segment.
 
 ```{r}
 segment_route_stops <- clean_names(southrd_routes_stops_raw)
@@ -121,7 +140,7 @@ segment_routes <- segment_route_stops %>%
 
 ### Stops
 
-The list of bus stops on the segment were identified in the same fashion as when identifying the routes. This produces a list of the stop_id's on the segment.
+The list of bus stops on the segment were identified using Tableau in the same fashion as when identifying the routes.
 
 A dataset containing all the stops in the bus network and information relating to each stop is used and filtered to only the stops present on the segment (for the purposes of this report, the file containing all the stops on the network was pre-filtered to the stops on the segment only to accommodate Github file size limits. However, the code and methodology contained here apply as if the complete dataset were used and filtered through the code).
 
@@ -155,9 +174,11 @@ stops_segment %>%
   kable_styling(full_width = FALSE)
 ```
 
-The `direction` variable is manually created. In this case, if the stop is on the east side of South Road, then it is southbound (SB) away from the city; if the stop is on the west side of South Road, this it is northbound (NB) towards the city.
+The `direction` variable is manually created. In this case, if the stop is on the east side of South Road, then it is southbound (SB) away from the city; if the stop is on the west side of South Road, then it is northbound (NB) towards the city.
 
 The bus stops will be plotted on a map to confirm they are all, in fact, on South Road.
+
+<br>
 
 ```{r, fig.cap="Bus stops on South Road"}
 # Plot on map to check the stops are all on South Rd
@@ -167,11 +188,11 @@ stops_segment %>%
     addCircles(lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, opacity = 1)
 ```
 
-## General Transit Feed Specification Realtime (GTFSR)
+<br>
+
+## GTFSR - Trip Updates
 
 Unlike GTFS which provides static information, GTFSR provides real time information consisting of two types. The first type is a trip's real time updates regarding a bus stop's expected arrival times and delays. The second type is a real time update of a bus's geographic position and speed at a specific point in time. This analysis uses the former only.
-
-### Trip Updates
 
 ```{r}
 # Keep only updates for stops on segment and remove weekends and public holidays
@@ -186,7 +207,7 @@ updates <- southrd_updates_raw %>%
   select(-direction_id, -wheelchair_accessible) 
 ```
 
-Once the bus routes that go through the segment were identified as outlined above, the real time updates for all the trips in March 2022 according to the routes were retrieved from the AWS database using Athena. This dataset is used to derive the bus travel time through the segment, which is the first element in the relationship being assessed in this analysis, with the other being the vehicles travel time as a measure of congestion. The SQL query to retrieve the updates can be found in appendix \@ref(trip-updates-sql-query).
+Once the bus routes that go through the segment were identified as outlined above, the real time updates for all the trips in March 2022 according to the routes were retrieved from the AWS database using Athena. This dataset is used to derive the bus travel time through the segment, which is the first element in the relationship being assessed in this analysis, with the other being the vehicle travel time as a measure of congestion.
 
 First, the unedited data will be described.
 
@@ -215,17 +236,17 @@ It is important to note the following:
 
 -   One `trip_id` occurs a maximum of one time a day, the `trip_id` can occur on multiple days
 
-As a bus trip is occurring, at a certain timestamp a real time prediction of the arrival times of the remaining stops on the trip are updated.
+As a bus trip is occurring, at certain time intervals a real time prediction of the arrival times of the upcoming stops on the trip are updated.
 
 Cleaning and wrangling this dataset proved to be the most challenging and time consuming section of this analysis, with many methodologies, cleaning iterations, and code trialed to arrive at the optimal treatment. This is due to the complex relationships between the observations in the dataset, and the variety of errors and inconsistencies encountered.
 
 The following preliminary adjustments were done:
 
-1. As each stop on a given trip can have multiple arrival time predictions with each update timestamp prior to reaching that stop, the SQL query insures that each stop only has the predicted arrival time corresponding to the latest timestamp, given that the later the prediction, the more accurate it is.
+1.  As each stop on a given trip can have multiple arrival time predictions with each update timestamp prior to reaching that stop, the SQL query insures that each stop only has the predicted arrival time corresponding to the latest update timestamp, given that the later the prediction, the more accurate it is
 
-2. As a trip can begin and end outside the bounds of the segment, the updates were constrained only to those stops within the segment, in either direction.
+2.  As a trip can begin and end outside the bounds of the segment, the updates were constrained only to those stops within the segment, in either direction
 
-3. Weekends and holidays were removed as we are interested in the relationships during working days.
+3.  Weekends and holidays were removed as we are interested in the relationships during working days only
 
 ```{r}
 holidays <- unique(holidays_raw$date)
@@ -241,9 +262,11 @@ updates <- updates %>%
     !wday(start_date, label = TRUE) %in% c("Sat", "Sun"))
 ```
 
-A new variable `to_stop_time` was created. This variable measures the time taken to reach each stop from the prior stop in seconds, within each trip. The variable was created to facilitate a potential deeper understanding of the data, to highlight any errors, and for potential utilities in the future such as drilling down to examine the pattern on a stop-basis.
+A new variable `to_stop_time` was created. This variable measures the time taken to reach each stop from the prior stop in seconds, within each trip. The variable was created to facilitate a potential deeper understanding of the data, to highlight any errors, and for potential utilities in the future such as drilling down to examine the patterns on a stop-basis.
 
 Through this variable, a range of errors were discovered that needed to be amended. This is how the data appears before any remedial actions are taken.
+
+<br>
 
 ```{r unedited-to-stops, fig.cap="Unedited to-stop times contain negative values"}
 updates_stop_times <- updates %>%
@@ -264,9 +287,11 @@ ggplot(updates_stop_times, aes(to_stop_time/60, delay/60)) +
   theme_bw()
 ```
 
-Figure \@ref(fig:unedited-to-stops) shows that `to_stop_time` contains negative values to the left of the red line, this is a clear error as it is not possible for time taken to reach a stop to be negative. Additionally we can see very high delay values in clusters, above 4,000 seconds, which is over an hour long.
+<br>
 
-In total, there were eight types of errors identified in the data. The list of errors, an example of each error, and the code to rectify the errors can be found in appendix \@ref(updates-errors).
+Figure \@ref(fig:unedited-to-stops) shows that `to_stop_time` contains negative values to the left of the red line, this is a clear error as it is not possible for the time taken to reach a stop to be negative. Additionally we can see very high delay values in clusters above 70 minutes.
+
+In total, there were eight types of errors identified in the data. The list of errors, an example of each error, and the code to rectify the errors can be found in appendix \@ref(bus-trips-updates-errors).
 
 ```{r}
 # Clean updates and get time to each stop for error detection
@@ -327,9 +352,11 @@ updates_stop_times <- updates %>%
 error_percentage <- round((nrow(updates) - nrow(updates_stop_times)) / nrow(updates) * 100, 2)
 ```
 
-Great effort was put into identifying each type of error and remedying it in a way that does not produce further errors, or that removes large amounts of data, identifying the correct order of the types of errors to be tackled was also essential. In addition, formulating the code to fix each error required various trial and error iterations. This was all done to ensure the errors were removed as surgically as possible to minimize data loss and due to the sensitive nature of the relationships between the stops on each trip.
+Great effort was put into identifying each type of error and remedying it in a way that does not produce further errors, or that removes large amounts of data; identifying the correct order of the types of errors to be tackled was also essential. In addition, formulating the code to fix each error required various trial and error iterations. This was all done to ensure the errors were removed as surgically as possible to minimize data loss and due to the sensitive nature of the relationships between the stops on each trip.
 
 The percentage of error entries located and fixed in the data was `r error_percentage`%. The cleaned data now appears as follows:
+
+<br>
 
 ```{r cleaned-to-stops, fig.cap="Cleaned to-stop times do not contain negative values"}
 ggplot(updates_stop_times, aes(to_stop_time/60, delay/60)) +
@@ -343,7 +370,11 @@ ggplot(updates_stop_times, aes(to_stop_time/60, delay/60)) +
   theme_bw()
 ```
 
-With the data now cleaned, two additional variables were created called `first_stop` and `last_stop`, which identify the first and last stops of each trip within the segment. The total time per trip can now be derived by calculating the time between the first stop and last stop of the trip within the segment. The arrival time of the first stop and last stop on the segment will be regarded as the start and end time, respectively, of the trip. The distribution of the trip times per direction is shown below. The two most occurring first-last stops pair per direction will be used.
+<br>
+
+With the data now cleaned, two additional variables were created called `first_stop` and `last_stop`, which identify the first and last stops of each trip within the segment. The total time per trip can now be derived by calculating the time between the first stop and last stop of the trip within the segment. The arrival time of the first stop and last stop on the segment will be regarded as the start and end time, respectively, of the trip. The distribution of the trip times per direction is shown below. The two most occurring first-last stops pair per direction are used here.
+
+<br>
 
 ```{r two-stops-pairs, fig.cap="Different stops pairs in the same direction have different trip times"}
 # Take top occurring stops pair for each direction
@@ -370,7 +401,7 @@ updates_trip_time <- updates_stop_times_x %>%
 
 ggplot(updates_trip_time, aes(trip_time/60, fill = stops_pair)) +
   geom_density(alpha = 0.5) +
-  scale_x_continuous(labels = label_comma()) +
+  scale_x_continuous(labels = label_comma(), limits = c(min(updates_trip_time$trip_time/60), 35)) +
   labs(x = "Trip Time (Minutes)",
        fill = "First-Last Stops",
        title = "Trip Time Distribution per Stops Pair per Direction") +
@@ -382,9 +413,13 @@ ggplot(updates_trip_time, aes(trip_time/60, fill = stops_pair)) +
     axis.ticks.y = element_blank())
 ```
 
-As figure \@ref(fig:two-stops-pairs) shows, different first-last stops pairs in the same direction have different travel times. This means that different routes and trips can have different travel times solely based on their respective first and last stops on the segment, this renders the travel time between them incomparable as they occupy different distances. Therefore, only trips with the same pair of first and last stops within the segment will be kept, with the remaining trips discarded; there can be only one pair of first and last stops per direction, so that the distance is constant for the all the trips and the time is therefore comparable.
+<br>
 
-This pair of stops is identified as the most occurring pair per direction. Now, only trips with this pair of first and last stops are kept in the data. The stops pair per direction can be see in the map below
+As figure \@ref(fig:two-stops-pairs) shows, different first-last stops pairs in the same direction have different travel times. This means that different trips can have different travel times solely based on their respective first and last stops on the segment, this renders the travel time between them incomparable as they occupy different distances. Therefore, only trips with the same pair of first and last stops within the segment will be kept, with the remaining trips discarded; there can be only one pair of first and last stops per direction, so that the distance is constant for all the trips and the time is therefore comparable.
+
+This pair of stops is identified as the most occurring pair per direction. Now, only trips with this pair of first and last stops are kept in the data. The stops pair per direction can be seen in the map below:
+
+<br>
 
 ```{r stops-pair-map, fig.cap="Most occurring pair of bus stops per direction"}
 top_first_last_stops <- updates_stop_times %>%
@@ -401,7 +436,11 @@ stops_segment %>%
   addCircles(lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, opacity = 1)
 ```
 
-The distribution of the trip times per direction is shown below.
+<br>
+
+The distribution of the trip times per direction is shown below:
+
+<br>
 
 ```{r large-trip-times, fig.cap="Excessively large trip times exist, especially southbound"}
 updates_stop_times <- updates_stop_times %>%
@@ -416,19 +455,22 @@ updates_trip_time <- updates_stop_times %>%
   ungroup()
 
 ggplot(updates_trip_time, aes(trip_time/60)) +
-  geom_histogram(fill = "blue") +
+  geom_histogram(fill = "light blue", color = "white") +
   labs(x = "Trip Time (Minutes)",
        fill = "Direction",
-       title = "Unedited Trip Time Distribution per Direction") +
+       title = "Unedited Trip Time Distribution") +
   scale_x_continuous(labels = label_comma()) +
   scale_y_continuous(labels = label_comma()) +
-  facet_wrap(vars(direction)) +
   theme_bw()
 ```
 
-As figure \@ref(fig:large-trip-times) shows, excessive trip times occur, especially southbound. It is difficult to determine whether these are errors or genuine trip times without using further information. A variable called `delay_diff` is created which calculates the size of the difference between the delay of the first stop and the delay of the last stop per trip. Excessive values of this variable indicates the large travel time is due to an error as either of the stops has an artificially large delay or early arrival. A plot of `delay_diff` vs `travel_time` is shown below.
+<br>
 
-```{r delay-diff, fig.cap="Size of difference between first and last stop delays. Southbound is more problematic"}
+As figure \@ref(fig:large-trip-times) shows, excessive trip times occur. It is difficult to determine whether these are errors or genuine trip times without using further information. A variable called `delay_diff` is created which calculates the size of the difference between the delay of the first stop and the delay of the last stop per trip. Excessive values of this variable indicate the large travel time is due to an error as either of the stops has an artificially large delay or early arrival. A histogram of `delay_diff` is shown below:
+
+<br>
+
+```{r delay-diff, fig.cap="Size of difference between first and last stop delays"}
 # One row per trip corresponding to highest delay in the trip. For error detection using plots
 trip_time_delay <- updates_trip_time %>%
   group_by(start_date, trip_id) %>%
@@ -436,20 +478,18 @@ trip_time_delay <- updates_trip_time %>%
   ungroup() %>%
   distinct(start_date, trip_id, .keep_all = TRUE)
 
-ggplot(trip_time_delay, aes(delay_diff/60, color = direction)) +
-  geom_boxplot() +
+ggplot(trip_time_delay, aes(delay_diff/60)) +
+  geom_histogram(fill = "light blue", color = "white") +
   labs(x = "Delay Difference (Minutes)",
-       color = "Direction",
        title = "Size of Difference between Delays of First and Last Stops") +
-  scale_x_continuous(labels = label_comma()) +
-  theme_bw() +
-  theme(axis.text.y = element_blank(),
-        axis.ticks.y = element_blank(),
-    panel.grid.major.y = element_blank(),
-    panel.grid.minor.y = element_blank())
+  theme_bw()
 ```
 
+<br>
+
 Based on figure \@ref(fig:large-trip-times), trips with a `delay_diff` greater than 600 (10 minutes) were removed as they were most likely errors. The resulting data now appears as follows:
+
+<br>
 
 ```{r trip-times-all, fig.cap="Excessively large trip times no longer exist"}
 updates_trip_time <- updates_trip_time %>%
@@ -472,35 +512,17 @@ trip_times <- updates_trip_time %>%
 
 rm(southrd_updates_raw)
 
-ggplot(trip_times, aes(trip_time/60, fill = direction)) +
-  geom_density(alpha = 0.4) +
+ggplot(updates_trip_time, aes(trip_time/60)) +
+  geom_histogram(fill = "light blue", color = "white") +
   labs(x = "Trip Time (Minutes)",
        fill = "Direction",
-       title = "Trip Time Distribution per Direction at All Times") +
+       title = "Trip Time Distribution") +
   scale_x_continuous(labels = label_comma()) +
   scale_y_continuous(labels = label_comma()) +
   theme_bw()
 ```
 
-Figure \@ref(fig:trip-times-all) shows that travel times southbound away from the city are larger and more dispersed than the travel times northbound towards the city.
-
-```{r trip-times-rush, fig.cap="Greater variation exists between the travel times of both directions in the evening"}
-trip_times %>% 
-  filter(rush != "Neither") %>% 
-  ggplot(aes(trip_time/60, fill = direction)) +
-  geom_density(alpha = 0.3) +
-  labs(x = "Trip Time (Minutes)",
-       fill = "Direction",
-       title = "Trip Time Distribution per Direction by Rush Hours") +
-  scale_x_continuous(labels = label_comma()) +
-  scale_y_continuous(labels = label_comma()) +
-  facet_wrap(vars(rush)) +
-  theme_bw()
-```
-
-Figure \@ref(fig:trip-times-rush) shows that travel times are in fact very similar during the morning rush hour, while in the evening, travel time southbound away from the city is longer as expected.
-
-The data relating to only the first stop per trip was kept since the arrival time of the first stop will be considered as the trip start time used as the basis for aggregation later in the analysis.
+<br>
 
 The data in the bus travel times will be split into five minute time periods, with the arrival time of the first stop on the trip used as the basis for this segregation. For example, all bus trips that start between 2022-03-01 12:00:00 and 2022-03-01 12:05:00 will be included in the same time frame. Since each time frame can contain multiple trips, the bus travel times will be averaged into one average bus travel time, this is done to establish a one-to-one relationship with the vehicles travel time, which are also in five minute intervals. The final dataset looks as follows:
 
@@ -534,8 +556,8 @@ trip_times_agg_southrd %>%
                          "Time of the day in hour:minute:seconds of the measurement",
                          "The hour of the measurement",
                          "Whether the measurement occurrs during rush hour.
-                          Morning rush hour occurrs between 6am and 10am,
-                          evening rush hour occurrs between 3pm and 7pm,
+                          Morning rush hour occurrs between 6:30am and 10am,
+                          evening rush hour occurrs between 3:30pm and 7pm,
                           neither otherwise",
                          "The direction of travel",
                          "The original number of trips during the five minute interval",
@@ -543,6 +565,8 @@ trip_times_agg_southrd %>%
   kable(caption = "Aggregated bus trip travel times data description") %>% 
   kable_styling(full_width = FALSE)
 ```
+
+<br>
 
 ## DIT Addinsight
 
@@ -554,11 +578,13 @@ The DIT Addinsight database is very large and contains many tables, each recordi
 
 This dataset contains holidays dates, which is the only variable used.
 
+<br>
+
 ### Links
 
 #### All Links
 
-This dataset lists all the links present in the network, not just the segments of interest. A link is a one-way section of road between two adjacent sites. Addinsight will measure statistics for every link in real time. The variables present and used from this dataset are
+This dataset lists all the links present in the network, not just the segment of interest. A link is a one-way section of road between two adjacent sites. Addinsight will measure statistics for every link in real time. The variables present and used from this dataset are
 
 ```{r links-desc}
 links_raw %>%
@@ -579,7 +605,7 @@ links_raw %>%
 
 #### Segment Links
 
-These are all the links that are present on the road segment examined only. These links were identified by inserting all the links into an interactive map in Tableau, and then manually selecting the area of interest on the map, which produces a list of the links in the highlighted area, and the geometry for each link. It is important to note that the some links can overlap with other links on the segment.
+These are all the links that are present on the road segment examined only. These links were identified by inserting all the links into an interactive map in Tableau, and then manually selecting the area of interest on the map, which produces a list of the links in the highlighted area, and the geometry for each link. It is important to note that some links can overlap with other links on the segment.
 
 ```{r segment-links-desc}
 southrd_links_raw %>% 
@@ -595,9 +621,7 @@ southrd_links_raw %>%
   kable_styling(full_width = FALSE)
 ```
 
-The links data was limited to the end of the period examined, in this case the end of March 2022. The data was filtered to the most recent update per link. This is done to obtain the most recent enabled status of each link. The two links datasets were joined together to create a single dataset which contains the links on the segment and all their related information. Finally, the `name` variable was used to created two additional variables, `start_loc` and `end_loc` which give the name of the link start location and end location, respectively. These variables will be used to identify the sequence of non-overlapping links on the segment later.
-
-START_LAT END_LAT!!!
+The links data was limited to the end of the period examined, in this case the end of March 2022. The data was filtered to the most recent update per link. This is done to obtain the most recent enabled status of each link. The two links datasets were joined together to create a single dataset which contains the links on the segment and all their related information. Finally, the `name` variable was used to create two additional variables, `start_loc` and `end_loc` which give the name of the link start location and end location, respectively. A further two variables were created, `start_lat` and `end_lat`, which are the latitudes of the start and end locations, respectively. These variables will be used to identify the sequence of non-overlapping links on the segment later.
 
 ```{r}
 # Limit updates to end of period examined and get most recent update per link,
@@ -639,21 +663,27 @@ rm(links_raw)
 rm(southrd_links_raw)
 ```
 
-### Links Statistics
+<br>
+
+#### Links Statistics
 
 With the bus travel times now obtained, the objective is to obtain the motor vehicle travel times across approximately the same length of the segment as the length between the bus stops pairs identified for each direction. The travel times statistics are generated by each enabled link.
 
 As stated in the previous section, the list of links exported from Tableau contains all the links on the segment, this includes links that overlap with each other, where a portion of a link is simultaneously covered by another link. This overlap can result in double counting when calculating the aggregated statistics of the links as the overlapping links can measure the same motor vehicles at the same time. It is therefore essential to identify and select a sequence of non-overlapping links per direction that covers the length of the segment required.
 
-#### Identify Sequence of Links and Links with Missing Statistics
+<br>
+
+##### Identify Sequence of Links and Links with Missing Statistics
 
 The process of identifying the sequence of non-overlapping links also required time-intensive multiple trials and iterations. The method to identify the links, as with the analysis in general, attempts to ensure maximum automation and minimal manual input. Each direction of travel will be processed separately using the same method. The northbound direction will be used here as an illustration.
 
-First, the links dataset is ordered from south to north using the starting latitude of each link. The dataset will also be filtered to enabled links as disabled links do not generate statistics. Next, the names of the locations of the start and end points of the segment will be entered, these are procured by examining the stops map in figure \@ref(fig:stops-pair-map) since we need both metrics to cover as much of the same segment as possible. In this case, the segment starts at the intersection of South Road with Walsh Avenue and ends at the intersection of South Road with Anzac Highway. However the link ending in Walsh Avenue is disabled, therefore the intersection prior will be used as the starting point for now, which is Celtic Avenue, and the statistics for Walsh Avenue will be derived later. Entering the names of the starting and end points is the only manual step in the code.
+First, the links dataset is ordered from south to north using the starting latitude of each link. The dataset will also be filtered to enabled links as disabled links do not generate statistics. Next, the names of the locations of the start and end points of the segment will be entered, these are identified by examining the stops map in figure \@ref(fig:stops-pair-map) since we need both metrics to cover as much of the same segment as possible. In this case, the segment starts at the intersection of South Road with Walsh Avenue and ends at the intersection of South Road with Anzac Highway. However the link ending in Walsh Avenue is disabled, therefore the intersection prior will be used as the starting point for now, which is Celtic Avenue, and the statistics for Walsh Avenue will be imputed later. Entering the names of the starting and end points is the only manual step in the code.
 
 Once the locations are determined, the links dataset will be filtered to contain only the links that occur between the first occurrence of the start location and the last occurrence of the end location. If two links start at the same location, the shorter link will be chosen as the data is more granular.
 
-The sequence of non-ovelapping links along with the stops pair in the northbound direction is shown on the map below:
+The sequence of non-ovelapping links along with the stops pair in the northbound direction are shown on the map below:
+
+<br>
 
 ```{r dir1-links, fig.cap="Sequence of non-overlapping links in the northbound direction and stops. The alternating colors show the non-overlapping property of the links"}
 # Direction 1
@@ -721,7 +751,11 @@ map_dir1 %>%
   addCircles(data = dir1_stops, lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, radius = 50, opacity = 1)
 ```
 
+<br>
+
 The same process will be applied to the southbound direction.
+
+<br>
 
 ```{r dir2-links, fig.cap="Sequence of non-overlapping links and stops in the southbound direction"}
 # Direction 2
@@ -778,9 +812,13 @@ map_dir2 %>%
   addCircles(data = dir2_stops, lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, radius = 50, opacity = 1)
 ```
 
+<br>
+
 The map displaying the links from both directions is shown below:
 
-```{r both-links}
+<br>
+
+```{r both-links, fig.cap="Sequence of non-overlapping links and stops in both directions"}
 # Plot links from both directions
 map_both <- leaflet() %>% 
   addTiles()
@@ -810,7 +848,9 @@ map_both %>%
   addCircles(data = dir2_stops, lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, radius = 50, opacity = 1)
 ```
 
-However, as stated previously, the true limit of the segment should be at Walsh Avenue, this gap can be seen in the map in figure \@ref(fig:both-links) at the southern end. Since the link connecting Celtic Avenue to Walsh Avenue in both directions is disabled and statistics were not collected, the statistics will have to be imputed.
+<br>
+
+However, as stated previously, the true limit of the segment should be at the intersection with Walsh Avenue, this gap can be seen in the map in figure \@ref(fig:both-links) at the southern end. Since the link connecting Celtic Avenue to Walsh Avenue in both directions is disabled and statistics were not collected, the statistics will have to be imputed.
 
 The imputation method starts with first identifying the linkid of the missing link(s), as well as the closest enabled links preceding and proceeding the missing link(s). This process is completely automated with the exception of the manual specification of the start and end locations of the missing links. The process is implemented for both directions.
 
@@ -923,9 +963,11 @@ links_all <- unique(c(links_dir1_enabled$linkid, links_dir2_enabled$linkid,
                 missing_links_impute$post_linkid))
 ```
 
-With both the links that make up the segment as well as the links needed for imputation identified, the link statistics for the time period are retrieved from AWS and Athena using the SQL query found in appendix \@ref(link-statistics-sql-query).
+With both the links that make up the segment as well as the links needed for imputation identified, the link statistics for the time period are retrieved from AWS using Athena.
 
-#### Clean and Validate Link Statistics
+<br>
+
+##### Clean and Validate Link Statistics
 
 These are the aggregated five minute statistics generated for each link. The dataset is as follows:
 
@@ -947,6 +989,8 @@ Holidays and weekends are excluded as with the bus travel times, and the dataset
 
 A plot of travel speed vs travel time is shown below:
 
+<br>
+
 ```{r unedited-time-speed, fig.cap="Very large speed values are present, these are judged to be clearly errors"}
 link_stats <- southrd_link_stats_raw %>% 
   select(logtime:avgdensity) %>%
@@ -967,12 +1011,16 @@ rm(southrd_link_stats_raw)
 ggplot(link_stats, aes(speed, tt/60, color = factor(linkid))) +
   geom_point(alpha = 0.3, show.legend = FALSE) +
   labs(x = "Speed (km/h)", 
-       y = "Vehicle Travel Time (minutes)", 
+       y = "Vehicle Travel Time (Minutes)", 
        title = "Unedited Vehicle Travel Speed Vs Travel Time") +
   theme_bw()
 ```
 
-Figure \@ref(fig:unedited-time-speed) shows speed vs travel time, with the points colored by link. We can that excessively large speed values are present in the southbound direction. Since the length per link does not change, this indicates that errors were made when the travel times were logged. Observations with speeds over 150 km/h will be removed from the dataset.
+<br>
+
+Figure \@ref(fig:unedited-time-speed) shows speed vs travel time, with the points colored by link. We can see that excessively large speed values are present. Since the length per link does not change, this indicates that errors were made when the travel times were logged. Observations with speeds over 150 km/h will be removed from the dataset, resulting in the following figure:
+
+<br>
 
 ```{r time-speed, fig.cap="Erroneous speed values were removed"}
 link_stats <- link_stats %>%
@@ -987,7 +1035,11 @@ ggplot(link_stats, aes(speed, tt/60, color = factor(linkid))) +
   theme_bw()
 ```
 
+<br>
+
 A plot of the length in meters vs the travel time will be examined:
+
+<br>
 
 ```{r lengh-time, fig.cap="Travel time increases with length"}
 ggplot(link_stats, aes(factor(length), tt/60)) +
@@ -998,11 +1050,17 @@ ggplot(link_stats, aes(factor(length), tt/60)) +
   theme_bw()
 ```
 
+<br>
+
 Figure \@ref(fig:lengh-time) shows that travel time increases as the link length increases, which is an accepted and expected result.
 
-#### Impute Statistics for Missing Links
+<br>
 
-With the links statistics now cleaned and validated, we return to the process of imputing the statistics for the missing links shown in the map below. The green links are the links with statistics, while the red links are the linking with missing statistics.
+##### Impute Statistics for Missing Links
+
+With the links statistics now cleaned and validated, we return to the process of imputing the statistics for the missing links shown in the map below. The green links are the links with statistics, while the red links are the links with missing statistics.
+
+<br>
 
 ```{r link-stats-present-missing, fig.cap="Links with statistics are colored in green, links with missing statistics are colored in red"}
 links_with_stats <- links_segment %>% 
@@ -1042,13 +1100,15 @@ map_links_with_stats %>%
   addCircles(data = dir2_stops, lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, radius = 50, opacity = 1)
 ```
 
-The following steps are performed to impute the travel times of the missing links. For each link:
+<br>
 
-1. For the preceding and proceeding links, calculate travel time divided by the length per five minute logtime
+The following steps are performed to impute the travel times for the links with missing statistics. For each link:
 
-2. Average (1) between the preceding and proceeding links per five minute logtime
+1.  For the preceding and proceeding links, calculate travel time divided by the length per five minute logtime
 
-3. Multiply (2) by the length of the missing link to obtain the travel time for each five minute logtime
+2.  Average (1) between the preceding and proceeding links per five minute logtime
+
+3.  Multiply (2) by the length of the link with missing statistics to obtain the travel time for each five minute logtime
 
 ```{r}
 for(i in 1:nrow(missing_links_impute)) {
@@ -1081,6 +1141,8 @@ link_stats <- link_stats %>%
 ```
 
 We will check that links with missing statistics no longer exist by once again plotting the links on the map below
+
+<br>
 
 ```{r full-links-map, fig.cap="The links are all green indicating that there are no longer missing statistics"}
 links_with_stats <- links_segment %>% 
@@ -1118,9 +1180,11 @@ map_links_with_stats %>%
   addCircles(data = dir2_stops, lat = ~stop_lat, lng = ~stop_lon, label = ~ stop_id, radius = 50, opacity = 1)
 ```
 
-As the links in figure \@ref(fig:full-links-map) are all green, this indicates that travel time figures exists for all the links.
+<br>
 
-Finally, to obtain the total motor vehicle travel time across all the segments, the travel time of all the links in the same five minute logtime will be summed, per direction. The final dataset for analysis contains the following variables:
+As the links in figure \@ref(fig:full-links-map) are all green, this indicates that travel time measurements exist for all the links.
+
+Finally, to obtain the total motor vehicle travel time across the entire segment, the travel time of all the links in the same five minute logtime will be summed, per direction. The final dataset for analysis contains the following variables:
 
 ```{r}
 # Calculate total links travel time per logtime and direction
@@ -1149,8 +1213,8 @@ links_times %>%
                          "Time of the day in hour:minute:seconds of the measurement",
                          "The hour of the measurement",
                          "Whether the measurement occurrs during rush hour.
-                          Morning rush hour occurrs between 6am and 10am,
-                          evening rush hour occurrs between 3pm and 7pm,
+                          Morning rush hour occurrs between 6:30am and 10am,
+                          evening rush hour occurrs between 3:30pm and 7pm,
                           neither otherwise",
                          "The direction of travel",
                          "The total travel time across the segment")) %>% 
@@ -1158,25 +1222,9 @@ links_times %>%
   kable_styling(full_width = FALSE)
 ```
 
-The distribution of the motor vehicle travel times per direction during the rush hours appear as follows:
-
-```{r total-times, fig.cap="Vehicle travel times behave as expected"}
-links_times %>% 
-  filter(rush != "Neither") %>%
-  ggplot(aes(links_time/60, fill = direction)) +
-  geom_density(alpha = 0.4) +
-  scale_x_continuous(labels = label_comma(), limits = c(min(links_times$links_time/60),25)) +
-  scale_y_continuous(labels = label_comma()) +
-  labs(x = "Vehicle Travel Time (Minutes)",
-       fill = "Direction",
-       title = "Vechile Travel Time Distributions by Rush Hour") +
-  facet_wrap(vars(rush)) +
-  theme_bw()
-```
-
-Figure \@ref(fig:total-times) shows the vehicles travel times behave as expected in that northbound travel time is longer in the morning, while southbound travel is longer in the evening. However, it should be noted that the difference in the travel times between both directions is much greater during the evening than it is during the morning, exhibiting a similar behaviour to bus travel times seen in figure \@ref(fig:trip-times-rush).
-
 With all the data now complete, the analysis between the two travel times is ready to be performed.
+
+<br>
 
 # Analysis
 
@@ -1207,7 +1255,17 @@ travel_times_southrd_piv %>%
   theme_bw()
 ```
 
-Figure \@ref(fig:bus-vehicles-time) shows that for northbound travel to the city, vehicle travel time largely remains the same during both periods of rush hour, while bus travel time actually increases in the evening, a surprising result. While for southbound travel away from the city, both travel times increase as expected. The bus travel times are generally slower than vehicle travel times, and both types exhibit general patterns overall.
+<br>
+
+From figure \@ref(fig:bus-vehicles-time) we learn the following:
+
+-   For northbound travel to the city, vehicle travel time largely remains the same during both periods of rush hour, while bus travel time actually increases in the evening, a surprising result
+
+-   For southbound travel away from the city, both travel times in the evening increase as expected and are more varied than the travel times in the morning
+
+-   The bus travel times are generally slower than vehicle travel times as expected, and both types exhibit similar patterns overall
+
+<br>
 
 ```{r nb-calendar, fig.height=8, fig.width=9, fig.cap="Northbound bus travel times are slower than vehicle travel times. Both exhibit similar patterns"}
 # Direction 1 calendar plot
@@ -1235,6 +1293,8 @@ travel_times_piv_dir1 %>%
     legend.text = element_text(size = 10))
 ```
 
+<br>
+
 ```{r sb-calendar, fig.height=8, fig.width=9, fig.cap="Southbound bus travel times are slower than vehicle travel times. Both exhibit similar patterns"}
 # Direction 2 calendar plot
 travel_times_piv_dir2 <- travel_times_southrd_piv %>% 
@@ -1261,9 +1321,13 @@ travel_times_piv_dir2 %>%
     legend.text = element_text(size = 10))
 ```
 
+<br>
+
 Both figures \@ref(fig:nb-calendar) and \@ref(fig:sb-calendar) show that the travel times from both types generally follow a similar pattern, this indicates the data from both data sets are valid, as we would not expect to see very different patterns. Buses are almost always slower than vehicles, as buses need to load and unload passengers at the various bus stops along the road, in addition to them accelerating at a slower rate since they are heavy vehicles. We also notice that towards the end of the day in both directions, the travel times seem to level off at a low value, this is likely due to less traffic being present on the road in the evening time, leading to a faster traversal through the segment, with only constant factors affecting the travel time such as the speed limit and traffic lights.
 
 To gain a clearer picture of the patterns and relationship throughout an average day, the travel times within 30 minute aggregates of the same time frame will be averaged across all the days. For example, for each travel type, all the measures occurring between 12:00 and 12:30 across all the days will be averaged, then plotted.
+
+<br>
 
 ```{r avg-pattern, fig.cap="Average travel time patterns by vehicle and direction. Peak times are highlighted"}
 # Average total links time in each 30 minute bin
@@ -1322,9 +1386,13 @@ labs(x = "Time (Hour)",
 theme_bw()
 ```
 
-Figure \@ref(fig:times-scatter) shows the average pattern of travel times across the day, by direction and type. The morning and evening rush hours have been highlighted as they are the parts of the day worth of examination. Analyzing northbound travel towards the city, both rush hour times display a similar level of travel time for both types, and the travel time in the rush hours are not much greater than non-rush hour times. This is an unexpected result as it is expected that travel times northbound towards the city would be higher in the morning rush hour. Southbound travel away from the city, however, follows expectations as the travel time for both types dramatically increases in the evening rush hour as workers leave the city.
+<br>
+
+Figure \@ref(fig:avg-pattern) shows the average pattern of travel times across the day, by direction and type. The morning and evening rush hours have been highlighted as they are the parts of the day of interest. Analyzing northbound travel towards the city, both rush hour times display a similar level of travel time for both types, and the travel time in the rush hours are not much greater than non-rush hour times. This is an unexpected result as it is expected that travel times northbound towards the city would be higher in the morning rush hour. Southbound travel away from the city, however, follows expectations as the travel time for both types dramatically increases in the evening rush hour as workers leave the city.
 
 A scatter plot of the travel times will be examined:
+
+<br>
 
 ```{r times-scatter, fig.cap="A positive relationship exists between both travel times for both directions during peak times"}
 # Scatter plots
@@ -1341,9 +1409,11 @@ travel_times_southrd %>%
   theme_bw()
 ```
 
+<br>
+
 Figure \@ref(fig:times-scatter) shows that a positive relationship exists between the travel times, more so for the southbound direction in the evening.
 
-The correlations between the travel times are:
+The correlation figures between the travel times are:
 
 ```{r general-corr}
 travel_times_southrd %>% 
@@ -1356,23 +1426,25 @@ travel_times_southrd %>%
   kable_styling(full_width = FALSE)
 ```
 
-Table \@ref(tab:general-corr) shows that the travel times between buses and vehicles are high correlated in the morning northbound towards the city, and in the evening southbound away from the city.
+Table \@ref(tab:general-corr) shows that the travel times between buses and vehicles are highly correlated in the morning northbound towards the city, and in the evening southbound away from the city.
+
+<br>
 
 ## Travel Times Variation Analysis
 
-The goal of the analysis to ascertain the extent of the relationship between the variations in the motor vehicle travel times and the variations in the bus trip travel times, the variation is in reference to travel times during the same time frame across the entire period. In other words, if the vehicle travel time varies by a certain level relative to the usual travel time during the same time frame, can we observe a reflection of this variation in the bus travel time? If so, by how much?
+The goal of the analysis is to ascertain the extent of the relationship between the variations in the motor vehicle travel times and the variations in the bus trip travel times, the variation is in reference to travel times during the same time frame across the entire period. In other words, if the vehicle travel time varies by a certain level relative to the usual travel time during the same time frame, can we observe a reflection of this variation in the bus travel time? If so, by how much?
 
-In order to assess the variation, the travel times will be standardized. The function `standardiser` is created which separately standardizes both the bus travel times and vehicle travel times according to the total data in the entire period based on either:
+In order to assess the variation, the travel times will be standardized. The function `standardiser` is created which separately standardizes both the bus travel times and the vehicle travel times according to the total data in the entire period based on either:
 
-- the five minute time frame. For example, a bus/vehicle travel time on 2022-03-01 7:00am would be standardized against all the other travel times that occur on 7:00am in the period
+-   the five minute time frame. For example, a bus/vehicle travel time on 2022-03-01 between 7am and 7:05am would be standardized against all the other travel times that occur between 7am and 7:05am in the period
 
-- the hour of travel. For example, a bus/vehicle travel time that occurs on 2022-03-01 between 7am and 8am would be standardized against all the other bus trips in the period that occur during that hour
+-   the hour of travel. For example, a bus/vehicle travel time that occurs on 2022-03-01 between 7am and 8am would be standardized against all the other bus trips in the period that occur between 7am and 8am
 
-- the rush hour of travel. For example, a bus/vehicle travel time that occurs on 2022-03-01 during the morning rush hour would be standardized against all the other bus trips in the period that occur during morning rush hour
+-   the rush hour of travel. For example, a bus/vehicle travel time that occurs on 2022-03-01 during the morning rush hour would be standardized against all the other bus trips in the period that occur during the morning rush hour
 
-These options are provided to the function as an argument ("time", "hour", "rush"). As the time frame widens, more data is available for standardization. This is why in addition to standardizing the data, the `standardiser` function also stores the total number of data points present in each time frame according to the method chosen. The function also removes observations greater than three standard deviations away as these are considered outliers that can affect the analysis.
+These options are provided to the function as an argument (time, hour, rush). As the time frame widens, more data is available for standardization, but the standardization takes a wider time range, leading to bias. This is why in addition to standardizing the data, the `standardiser` function also stores the total number of data points present in each time frame according to the method chosen. The function also removes observations greater than three standard deviations away as these are considered outliers that can affect the analysis.
 
-Ideally, the travel times would be standardized according to the same five minute time frame across the entire period as this would provide the highest accuracy. However, as the bus trips per five minute time frame were averaged into one five minute travel time, and we are analyzing only one month of data containing 21 working days, there is not enough travel times to accomplish this, since there would be a maximum of 21 data points per five minute time frame used for standardization. Instead, the default standardization parameter is by hour, which provides a much greater number of data points.
+Ideally, the travel times would be standardized according to the same five minute time frame across the entire period as this would provide the highest accuracy. However, as the bus trips per five minute time frame were averaged into one five minute travel time, and we are analyzing only one month of data containing 21 working days, there is not enough travel times to accomplish this, since there would be a maximum of 21 data points per five minute time frame used for standardization. Instead, the default standardization parameter is by hour, which provides a much greater number of data points at the cost of some bias.
 
 ```{r}
 standardiser <- function(basis = hour) {
@@ -1410,9 +1482,11 @@ standardiser <- function(basis = hour) {
 standardiser()
 ```
 
-With the bus and vehicle travel times standardized, we can now examine the relationship between the travel times with respect to variation. If the vehicle travel time deviates from the average, do we observe a similar deviation by the bus travel time?
+With the bus and vehicle travel times standardized, we can now examine the relationship between the travel times with respect to variation. If the vehicle travel time deviates from the average relative to the time of day, do we observe a similar deviation by the bus travel time?
 
-Plots of the standardized travel times are shown below: 
+Plots of the standardized travel times are shown below:
+
+<br>
 
 ```{r nb-std-calendar, fig.height=8, fig.width=9, fig.cap="Northbound morning travel time variations are similar"}
 # Morning Northbound
@@ -1442,6 +1516,8 @@ travel_times_std_piv_NB_morn %>%
     legend.text = element_text(size = 10))
 ```
 
+<br>
+
 ```{r sb-std-calendar, fig.height=8, fig.width=9, fig.cap="Southbound evening travel time variations are similar"}
 # Evening Southbound
 travel_times_std_SB_eve <- travel_times_southrd_std %>% 
@@ -1470,7 +1546,13 @@ travel_times_std_piv_SB_eve %>%
     legend.text = element_text(size = 10))
 ```
 
-Figure \@ref(fig:nb-std-calendar) and figure \@ref(fig:sb-std-calendar) show that variations in vehicle travel times are in fact closely matched by variations in bus travel times, especially during the morning and northbound towards the city, where the variations also exist in greater magnitudes.
+<br>
+
+Figure \@ref(fig:nb-std-calendar) and figure \@ref(fig:sb-std-calendar) show that variations in vehicle travel times are in fact closely matched by variations in bus travel times.
+
+The distribution of the standardized travel times are shown below:
+
+<br>
 
 ```{r std-time-dist, fig.cap="Greater variation is present in the northbound morning travel times than southbound evening travel times"}
 # Travel time distributions
@@ -1485,7 +1567,11 @@ travel_times_southrd_std_piv %>%
   theme_bw()
 ```
 
-Figure \@ref(fig:std-time-dist) shows that travel times within the same time period have greater variation for both types in the morning towards the city, while the travel times within the same time period in the evening away from the from show much less variation, especially vehicles. The variations here are not to be confused with the variations across the entire rush time across the entire period as shown in figure \@ref(fig:bus-vehicles-time). As a reminder, the standardization in the plot above is performed relative to travel times in the same hour across the entire period, and is therefore more specific.
+<br>
+
+Figure \@ref(fig:std-time-dist) shows that travel times within the same time period have relatively greater variation for both types in the morning towards the city, while the travel times within the same time period in the evening away from the city show much less variation, especially vehicles. The variations here are not to be confused with the variations across the entire rush time across the entire period as shown in figure \@ref(fig:bus-vehicles-time). As a reminder, the standardization in the plot above is performed relative to travel times in the same hour across the entire period, and is therefore more specific.
+
+<br>
 
 ```{r std-scatter, fig.cap="A positive relationship exists between both travel times for both directions during peak times"}
 travel_times_southrd_std %>% 
@@ -1499,9 +1585,11 @@ travel_times_southrd_std %>%
   theme_bw()
 ```
 
-Figure \@ref(fig:std-scatter) shows that the standardized travel times are particulary correlated in the evening southbound away from the city.
+<br>
 
-The correlations between the standardized travel times are :
+Figure \@ref(fig:std-scatter) shows that the standardized travel times are particularly correlated in the evening southbound away from the city.
+
+The correlation figures between the standardized travel times are :
 
 ```{r std-corr}
 # Peak times and direction correlation
@@ -1518,31 +1606,7 @@ travel_times_southrd_std %>%
 
 Table \@ref(tab:std-corr) shows that strong correlation exists between the standardized travel times during the evening southbound away from the city.
 
-The following plot increases the granularity of the correlation to a per hour figure:
-
-```{r hourly-corr, fig.cap="High correlation is more uniform in the evening southbound"}
-# Hourly correlation
-travel_times_std_hr_cor <- travel_times_southrd_std %>%
-  filter(rush != "Neither") %>%
-  group_by(hour, rush, direction) %>% 
-  summarise(
-    correlation = cor(bus_time_std, links_time_std),
-    sample_size = n()) %>% 
-  ungroup() %>%
-  na.omit()
-
-travel_times_std_hr_cor %>% 
-  ggplot(aes(hour, correlation, label = round(correlation, 2))) +
-  geom_line(color = "red") +
-  geom_label(color = "blue") +
-  facet_grid(vars(direction), vars(rush), scales = "free_x") +
-  labs(x = "Hour",
-       y = "Correlation",
-       title = "Correlation per Hour per Direction") +
-  theme_bw()
-```
-
-Figure \@ref(fig:hourly-corr) shows that high correlation exists in the morning northbound towards the city between 7am and 9am, while in the evening southbound away from the city, high correlation exists throughout the rush hour and peaking betwen 6pm and 7pm.
+<br>
 
 # Marion Road
 
@@ -1788,7 +1852,9 @@ travel_times_marionrd_piv <- travel_times_marionrd %>%
   mutate(type = recode(type, bus_time = "Bus", links_time = "Vehicle"))
 ```
 
-```{r}
+<br>
+
+```{r marion-bus-vehicles-time, fig.cap="Travel time distributions are similar across rush hours and directions"}
 travel_times_marionrd_piv %>% 
   filter(rush != "Neither") %>% 
   ggplot(aes(travel_time/60, fill = type)) +
@@ -1799,7 +1865,13 @@ travel_times_marionrd_piv %>%
   theme_bw()
 ```
 
-```{r}
+<br>
+
+From figure \@ref(fig:marion-bus-vehicles-time) we learn the travel times distributions are similar across rush hours and directions. This is in comparison to the South Road distributions in figure \@ref(fig:bus-vehicles-time) where the travel times of both types are varied between rush hours and directions.
+
+<br>
+
+```{r marion-nb-calendar, fig.height=8, fig.width=9, fig.cap="Northbound bus travel times are slower than vehicle travel times. Both exhibit similar patterns"}
 # Direction 1 calendar plot
 travel_times_piv_dir1 <- travel_times_marionrd_piv %>% 
   filter(direction == directions[1])
@@ -1825,7 +1897,9 @@ travel_times_piv_dir1 %>%
     legend.text = element_text(size = 10))
 ```
 
-```{r}
+<br>
+
+```{r marion-sb-calendar, fig.height=8, fig.width=9, fig.cap="Southbound bus travel times are slower than vehicle travel times. Both exhibit similar patterns"}
 # Direction 2 calendar plot
 travel_times_piv_dir2 <- travel_times_marionrd_piv %>% 
   filter(direction == directions[2])
@@ -1851,7 +1925,13 @@ travel_times_piv_dir2 %>%
     legend.text = element_text(size = 10))
 ```
 
-```{r}
+<br>
+
+Figures \@ref(fig:marion-nb-calendar) and \@ref(fig:marion-sb-calendar) show that both travel types follow a similar time pattern. However, the difference in travel times between the types is much wider than that exhibited by South Road per figures \@ref(fig:nb-calendar) and \@ref(fig:sb-calendar).
+
+<br>
+
+```{r marion-avg-pattern, fig.cap="Average travel time patterns by vehicle and direction. Peak times are highlighted"}
 # Average total links time in each 30 minute bin
 links_30min <- link_stats %>%
   group_by(logtime, direction) %>%
@@ -1908,7 +1988,13 @@ labs(x = "Time (Hour)",
 theme_bw()
 ```
 
-```{r}
+<br>
+
+Figures \@ref(fig:marion-avg-pattern) shows that both travel types display a small uptick in travel time towards the city during the morning rush hour. In the southbound direction vehicles have a slightly larger time during the evening, while buses exhibit an increase in travel time during both rush hours. Figure \@ref(fig:avg-pattern) pertaining to South Road show that the southbound direction in particular has a large increase in both travel times during the evening rush hour.
+
+<br>
+
+```{r marion-times-scatter, fig.cap="A positive relationship exists between both travel times during the morning towards the city"}
 # Scatter plots
 travel_times_marionrd %>% 
   filter(rush != "Neither") %>% 
@@ -1923,7 +2009,13 @@ travel_times_marionrd %>%
   theme_bw()
 ```
 
-```{r}
+<br>
+
+Figure \@ref(fig:marion-times-scatter) shows that a positive relationship exists both travel types during the morning rush hour towards the city. While a relationship does not seem present during the evening rush hour away from the city.
+
+<br>
+
+```{r marion-general-corr}
 travel_times_marionrd %>% 
   filter(rush != "Neither") %>% 
   group_by(rush, direction) %>% 
@@ -1933,6 +2025,10 @@ travel_times_marionrd %>%
   kable(caption = "Correlation between travel times per direction per rush hour") %>% 
   kable_styling(full_width = FALSE)
 ```
+
+<br>
+
+\@ref(tab:marion-general-corr) displays the correlation figures between the travel times. Only the travel times during the morning towards the city shows a relatively strong correlation.
 
 ```{r}
 standardiser <- function(basis = hour) {
@@ -1970,7 +2066,9 @@ standardiser <- function(basis = hour) {
 standardiser()
 ```
 
-```{r}
+<br>
+
+```{r marion-nb-std-calendar, fig.height=8, fig.width=9, fig.cap="Northbound morning travel time variations seem moderately correlated"}
 # Morning Northbound
 travel_times_std_NB_morn <- travel_times_marionrd_std %>% 
   filter(direction == "NB",
@@ -1998,7 +2096,9 @@ travel_times_std_piv_NB_morn %>%
     legend.text = element_text(size = 10))
 ```
 
-```{r}
+<br>
+
+```{r marion-sb-std-calendar, fig.height=8, fig.width=9, fig.cap="Southbound evening travel time variations are not similar"}
 # Evening Southbound
 travel_times_std_SB_eve <- travel_times_marionrd_std %>% 
   filter(direction == "SB",
@@ -2026,7 +2126,13 @@ travel_times_std_piv_SB_eve %>%
     legend.text = element_text(size = 10))
 ```
 
-```{r}
+<br>
+
+Figures \@ref(fig:marion-nb-std-calendar) and \@ref(fig:marion-sb-std-calendar) show that the variations in vehicle travel times are not closely matched by variations in bus travel times. This is in contrast to South Road where figures \@ref(fig:nb-std-calendar) and \@ref(fig:sb-std-calendar) show a close relationship between the variations in time of both travel types.
+
+<br>
+
+```{r marion-std-time-dist, fig.cap="The extent of the variability in travel times is similar across the rush hours and travel directions"}
 # Travel time distributions
 travel_times_marionrd_std_piv %>% 
   filter(rush != "Neither") %>% 
@@ -2039,7 +2145,13 @@ travel_times_marionrd_std_piv %>%
   theme_bw()
 ```
 
-```{r}
+<br>
+
+Figure \@ref(fig:marion-std-time-dist) shows that travel times within the same time period generally the same level of variation across the rush hour periods and travel directions.
+
+<br>
+
+```{r marion-std-scatter, fig.cap="No strong relationships are present"}
 travel_times_marionrd_std %>% 
   filter(rush != "Neither") %>% 
   ggplot(aes(links_time_std, bus_time_std)) +
@@ -2051,7 +2163,9 @@ travel_times_marionrd_std %>%
   theme_bw()
 ```
 
-```{r}
+<br>
+
+```{r marion-std-corr}
 # Peak times and direction correlation
 travel_times_marionrd_std %>% 
   filter(rush != "Neither") %>% 
@@ -2064,88 +2178,114 @@ travel_times_marionrd_std %>%
   kable_styling(full_width = FALSE)
 ```
 
-```{r}
-# Hourly correlation
-travel_times_std_hr_cor <- travel_times_marionrd_std %>%
-  filter(rush != "Neither") %>%
-  group_by(hour, rush, direction) %>% 
-  summarise(
-    correlation = cor(bus_time_std, links_time_std),
-    sample_size = n()) %>% 
-  ungroup() %>%
-  na.omit()
+<br>
 
-travel_times_std_hr_cor %>% 
-  ggplot(aes(hour, correlation, label = round(correlation, 2))) +
-  geom_line(color = "red") +
-  geom_label(color = "blue") +
-  facet_grid(vars(direction), vars(rush), scales = "free_x") +
-  labs(x = "Hour",
-       y = "Correlation",
-       title = "Correlation per Hour per Direction") +
-  theme_bw()
-```
+Figure \@ref(fig:marion-std-scatter) and table \@ref(tab:marion-std-corr) show that slight relationship exists between the standardized travel times during the morning rush hour towards the city, and no relationship exists otherwise. South Road, on the other hand, displays a positive relationship between the standardized travel times during the morning towards the city and during the evening away from the city, as shown in \@ref(fig:std-scatter) and \@ref(tab:std-corr).
 
+<br>
 
+# Conclusion, Findings, and Future Directions
 
+The report examined the relationship between the bus travel times and motor vehicle travel times, and the robustness of the bus network to road congestion, particularly during rush hour periods. A major takeaway from the project was the recognition of the extensive workload incurred in cleaning and wrangling the data, a common theme in many data analysis projects, as well as in creating the methodology to perform the analysis. A couple of limitations exist in the data The first is that the trip updates dataset provides the predicted arrival times of the bus stops, whereas the actual arrival times can provide greater accuracy. Another limitation is that the period of the analysis is constrained to one month only due to file size limitations, where a longer time frame can provide greater certainty in the results.
 
+An additional objective of the project was to create the analysis code in such a way as to allow reproducibility with minimal manual input across different road segments and time periods; in fact, the analysis was conducted on an additional road in Adelaide (Marion Road) to enable comparison with South Road and to highlight any possible enhancements to the code. The result of that analysis was not included in this report due to report length limitations, however a modified report that includes and compares both roads was created and provided to the client.
 
+The results from the analysis on South Road show the following:
 
+-   The absolute travel times in the evening rush hour away from the city are much greater and more varied than those in the morning towards the city
 
+-   The standardization of the the travel times with respect to the time of day indicates that while evening travel times from the city are greater in absolute terms, they are consistently so. Whereas the variation of the morning travel time towards the city has a wider range while taking less time in absolute terms
 
+-   The evening southbound correlation is strong between the standardized travel times, however the variations are relatively small, therefore it is difficult to infer the bus transportation robustness to congestion as larger variation magnitudes would have to be observed and examined
 
+-   The morning standardized travel times towards the city are more varied and the correlation is lower, implying the bus transportation network is relatively more robust to congestion than the evening bus travel from the city
 
+The results from the analysis on Marion Road show the following:
 
+-   While the correlation between the standardized travel times of both types is low during the rush hours, a conclusion about the resilience of the bus network to road congestion cannot be made, since the absolute travel times of motor vehicles do not vary greatly and remain relatively stable across the day and across the period.
 
+The differing results between both roads may be a consequence of the fact that South Road is much more widely used by commuters to travel to and from the city, hence any conclusion regarding bus network resilience to congestion on South Road carries more weight for decision making.
 
+Possible future directions stemming from this analysis include:
+
+-   performing the analysis on more roads to create a ranking of bus network robustness to road congestion. This can result in a prioritization list of resource allocation to enhance the bus network
+
+-   conducting the analysis on previous periods to provide an indication of the rate of decline of bus network resilience to congestion
+
+-   identifying the factors that can affect bus travel times
+
+-   creating a predictive model for bus travel times using the identified features
+
+<br>
 
 # Appendix
 
-## Trip Updates SQL Query
+## Bus Trips Updates Errors
 
-![](images/updates_SQL.png)
-
-## Updates Errors
-
-1. All stops for the trip have very large, or very small, similar delays. This means that the entire trip is very delayed or very early. This is most likely due to retrospectively entering the information at a later time. By examining \@ref(fig:unedited-to-stops), the threshold was set at 2400 seconds (40 minutes) delay and 900 seconds (15 minutes) early. These trips were removed to prevent incorrect analysis since they will be in the wrong time period
+1.  All stops for the trip have very large, or very small, similar delays. This means that the entire trip is very delayed or very early. This is most likely due to errors when retrospectively entering the information at a later time. By examining \@ref(fig:unedited-to-stops), the threshold was set at 2,400 seconds (40 minutes) delay and 900 seconds (15 minutes) early. These trips were removed to prevent incorrect analysis since they will be in the wrong time period. These trips were removed as they will be in the wrong timeframe when analyzed against the vehicle travel time.
 
 ![](images/all_large_delays.png)
 
-These trips were removed as they will be in the wrong timeframe when analyzing against the vehicle travel time.
+<br>
 
-2. A stop has a sudden large predicted delay resulting in a much larger arrival time than that of the following stop. These stops were removed
+2.  A stop has a sudden large predicted delay resulting in a much larger arrival time than that of the following stop. These stops were removed
 
 ![](images/suddent_large_delay.png)
 
-3. A stop has an arrival time later than any following stops and the timestamp is earlier than any following stops. These stops were removed to ensure the most recent timestamp is preferred when discrepancy occurs
+<br>
+
+3.  A stop has an arrival time later than any following stops and the timestamp is earlier than any following stops. These stops were removed to ensure the most recent timestamp is preferred when discrepancy occurs
 
 ![](images/arrive_later_stamp_earlier.png)
 
-4. A stop's arrival time is earlier than previous stops and the timestamp is older
+<br>
+
+4.  A stop's arrival time is earlier than previous stops and the timestamp is older
 
 ![](images/arrive_earlier_stamp_older.png)
 
-5. A stop's arrival time is earlier than prior stops but they both have the same timestamp. In this case it is not possible to know which is correct. We assume the stop with the earlier stop sequence is correct since it is closer to the bus when the update is made
+<br>
+
+5.  A stop's arrival time is earlier than prior stops but they both have the same timestamp. In this case it is not possible to know which is correct. We assume the stop with the earlier stop sequence is correct since it is closer to the bus when the update is made
 
 ![](images/same_timestamp_still_error.png)
 
-6. Two consecutive stops have identical arrival times but with different timestamps. The stop with the older timestamp was removed
+<br>
+
+6.  Two consecutive stops have identical arrival times but with different timestamps. The stop with the older timestamp was removed
 
 ![](images/same_arrival_different_stamps.png)
 
-7. Two consecutive stops have identical arrival times and timestamps. Remove the stop with a higher stop sequence
+<br>
+
+7.  Two consecutive stops have identical arrival times and timestamps. Remove the stop with a higher stop sequence
 
 ![](images/same_arrival_same_stamp.png)
 
-8. Many stops on the same trip have the same arrival time likely due to retrospective entry error. These trips were removed
+<br>
 
-## Link Statistics SQL Query
+8.  Many stops on the same trip have the same arrival time likely due to retrospective entry error. These trips were removed
 
-![](images/links_SQL.png)
-
-
-
+<br>
 
 # References
 
+-   Cheng J, Karambelkar B, Xie Y (2022). *leaflet: Create Interactive Web Maps with the JavaScript 'Leaflet' Library*. R package version 2.1.1, <https://CRAN.R-project.org/package=leaflet>
+
+-   Firke S (2021). *janitor: Simple Tools for Examining and Cleaning Dirty Data*. R package version 2.1.0, <https://CRAN.R-project.org/package=janitor>
+
+-   Garrett Grolemund, Hadley Wickham (2011). Dates and Times Made Easy with lubridate. Journal of Statistical Software, 40(3), 1-25. URL <https://www.jstatsoft.org/v40/i03/>
+
 -   Infrastructure Australia (2019). Urban Transport Crowding and Congestion. The Australian Infrastructure Audit 2019 Supplementary report. Retrieved from <https://www.infrastructureaustralia.gov.au/sites/default/files/2019-08/Urban%20Transport%20Crowding%20and%20Congestion.pdf>
+
+-   Muller K (2020). *here: A Simpler Way to Find Your Files*. R package version 1.0.1, <https://CRAN.R-project.org/package=here>
+
+-   Muller K (2022). *hms: Pretty Time of Day*. R package version 1.1.2, <https://CRAN.R-project.org/package=hms>
+
+-   R Core Team (2022). R: A language and environment for statistical computing. R Foundation for Statistical Computing, Vienna, Austria. URL <https://www.R-project.org/>
+
+-   Wickham H, Seidel D (2022). *scales: Scale Functions for Visualization*. R package version 1.2.1, <https://CRAN.R-project.org/package=scales>
+
+-   Wickham H, Averick M, Bryan J, Chang W, McGowan LD, Fran\<U+00E7\>ois R, Grolemund G, Hayes A, Henry L, Hester J, Kuhn M, Pedersen TL, Miller E, Bache SM, M\<U+00FC\>ller K, Ooms J, Robinson D, Seidel DP, Spinu V, Takahashi K, Vaughan D, Wilke C, Woo K, Yutani H (2019). "Welcome to the tidyverse." *Journal of Open Source Software*, *4*(43), 1686. <doi:10.21105/joss.01686> <https://doi.org/10.21105/joss.01686>
+
+-   Zhu H (2021). *kableExtra: Construct Complex Table with 'kable' and Pipe Syntax*. R package version 1.3.4, <https://CRAN.R-project.org/package=kableExtra>
