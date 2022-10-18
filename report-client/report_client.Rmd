@@ -5,6 +5,9 @@ subtitle: "Lynxx Asia Pacific"
 date: "October 2022"
 output:
   bookdown::html_document2:
+    toc: true
+    toc_float:
+      collapsed: false
     theme: cerulean
 ---
 
@@ -1602,7 +1605,7 @@ Table \@ref(tab:std-corr) shows that strong correlation exists between the stand
 
 <br>
 
-# Marion Road
+## Marion Road
 
 <br>
 
